@@ -397,9 +397,28 @@ export async function recommendCommand(options: {
     results = newCandidates.slice(0, 20);
   }
 
-  const selected = await interactiveSelect(results);
+  // Step 4: Pre-fetch content — only show skills that are actually installable
+  const fetchSpinner = ora('Verifying skill availability...').start();
+  const contentMap = new Map<string, string>();
+  await Promise.all(results.map(async (rec) => {
+    const content = await fetchSkillContent(rec);
+    if (content) contentMap.set(rec.slug, content);
+  }));
+
+  const available = results.filter(r => contentMap.has(r.slug));
+  if (!available.length) {
+    fetchSpinner.fail('No installable skills found — content could not be fetched.');
+    return;
+  }
+  const unavailableCount = results.length - available.length;
+  fetchSpinner.succeed(
+    `${available.length} installable skill${available.length > 1 ? 's' : ''}` +
+    (unavailableCount > 0 ? chalk.dim(` (${unavailableCount} unavailable)`) : '')
+  );
+
+  const selected = await interactiveSelect(available);
   if (selected?.length) {
-    await installSkills(selected, platforms);
+    await installSkills(selected, platforms, contentMap);
   }
 }
 
@@ -562,19 +581,13 @@ async function fetchSkillContent(rec: SkillResult): Promise<string | null> {
   return null;
 }
 
-async function installSkills(recs: SkillResult[], platforms: Platform[]): Promise<void> {
+async function installSkills(recs: SkillResult[], platforms: Platform[], contentMap: Map<string, string>): Promise<void> {
   const spinner = ora(`Installing ${recs.length} skill${recs.length > 1 ? 's' : ''}...`).start();
-
   const installed: string[] = [];
-  const warnings: string[] = [];
 
   for (const rec of recs) {
-    const content = await fetchSkillContent(rec);
-
-    if (!content) {
-      warnings.push(`No content available for ${rec.name}`);
-      continue;
-    }
+    const content = contentMap.get(rec.slug);
+    if (!content) continue;
 
     for (const platform of platforms) {
       const skillPath = getSkillPath(platform, rec.slug);
@@ -592,10 +605,6 @@ async function installSkills(recs: SkillResult[], platforms: Platform[]): Promis
     }
   } else {
     spinner.fail('No skills were installed');
-  }
-
-  for (const w of warnings) {
-    console.log(chalk.yellow(`  ⚠ ${w}`));
   }
 
   console.log('');
