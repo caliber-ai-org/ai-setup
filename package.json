@@ -1,7 +1,7 @@
 {
   "name": "@rely-ai/caliber",
   "version": "0.4.4",
-  "description": "Open-source CLI for configuring coding agent environments (CLAUDE.md, .cursorrules, skills). Bring your own LLM.",
+  "description": "Analyze your codebase and generate optimized AI agent configs (CLAUDE.md, .cursorrules, skills) — no API key needed",
   "type": "module",
   "bin": {
     "caliber": "./dist/bin.js"
@@ -34,16 +34,16 @@
   "license": "MIT",
   "author": "Rely AI",
   "keywords": [
-    "caliber",
-    "cli",
-    "coding-agent",
-    "claude",
+    "ai-agent",
     "claude-code",
-    "cursor",
-    "ai",
-    "developer-tools",
     "claude-md",
+    "cursor",
     "cursorrules",
+    "coding-agent",
+    "developer-tools",
+    "ai-config",
+    "skills",
+    "cli",
     "open-source"
   ],
   "engines": {

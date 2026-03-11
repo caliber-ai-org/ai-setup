@@ -2,8 +2,8 @@
 
 ## How users run Caliber
 
-- **Global install:** `npm install -g @caliber-ai/caliber` then `caliber init` or `caliber config`
-- **npx (no install):** `npx @caliber-ai/caliber init` or `npx @caliber-ai/caliber config`
+- **Global install:** `npm install -g @rely-ai/caliber` then `caliber init` or `caliber config`
+- **npx (no install):** `npx @rely-ai/caliber init` or `npx @rely-ai/caliber config`
 
 ---
 
