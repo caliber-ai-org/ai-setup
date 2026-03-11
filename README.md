@@ -39,7 +39,7 @@ If you already have these files, Caliber audits them against your actual codebas
 | `caliber update` | Re-analyze and regenerate (alias: `regenerate`, `regen`) |
 | `caliber config` | Configure LLM provider, API key, and model |
 | `caliber refresh` | Update docs based on recent git changes |
-| `caliber score` | Score your config quality (deterministic, no LLM) |
+| `caliber score` | Score your config quality (deterministic, no LLM). Supports `--agent claude\|cursor\|both` |
 | `caliber recommend` | Discover skills from [skills.sh](https://skills.sh) |
 | `caliber undo` | Revert all changes made by Caliber |
 | `caliber status` | Show current setup status |
@@ -91,7 +91,21 @@ caliber init
 1. **Scan** — Analyzes your code, dependencies, file structure, and existing agent configs
 2. **Generate** — LLM creates config files tailored to your project
 3. **Review** — You accept, refine via chat, or decline the proposed changes
-4. **Apply** — Config files are written to your project with backups
+4. **Apply** — Config files are written to your project with backups, and a before/after score is displayed
+
+Caliber also auto-generates `AGENTS.md` and configures `.claude/settings.json` permissions during init.
+
+### Scoring
+
+Caliber includes a deterministic scoring system (no LLM needed) that evaluates your agent config across 6 categories: existence, quality, coverage, accuracy, freshness, and bonus. Scoring is target-aware — it only checks what's relevant to your chosen platform:
+
+```bash
+caliber score               # Auto-detect target from existing files
+caliber score --agent claude  # Score for Claude Code only
+caliber score --agent both    # Score for Claude Code + Cursor
+```
+
+During `caliber init`, a before/after score is displayed so you can see the improvement.
 
 ### Auto-refresh
 
