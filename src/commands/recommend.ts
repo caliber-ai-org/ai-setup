@@ -456,15 +456,23 @@ async function interactiveSelect(recs: SkillResult[]): Promise<SkillResult[] | n
 
   function render(): string {
     const lines: string[] = [];
+    const cols = process.stdout.columns || 80;
+    const nameWidth = Math.max(...recs.map(r => r.name.length), 4) + 2;
+    // prefix: "  > [x] " = 8 chars; score col: "100   " = 6 chars
+    const prefixWidth = 8;
+    const scoreWidth = 6;
+
     lines.push(chalk.bold('  Skills'));
     lines.push('');
 
     if (hasScores) {
-      lines.push(`  ${chalk.dim('Score'.padEnd(7))} ${chalk.dim('Name'.padEnd(28))} ${chalk.dim('Why')}`);
+      const header = ' '.repeat(prefixWidth) + chalk.dim('Score'.padEnd(scoreWidth)) + chalk.dim('Name'.padEnd(nameWidth)) + chalk.dim('Why');
+      lines.push(header);
     } else {
-      lines.push(`  ${chalk.dim('Name'.padEnd(30))} ${chalk.dim('Technology'.padEnd(18))} ${chalk.dim('Source')}`);
+      const header = ' '.repeat(prefixWidth) + chalk.dim('Name'.padEnd(nameWidth)) + chalk.dim('Technology'.padEnd(18)) + chalk.dim('Source');
+      lines.push(header);
     }
-    lines.push(chalk.dim('  ' + '─'.repeat(70)));
+    lines.push(chalk.dim('  ' + '─'.repeat(Math.min(cols - 4, 90))));
 
     for (let i = 0; i < recs.length; i++) {
       const rec = recs[i];
@@ -473,9 +481,10 @@ async function interactiveSelect(recs: SkillResult[]): Promise<SkillResult[] | n
 
       if (hasScores) {
         const scoreColor = rec.score >= 90 ? chalk.green : rec.score >= 70 ? chalk.yellow : chalk.dim;
-        lines.push(`  ${ptr} ${check} ${scoreColor(String(rec.score).padStart(3))}   ${rec.name.padEnd(26)} ${chalk.dim(rec.reason.slice(0, 40))}`);
+        const reasonMax = Math.max(cols - prefixWidth - scoreWidth - nameWidth - 2, 20);
+        lines.push(`  ${ptr} ${check} ${scoreColor(String(rec.score).padStart(3))}   ${rec.name.padEnd(nameWidth)}${chalk.dim(rec.reason.slice(0, reasonMax))}`);
       } else {
-        lines.push(`  ${ptr} ${check} ${rec.name.padEnd(28)} ${rec.detected_technology.padEnd(16)} ${chalk.dim(rec.source_url || '')}`);
+        lines.push(`  ${ptr} ${check} ${rec.name.padEnd(nameWidth)}${rec.detected_technology.padEnd(16)} ${chalk.dim(rec.source_url || '')}`);
       }
     }
 
@@ -631,21 +640,26 @@ async function installSkills(recs: SkillResult[], platforms: Platform[], content
 
 function printSkills(recs: SkillResult[]) {
   const hasScores = recs.some(r => r.score > 0);
+  const cols = process.stdout.columns || 80;
+  const nameWidth = Math.max(...recs.map(r => r.name.length), 4) + 2;
+  const scoreWidth = 6;
+  const prefixWidth = 2;
 
   console.log(chalk.bold('\n  Skills\n'));
 
   if (hasScores) {
-    console.log(`  ${chalk.dim('Score'.padEnd(7))} ${chalk.dim('Name'.padEnd(28))} ${chalk.dim('Why')}`);
+    console.log(' '.repeat(prefixWidth) + chalk.dim('Score'.padEnd(scoreWidth)) + chalk.dim('Name'.padEnd(nameWidth)) + chalk.dim('Why'));
   } else {
-    console.log(`  ${chalk.dim('Name'.padEnd(30))} ${chalk.dim('Technology'.padEnd(18))} ${chalk.dim('Source')}`);
+    console.log(' '.repeat(prefixWidth) + chalk.dim('Name'.padEnd(nameWidth)) + chalk.dim('Technology'.padEnd(18)) + chalk.dim('Source'));
   }
-  console.log(chalk.dim('  ' + '─'.repeat(70)));
+  console.log(chalk.dim('  ' + '─'.repeat(Math.min(cols - 4, 90))));
 
   for (const rec of recs) {
     if (hasScores) {
-      console.log(`  ${String(rec.score).padStart(3)}   ${rec.name.padEnd(26)} ${chalk.dim(rec.reason.slice(0, 50))}`);
+      const reasonMax = Math.max(cols - prefixWidth - scoreWidth - nameWidth - 2, 20);
+      console.log(`  ${String(rec.score).padStart(3)}   ${rec.name.padEnd(nameWidth)}${chalk.dim(rec.reason.slice(0, reasonMax))}`);
     } else {
-      console.log(`  ${rec.name.padEnd(28)} ${rec.detected_technology.padEnd(16)} ${chalk.dim(rec.source_url || '')}`);
+      console.log(`  ${rec.name.padEnd(nameWidth)}${rec.detected_technology.padEnd(16)} ${chalk.dim(rec.source_url || '')}`);
     }
   }
   console.log('');
