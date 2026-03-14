@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/social-preview.svg" alt="Caliber" width="640">
+  <img src="assets/social-preview.png" alt="Caliber" width="640">
 </p>
 
 <p align="center">
