@@ -23,7 +23,6 @@ import type { Check } from '../scoring/index.js';
 import { displayScoreSummary, displayScoreDelta } from '../scoring/display.js';
 import { readDismissedChecks, writeDismissedChecks } from '../scoring/dismissed.js';
 import type { DismissedCheck } from '../scoring/dismissed.js';
-import { discoverAndInstallMcps } from '../mcp/index.js';
 import { searchAndInstallSkills } from './recommend.js';
 import type { FailingCheck, PassingCheck } from '../ai/generate.js';
 
@@ -329,27 +328,6 @@ export async function initCommand(options: InitOptions) {
     writeSpinner.fail('Failed to write files');
     console.error(chalk.red(err instanceof Error ? err.message : 'Unknown error'));
     throw new Error('__exit__');
-  }
-
-  // Step 5: MCP Server Discovery
-  console.log(title.bold('\n  Step 5/6 — Enhance with MCP servers\n'));
-  console.log(chalk.dim('  MCP servers connect your AI agents to external tools and services'));
-  console.log(chalk.dim('  like databases, APIs, and platforms your project depends on.\n'));
-
-  if (fingerprint.tools.length > 0) {
-    try {
-      const mcpResult = await discoverAndInstallMcps(targetAgent, fingerprint, process.cwd());
-      if (mcpResult.installed > 0) {
-        console.log(chalk.bold(`\n  ${mcpResult.installed} MCP server${mcpResult.installed > 1 ? 's' : ''} configured`));
-        for (const name of mcpResult.names) {
-          console.log(`  ${chalk.green('✓')} ${name}`);
-        }
-      }
-    } catch (err) {
-      console.log(chalk.dim('  MCP discovery skipped: ' + (err instanceof Error ? err.message : 'unknown error')));
-    }
-  } else {
-    console.log(chalk.dim('  No external tools or services detected — skipping MCP discovery.\n'));
   }
 
   // Ensure permissions.allow exists in .claude/settings.json
