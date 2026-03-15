@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockSelect, mockWriteConfigFile, mockQuestion } = vi.hoisted(() => ({
+const { mockSelect, mockConfirm, mockWriteConfigFile, mockQuestion } = vi.hoisted(() => ({
   mockSelect: vi.fn(),
+  mockConfirm: vi.fn().mockResolvedValue(true),
   mockWriteConfigFile: vi.fn(),
   mockQuestion: vi.fn(),
 }));
 
 vi.mock('@inquirer/select', () => ({ default: mockSelect }));
+vi.mock('@inquirer/confirm', () => ({ default: mockConfirm }));
+vi.mock('../../llm/cursor-acp.js', () => ({ isCursorAgentAvailable: () => false }));
+vi.mock('../../llm/claude-cli.js', () => ({ isClaudeCliAvailable: () => false }));
 vi.mock('../../llm/config.js', () => ({
   writeConfigFile: (...args: unknown[]) => mockWriteConfigFile(...args),
   DEFAULT_MODELS: {

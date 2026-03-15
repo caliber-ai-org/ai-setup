@@ -1,8 +1,11 @@
 import chalk from 'chalk';
 import readline from 'readline';
 import select from '@inquirer/select';
+import confirm from '@inquirer/confirm';
 import { writeConfigFile, DEFAULT_MODELS } from '../llm/config.js';
 import type { ProviderType, LLMConfig } from '../llm/types.js';
+import { isCursorAgentAvailable } from '../llm/cursor-acp.js';
+import { isClaudeCliAvailable } from '../llm/claude-cli.js';
 
 function promptInput(question: string): Promise<string> {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -41,12 +44,28 @@ export async function runInteractiveProviderSetup(options?: {
   switch (provider) {
     case 'claude-cli': {
       config.model = 'default';
-      console.log(chalk.dim("  Run `claude` once and log in with your Pro/Max/Team account if you haven't."));
+      if (!isClaudeCliAvailable()) {
+        console.log(chalk.yellow('\n  Claude Code CLI not found.'));
+        console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('npm install -g @anthropic-ai/claude-code'));
+        console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'));
+        const proceed = await confirm({ message: 'Continue anyway?' });
+        if (!proceed) throw new Error('__exit__');
+      } else {
+        console.log(chalk.dim("  Run `claude` once and log in with your Pro/Max/Team account if you haven't."));
+      }
       break;
     }
     case 'cursor': {
       config.model = 'default';
-      console.log(chalk.dim("  Run `agent login` if you haven't, or set CURSOR_API_KEY."));
+      if (!isCursorAgentAvailable()) {
+        console.log(chalk.yellow('\n  Cursor Agent CLI not found.'));
+        console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('curl https://cursor.com/install -fsS | bash'));
+        console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' to authenticate.\n'));
+        const proceed = await confirm({ message: 'Continue anyway?' });
+        if (!proceed) throw new Error('__exit__');
+      } else {
+        console.log(chalk.dim("  Run `agent login` if you haven't, or set CURSOR_API_KEY."));
+      }
       break;
     }
     case 'anthropic': {
