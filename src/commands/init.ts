@@ -83,11 +83,10 @@ export async function initCommand(options: InitOptions) {
   console.log(chalk.dim('  2. Discover   Analyze your code, dependencies, and structure'));
   console.log(chalk.dim('  3. Generate   Create config files tailored to your project'));
   console.log(chalk.dim('  4. Review     Preview, refine, and apply the changes'));
-  console.log(chalk.dim('  5. Enhance    Discover MCP servers for your tools'));
-  console.log(chalk.dim('  6. Skills     Browse community skills for your stack\n'));
+  console.log(chalk.dim('  5. Skills     Browse community skills for your stack\n'));
 
   // Step 1: Connect LLM provider
-  console.log(title.bold('  Step 1/6 — Connect your LLM\n'));
+  console.log(title.bold('  Step 1/5 — Connect your LLM\n'));
   let config = loadConfig();
   if (!config) {
     console.log(chalk.dim('  No LLM provider set yet. Choose how to run Caliber:\n'));
@@ -125,7 +124,7 @@ export async function initCommand(options: InitOptions) {
   await validateModel({ fast: true });
 
   // Step 2: Discover project
-  console.log(title.bold('  Step 2/6 — Discover your project\n'));
+  console.log(title.bold('  Step 2/5 — Discover your project\n'));
   console.log(chalk.dim('  Learning about your languages, dependencies, structure, and existing configs.\n'));
   const spinner = ora('Analyzing project...').start();
   const fingerprint = await collectFingerprint(process.cwd());
@@ -137,7 +136,15 @@ export async function initCommand(options: InitOptions) {
 
   trackInitProjectDiscovered(fingerprint.languages.length, fingerprint.frameworks.length, fingerprint.fileTree.length);
   console.log(chalk.dim(`  Languages: ${fingerprint.languages.join(', ') || 'none detected'}`));
-  console.log(chalk.dim(`  Files: ${fingerprint.fileTree.length} found\n`));
+  console.log(chalk.dim(`  Files: ${fingerprint.fileTree.length} found`));
+  if (fingerprint.codeAnalysis) {
+    const ca = fingerprint.codeAnalysis;
+    const contextInfo = ca.truncated
+      ? `Context: ~${ca.includedTokens.toLocaleString()} tokens (${Math.round((ca.includedTokens / ca.totalProjectTokens) * 100)}% of ${ca.totalProjectTokens.toLocaleString()} total)`
+      : `Context: ~${ca.includedTokens.toLocaleString()} tokens`;
+    console.log(chalk.dim(`  ${contextInfo}`));
+  }
+  console.log('');
 
   if (report) {
     report.markStep('Fingerprint');
@@ -258,7 +265,7 @@ export async function initCommand(options: InitOptions) {
     currentScore = baselineScore.score;
 
     if (failingChecks.length > 0) {
-      console.log(title.bold('  Step 3/6 — Fine-tuning\n'));
+      console.log(title.bold('  Step 3/5 — Fine-tuning\n'));
       console.log(chalk.dim(`  Your setup scores ${baselineScore.score}/100 — fixing ${failingChecks.length} remaining issue${failingChecks.length === 1 ? '' : 's'}:\n`));
       for (const check of failingChecks) {
         console.log(chalk.dim(`    • ${check.name}`));
@@ -266,11 +273,11 @@ export async function initCommand(options: InitOptions) {
       console.log('');
     }
   } else if (hasExistingConfig) {
-    console.log(title.bold('  Step 3/6 — Improve your setup\n'));
+    console.log(title.bold('  Step 3/5 — Improve your setup\n'));
     console.log(chalk.dim('  Reviewing your existing configs against your codebase'));
     console.log(chalk.dim('  and preparing improvements.\n'));
   } else {
-    console.log(title.bold('  Step 3/6 — Build your agent setup\n'));
+    console.log(title.bold('  Step 3/5 — Build your agent setup\n'));
     console.log(chalk.dim('  Creating config files tailored to your project.\n'));
   }
   console.log(chalk.dim('  This can take a couple of minutes depending on your model and provider.\n'));
@@ -357,7 +364,7 @@ export async function initCommand(options: InitOptions) {
   });
 
   // Step 4: Review and apply
-  console.log(title.bold('  Step 4/6 — Review and apply\n'));
+  console.log(title.bold('  Step 4/5 — Review and apply\n'));
 
   const setupFiles = collectSetupFiles(generatedSetup);
   const staged = stageFiles(setupFiles, process.cwd());
@@ -555,7 +562,7 @@ export async function initCommand(options: InitOptions) {
   }
 
   // Step 6: Community skills
-  console.log(title.bold('\n  Step 6/6 — Community skills\n'));
+  console.log(title.bold('\n  Step 5/5 — Community skills\n'));
   console.log(chalk.dim('  Search public skill registries for skills that match your tech stack.\n'));
 
   let wantsSkills: boolean;

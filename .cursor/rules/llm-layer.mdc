@@ -1,0 +1,14 @@
+---
+description: LLM provider layer — provider resolution, streaming, JSON parsing for caliber
+globs: src/llm/**/*.ts,src/ai/**/*.ts
+alwaysApply: false
+---
+- All LLM calls go through `src/llm/index.ts` — never import @anthropic-ai/sdk, openai, or @anthropic-ai/vertex-sdk directly
+- `llmCall()` returns plain text; `llmJsonCall<T>()` returns parsed+typed JSON
+- Both auto-retry on transient errors with exponential backoff
+- Provider resolution: ANTHROPIC_API_KEY → VERTEX_PROJECT_ID → OPENAI_API_KEY → Cursor ACP → Claude CLI → config file
+- Each provider implements `LLMProvider` interface from `src/llm/types.ts`
+- For streaming: use `provider.stream()` with onText/onComplete/onError callbacks
+- JSON parsing: `extractJson()` for bracket-balancing, `parseJsonResponse()` for full pipeline
+- `CALIBER_MODEL` env var overrides model for any provider
+- google-auth-library handles ADC for Vertex AI authentication

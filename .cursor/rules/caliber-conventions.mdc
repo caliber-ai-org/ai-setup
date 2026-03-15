@@ -1,0 +1,14 @@
+---
+description: Core conventions for the @rely-ai/caliber CLI — ES module imports, error handling, commit format
+alwaysApply: true
+---
+- ES module imports require `.js` extension for `.ts` source files
+- Prefer `unknown` over `any`; explicit types on params/returns
+- Use `ora` spinners with `.fail()` before rethrowing async errors
+- `throw new Error('__exit__')` for clean CLI exits (no stack trace)
+- Build: `npm run build` (tsup) · Test: `npm run test` (vitest) · Type-check: `npx tsc --noEmit`
+- Commit format: `<type>[(scope)]: <description>` — feat/fix/refactor/chore/docs/test/ci
+- Do NOT include Co-Authored-By headers in commits
+- Never commit API keys or credentials
+- Key deps: commander, chalk, ora, diff, glob, tsup, @inquirer/confirm, @inquirer/select, @inquirer/checkbox
+- LLM calls go through `src/llm/index.ts` (`llmCall`, `llmJsonCall`) — never import provider SDKs directly

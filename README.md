@@ -65,16 +65,13 @@ caliber init
 ├─ 2. 🔍 Discover     Analyze languages, frameworks, dependencies, file structure,
 │                      and existing agent configs via LLM
 │
-├─ 3. 🛠️  Generate     Create tailored config files based on your codebase
-│                      (or audit existing ones and suggest improvements)
+├─ 3. 🛠️  Generate     Create CLAUDE.md + skills in parallel (core docs via smart
+│                      model, skills via fast model). Auto-polishes for max score
 │
 ├─ 4. 👀 Review       See a diff of proposed changes — accept, refine via
 │                      chat, or decline. All changes are backed up automatically
 │
-├─ 5. 🔗 MCP Servers  Discover and install MCP servers for tools your project
-│                      uses (databases, APIs, platforms)
-│
-└─ 6. 🧩 Skills       Search community skill registries and install relevant
+└─ 5. 🧩 Skills       Search community skill registries and install relevant
                        skills for your tech stack
 ```
 
