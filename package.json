@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
-    "@anthropic-ai/vertex-sdk": "^0.7.0",
+    "@anthropic-ai/vertex-sdk": "^0.14.4",
     "@inquirer/checkbox": "^5.1.0",
     "@inquirer/confirm": "^6.0.8",
     "@inquirer/select": "^5.1.0",
