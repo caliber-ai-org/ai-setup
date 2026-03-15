@@ -5,11 +5,18 @@ const mockStream = vi.fn();
 
 vi.mock('../../llm/index.js', () => ({
   getProvider: () => ({ stream: mockStream }),
+  llmJsonCall: vi.fn().mockResolvedValue({ name: 'test', description: 'test', content: 'test' }),
   TRANSIENT_ERRORS: ['terminated', 'ECONNRESET'],
+}));
+
+vi.mock('../../llm/config.js', () => ({
+  getFastModel: () => undefined,
 }));
 
 vi.mock('../prompts.js', () => ({
   GENERATION_SYSTEM_PROMPT: 'test system prompt',
+  CORE_GENERATION_PROMPT: 'test core prompt',
+  SKILL_GENERATION_PROMPT: 'test skill prompt',
   REFINE_SYSTEM_PROMPT: 'test refine prompt',
 }));
 
@@ -53,7 +60,7 @@ describe('generateSetup stream error handling', () => {
       ['claude']
     );
 
-    expect(result.setup).toEqual(setup);
+    expect(result.setup).toMatchObject(setup);
   });
 
   it('returns null setup when JSON is unparseable', async () => {
@@ -95,7 +102,7 @@ describe('generateSetup stream error handling', () => {
     );
 
     expect(callCount).toBe(2);
-    expect(result.setup).toEqual(setup);
+    expect(result.setup).toMatchObject(setup);
     expect(onStatus).toHaveBeenCalledWith('Connection interrupted, retrying...');
   });
 });

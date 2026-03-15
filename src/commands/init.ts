@@ -506,6 +506,7 @@ export async function initCommand(options: InitOptions) {
           polishFailing,
           afterScore.score,
           polishPassing,
+          { skipSkills: true },
         );
 
         if (polishResult.setup) {
@@ -912,7 +913,10 @@ function ensurePermissions(): void {
 
 function displayTokenUsage(): void {
   const summary = getUsageSummary();
-  if (summary.length === 0) return;
+  if (summary.length === 0) {
+    console.log(chalk.dim('  Token tracking not available for this provider.\n'));
+    return;
+  }
 
   console.log(chalk.bold('  Token usage:\n'));
   let totalIn = 0;

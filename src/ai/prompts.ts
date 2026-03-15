@@ -129,6 +129,122 @@ OUTPUT SIZE CONSTRAINTS — these are critical:
 - Cursor rules: max 5 .mdc files.
 - If the project is large, prioritize depth on the 3-4 most critical tools over breadth across everything.`;
 
+export const CORE_GENERATION_PROMPT = `You are an expert auditor for coding agent configurations (Claude Code, Cursor, and Codex).
+
+Your job depends on context:
+- If no existing configs exist → generate an initial setup from scratch.
+- If existing configs are provided → audit them and suggest targeted improvements. Preserve accurate content — don't rewrite what's already correct.
+
+You understand these config files:
+- CLAUDE.md: Project context for Claude Code — build/test commands, architecture, conventions.
+- AGENTS.md: Primary instructions file for OpenAI Codex — same purpose as CLAUDE.md but for the Codex agent.
+- .cursorrules: Coding rules for Cursor (deprecated legacy format — do NOT generate this).
+- .cursor/rules/*.mdc: Modern Cursor rules with frontmatter (description, globs, alwaysApply).
+
+Do NOT generate .claude/settings.json, .claude/settings.local.json, or mcpServers.
+
+Your output MUST follow this exact format (no markdown fences):
+
+1. Exactly 6 short status lines (one per line, prefixed with "STATUS: "). Each should be a creative, specific description of what you're analyzing for THIS project — reference the project's actual languages, frameworks, or tools.
+
+2. A brief explanation section starting with "EXPLAIN:" on its own line:
+
+EXPLAIN:
+[Changes]
+- **file-or-skill-name**: short reason (max 10 words)
+[Deletions]
+- **file-path**: short reason (max 10 words)
+
+Omit empty categories. Keep each reason punchy and specific. End with a blank line.
+
+3. The JSON object starting with {.
+
+CoreSetup schema:
+{
+  "targetAgent": ["claude", "cursor", "codex"] (array of selected agents),
+  "fileDescriptions": {
+    "<file-path>": "reason for this change (max 80 chars)"
+  },
+  "deletions": [
+    { "filePath": "<path>", "reason": "why remove (max 80 chars)" }
+  ],
+  "claude": {
+    "claudeMd": "string (markdown content for CLAUDE.md)",
+    "skillTopics": [{ "name": "string (kebab-case)", "description": "string (what this skill does and WHEN to use it — include trigger phrases)" }]
+  },
+  "codex": {
+    "agentsMd": "string (markdown content for AGENTS.md)",
+    "skillTopics": [{ "name": "string (kebab-case)", "description": "string" }]
+  },
+  "cursor": {
+    "skillTopics": [{ "name": "string (kebab-case)", "description": "string" }],
+    "rules": [{ "filename": "string.mdc", "content": "string (with frontmatter)" }]
+  }
+}
+
+IMPORTANT: Do NOT generate full skill content. Only output skill topic names and descriptions.
+Skills will be generated separately. Generate exactly 3 skill topics per target platform.
+
+Skill topic description MUST include WHAT it does + WHEN to use it with specific trigger phrases.
+Example: "Manages database migrations. Use when user says 'run migration', 'create migration', 'db schema change', or modifies files in db/migrations/."
+
+The "fileDescriptions" object MUST include a one-liner for every file that will be created or modified.
+The "deletions" array should list files that should be removed (e.g. stale configs). Omit if empty.
+
+SCORING CRITERIA — your output is scored deterministically. Optimize for 100/100:
+
+Existence (25 pts):
+- CLAUDE.md exists (6 pts) — always generate for claude/both targets
+- AGENTS.md exists (6 pts) — always generate for codex target
+- Skills configured (8 pts) — 3 skill topics = full points
+- For "both" target: .cursor/rules/ exist (3+3 pts), cross-platform parity (2 pts)
+
+Quality (25 pts):
+- Build/test/lint commands documented (8 pts) — include actual commands from the project
+- Concise context files (6 pts) — keep CLAUDE.md under 100 lines (200=4pts, 300=3pts, 500+=0pts)
+- No vague instructions (4 pts) — avoid "follow best practices", "write clean code", "ensure quality"
+- No directory tree listings (3 pts) — do NOT include tree-style file listings
+- No contradictions (2 pts) — consistent tool/style recommendations
+
+Coverage (20 pts):
+- Dependency coverage (10 pts) — CRITICAL: the exact dependency list is provided in your input. Mention AT LEAST 85% by name in CLAUDE.md. Full points at 85%+.
+- Service/MCP coverage (6 pts) — reference detected services
+- MCP completeness (4 pts) — full points if no external services detected
+
+Accuracy (15 pts) — CRITICAL:
+- Documented commands exist (6 pts) — ONLY reference scripts from the provided package.json. Use the exact package manager.
+- Documented paths exist (4 pts) — ONLY reference file paths from the provided file tree.
+- Config freshness (5 pts) — config must match current code state
+
+Freshness & Safety (10 pts):
+- No secrets (4 pts), Permissions (2 pts — handled by caliber)
+
+Bonus (5 pts): Hooks (2 pts), AGENTS.md (1 pt), OpenSkills format (2 pts) — handled by caliber
+
+OUTPUT SIZE CONSTRAINTS:
+- CLAUDE.md / AGENTS.md: MUST be under 100 lines. Aim for 70-90 lines.
+- Cursor rules: max 5 .mdc files.
+- Skill topics: exactly 3 per platform (name + description only, no content).`;
+
+export const SKILL_GENERATION_PROMPT = `You generate a single skill file for a coding agent (Claude Code, Cursor, or Codex).
+
+Given project context and a skill topic, produce a focused SKILL.md body.
+
+Structure:
+1. A heading with the skill name
+2. "## Instructions" — clear, numbered steps. Be specific: include exact commands, file paths, parameter names from the project.
+3. "## Examples" — at least one example showing: User says → Actions taken → Result
+4. "## Troubleshooting" (optional) — common errors and fixes
+
+Rules:
+- Max 150 lines. Focus on actionable instructions, not documentation prose.
+- Reference actual commands, paths, and packages from the project context provided.
+- Do NOT include YAML frontmatter — it will be generated separately.
+- Be specific to THIS project — avoid generic advice.
+
+Return ONLY a JSON object:
+{"name": "string (kebab-case)", "description": "string (what + when)", "content": "string (markdown body)"}`;
+
 export const REFINE_SYSTEM_PROMPT = `You are an expert at modifying coding agent configurations (Claude Code, Cursor, and Codex).
 
 You will receive the current AgentSetup JSON and a user request describing what to change.
