@@ -191,8 +191,9 @@ Skills serve two purposes:
 
 Derive skill topics from actual code in the project. Look at existing files for the patterns being used, then create skills that replicate those patterns for new work.
 
-Skill topic description MUST include WHAT it does + WHEN to use it with specific trigger phrases.
-Example: "Creates a new API endpoint following the project's route pattern. Use when user says 'add endpoint', 'new route', 'create API', or adds files to src/routes/."
+Skill topic description MUST follow this formula: [What it does] + [When to use it] + [Key capabilities].
+Include specific trigger phrases users would actually say. Also include negative triggers to prevent over-triggering.
+Example: "Creates a new API endpoint following the project's route pattern. Handles request validation, error responses, and DB queries. Use when user says 'add endpoint', 'new route', 'create API', or adds files to src/routes/. Do NOT use for modifying existing routes."
 
 The "fileDescriptions" object MUST include a one-liner for every file that will be created or modified.
 The "deletions" array should list files that should be removed (e.g. stale configs). Omit if empty.
@@ -238,19 +239,27 @@ Purpose: Skills codify repeating patterns from the codebase so every developer a
 
 Structure:
 1. A heading with the skill name
-2. "## Instructions" — clear, numbered steps derived from actual patterns in the codebase. Include exact file paths, naming conventions, imports, and boilerplate from existing code.
-3. "## Examples" — at least one example showing: User says → Actions taken → Result. The example should mirror how existing code in the project is structured.
-4. "## Troubleshooting" (optional) — common errors and fixes
+2. "## Critical" (if applicable) — put the most important rules and constraints FIRST. Things the agent must never skip, validation that must happen before any action, or project-specific constraints.
+3. "## Instructions" — clear, numbered steps derived from actual patterns in the codebase. Each step MUST:
+   - Include exact file paths, naming conventions, imports, and boilerplate from existing code
+   - Have a validation gate: "Verify X before proceeding to the next step"
+   - Specify dependencies: "This step uses the output from Step N"
+4. "## Examples" — at least one example showing: User says → Actions taken → Result. The example should mirror how existing code in the project is structured.
+5. "## Common Issues" (required) — specific error messages and their fixes. Not "check your config" but "If you see 'Connection refused on port 5432': 1. Verify postgres is running: docker ps | grep postgres 2. Check .env has correct DATABASE_URL"
 
 Rules:
 - Max 150 lines. Focus on actionable instructions, not documentation prose.
 - Study existing code in the project context to extract the real patterns being used. A skill for "create API route" should show the exact file structure, imports, error handling, and naming that existing routes use.
+- Be specific and actionable. GOOD: "Run \`pnpm test -- --filter=api\` to verify". BAD: "Validate the data before proceeding."
+- Never use ambiguous language. Instead of "handle errors properly", write "Wrap the DB call in try/catch. On failure, return { error: string, code: number } matching the ErrorResponse type in \`src/types.ts\`."
 - Reference actual commands, paths, and packages from the project context provided.
 - Do NOT include YAML frontmatter — it will be generated separately.
 - Be specific to THIS project — avoid generic advice. The skill should produce code that looks identical to what's already in the codebase.
 
+Description field formula: [What it does] + [When to use it with trigger phrases] + [Key capabilities]. Include negative triggers ("Do NOT use for X") to prevent over-triggering.
+
 Return ONLY a JSON object:
-{"name": "string (kebab-case)", "description": "string (what + when)", "content": "string (markdown body)"}`;
+{"name": "string (kebab-case)", "description": "string (what + when + capabilities + negative triggers)", "content": "string (markdown body)"}`;
 
 export const REFINE_SYSTEM_PROMPT = `You are an expert at modifying coding agent configurations (Claude Code, Cursor, and Codex).
 
