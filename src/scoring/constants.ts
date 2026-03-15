@@ -118,7 +118,7 @@ export const CONTRADICTION_PAIRS = [
   { a: /\buse\s+npm\b/i, b: /\buse\s+(?:pnpm|yarn|bun)\b/i },
   { a: /\buse\s+pnpm\b/i, b: /\buse\s+(?:npm|yarn|bun)\b/i },
   { a: /\buse\s+yarn\b/i, b: /\buse\s+(?:npm|pnpm|bun)\b/i },
-  { a: /\btabs\b/i, b: /\bspaces\b/i },
+  { a: /\buse\s+tabs\b/i, b: /\buse\s+spaces\b/i },
   { a: /\bsemicolons?\b.*\balways\b/i, b: /\bno\s+semicolons?\b/i },
 ] as const;
 

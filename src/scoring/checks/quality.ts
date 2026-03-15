@@ -93,8 +93,8 @@ export function checkQuality(dir: string): Check[] {
       ? `${primaryName}: ${lineCount} lines`
       : 'No context files to measure',
     suggestion:
-      bloatPoints < 4 && primaryName
-        ? `${primaryName} is ${lineCount} lines — consider trimming. Research shows bloated context reduces accuracy by 3%.`
+      bloatPoints < POINTS_NOT_BLOATED && primaryName
+        ? `${primaryName} is ${lineCount} lines — must be ≤120 lines for full points (currently losing ${POINTS_NOT_BLOATED - bloatPoints} pts)`
         : undefined,
   });
 
@@ -234,7 +234,7 @@ export function checkQuality(dir: string): Check[] {
       ? `${contradictions.length} contradiction${contradictions.length === 1 ? '' : 's'} found`
       : 'No conflicting instructions detected',
     suggestion: hasContradictions
-      ? `Contradiction: ${contradictions[0]}`
+      ? `Contradiction: ${contradictions[0]}. Remove or rephrase one of the conflicting statements.`
       : undefined,
   });
 
