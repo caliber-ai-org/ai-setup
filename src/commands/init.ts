@@ -4,8 +4,8 @@ import ora from 'ora';
 import select from '@inquirer/select';
 import checkbox from '@inquirer/checkbox';
 import fs from 'fs';
-import { collectFingerprint } from '../fingerprint/index.js';
-import { generateSetup } from '../ai/generate.js';
+import { collectFingerprint, type Fingerprint } from '../fingerprint/index.js';
+import { generateSetup, generateSkillsForSetup } from '../ai/generate.js';
 import { refineSetup } from '../ai/refine.js';
 import { writeSetup, undoSetup } from '../writers/index.js';
 import { stageFiles, cleanupStaging } from '../writers/staging.js';
@@ -14,7 +14,7 @@ import { collectSetupFiles } from './setup-files.js';
 import { installHook, installPreCommitHook } from '../lib/hooks.js';
 import { installLearningHooks } from '../lib/learning-hooks.js';
 import { writeState, getCurrentHeadSha } from '../lib/state.js';
-import { SpinnerMessages, GENERATION_MESSAGES, REFINE_MESSAGES } from '../utils/spinner-messages.js';
+import { SpinnerMessages, REFINE_MESSAGES } from '../utils/spinner-messages.js';
 import { promptInput } from '../utils/prompt.js';
 import { loadConfig, getFastModel, getDisplayModel } from '../llm/config.js';
 import { llmJsonCall, validateModel, getUsageSummary } from '../llm/index.js';
@@ -24,10 +24,12 @@ import type { Check } from '../scoring/index.js';
 import { displayScoreSummary, displayScoreDelta } from '../scoring/display.js';
 import { readDismissedChecks, writeDismissedChecks } from '../scoring/dismissed.js';
 import type { DismissedCheck } from '../scoring/dismissed.js';
-import { searchAndInstallSkills } from './recommend.js';
+import { searchSkills, selectSkills, installSkills } from './recommend.js';
+import type { SkillSearchResult } from './recommend.js';
 import type { FailingCheck, PassingCheck } from '../ai/generate.js';
 import { buildGeneratePrompt } from '../ai/generate.js';
 import { DebugReport } from '../lib/debug-report.js';
+import { ParallelTaskDisplay } from '../utils/parallel-tasks.js';
 import {
   trackInitProviderSelected,
   trackInitProjectDiscovered,
@@ -76,17 +78,20 @@ export async function initCommand(options: InitOptions) {
   const report = options.debugReport ? new DebugReport() : null;
 
   console.log(title.bold('  How it works:\n'));
-  console.log(chalk.dim('  1. Connect    Choose your LLM provider'));
-  console.log(chalk.dim('  2. Discover   Scan code, dependencies, and existing configs'));
-  console.log(chalk.dim('  3. Generate   Build CLAUDE.md, rules, and skills for your codebase'));
-  console.log(chalk.dim('  4. Review     See a diff — accept, refine via chat, or decline'));
-  console.log(chalk.dim('  5. Skills     Search community registries and install skills\n'));
+  console.log(chalk.dim('  1. Setup      Connect your LLM provider and select your agents'));
+  console.log(chalk.dim('  2. Engine     Detect stack, generate configs & skills in parallel'));
+  console.log(chalk.dim('  3. Review     See all changes — accept, refine, or decline'));
+  console.log(chalk.dim('  4. Finalize   Score check and auto-sync hooks\n'));
 
-  // Step 1: Connect LLM provider
-  console.log(title.bold('  Step 1/5 — Connect\n'));
+  // ───────────────────────────────────────────────────────────────────────────
+  // Step 1 — Setup
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log(title.bold('  Step 1/4 — Setup\n'));
+
+  // 1a. LLM provider
   let config = loadConfig();
   if (!config) {
-    console.log(chalk.dim('  No LLM provider set yet. Choose how to run Caliber:\n'));
+    console.log(chalk.dim('  No LLM provider configured yet.\n'));
     await runInteractiveProviderSetup({
       selectMessage: 'How do you want to use Caliber? (choose LLM provider)',
     });
@@ -95,7 +100,7 @@ export async function initCommand(options: InitOptions) {
       console.log(chalk.red('  Setup was cancelled or failed.\n'));
       throw new Error('__exit__');
     }
-    console.log(chalk.green('  ✓ Provider saved. Let\'s continue.\n'));
+    console.log(chalk.green('  ✓ Provider saved\n'));
   }
   trackInitProviderSelected(config.provider, config.model);
   const displayModel = getDisplayModel(config);
@@ -110,36 +115,9 @@ export async function initCommand(options: InitOptions) {
     report.addSection('LLM Provider', `- **Provider**: ${config.provider}\n- **Model**: ${displayModel}\n- **Fast model**: ${fastModel || 'none'}`);
   }
 
-  // Verify configured model is reachable before starting heavy work
   await validateModel({ fast: true });
 
-  // Step 2: Discover project
-  console.log(title.bold('  Step 2/5 — Discover\n'));
-  const spinner = ora('Scanning code, dependencies, and existing configs...').start();
-  const fingerprint = await collectFingerprint(process.cwd());
-  spinner.succeed('Project scanned');
-  log(options.verbose, `Fingerprint: ${fingerprint.languages.length} languages, ${fingerprint.frameworks.length} frameworks, ${fingerprint.fileTree.length} files`);
-  if (options.verbose && fingerprint.codeAnalysis) {
-    log(options.verbose, `Code analysis: ${fingerprint.codeAnalysis.filesIncluded}/${fingerprint.codeAnalysis.filesAnalyzed} files, ~${fingerprint.codeAnalysis.includedTokens.toLocaleString()} tokens, ${fingerprint.codeAnalysis.duplicateGroups} dedup groups`);
-  }
-
-  trackInitProjectDiscovered(fingerprint.languages.length, fingerprint.frameworks.length, fingerprint.fileTree.length);
-  const langDisplay = fingerprint.languages.join(', ') || 'none detected';
-  const frameworkDisplay = fingerprint.frameworks.length > 0 ? ` (${fingerprint.frameworks.join(', ')})` : '';
-  console.log(chalk.dim(`  Languages: ${langDisplay}${frameworkDisplay}`));
-  console.log(chalk.dim(`  Files: ${fingerprint.fileTree.length} found\n`));
-
-  if (report) {
-    report.markStep('Fingerprint');
-    report.addJson('Fingerprint: Git', { remote: fingerprint.gitRemoteUrl, packageName: fingerprint.packageName });
-    report.addCodeBlock('Fingerprint: File Tree', fingerprint.fileTree.join('\n'));
-    report.addJson('Fingerprint: Detected Stack', { languages: fingerprint.languages, frameworks: fingerprint.frameworks, tools: fingerprint.tools });
-    report.addJson('Fingerprint: Existing Configs', fingerprint.existingConfigs);
-    if (fingerprint.codeAnalysis) {
-      report.addJson('Fingerprint: Code Analysis', fingerprint.codeAnalysis);
-    }
-  }
-
+  // 1b. Pick target agents
   let targetAgent: TargetAgent;
   if (options.agent) {
     targetAgent = options.agent;
@@ -152,30 +130,27 @@ export async function initCommand(options: InitOptions) {
   console.log(chalk.dim(`  Target: ${targetAgent.join(', ')}\n`));
   trackInitAgentSelected(targetAgent);
 
-  // Evaluate which failing checks aren't applicable to this project
-  const preScore = computeLocalScore(process.cwd(), targetAgent);
-  const failingForDismissal = preScore.checks.filter(c => !c.passed && c.maxPoints > 0);
-  if (failingForDismissal.length > 0) {
-    const newDismissals = await evaluateDismissals(failingForDismissal, fingerprint);
-    if (newDismissals.length > 0) {
-      const existing = readDismissedChecks();
-      const existingIds = new Set(existing.map(d => d.id));
-      const merged = [...existing, ...newDismissals.filter(d => !existingIds.has(d.id))];
-      writeDismissedChecks(merged);
-    }
+  // 1c. Community skills question
+  let wantsSkills = false;
+  if (!options.autoApprove) {
+    wantsSkills = await select({
+      message: 'Discover community-maintained skills that match your stack?',
+      choices: [
+        { name: 'Yes, find skills for my project', value: true },
+        { name: 'Skip for now', value: false },
+      ],
+    });
   }
 
-  // Baseline score (after dismissals applied)
-  const baselineScore = computeLocalScore(process.cwd(), targetAgent);
-  console.log(chalk.dim('  Current setup score:'));
+  // 1d. Compute & show initial score
+  let baselineScore = computeLocalScore(process.cwd(), targetAgent);
+  console.log(chalk.dim('\n  Current setup score:'));
   displayScoreSummary(baselineScore);
   if (options.verbose) {
     for (const c of baselineScore.checks) {
       log(options.verbose, `  ${c.passed ? '✓' : '✗'} ${c.name}: ${c.earnedPoints}/${c.maxPoints}${c.suggestion ? ` — ${c.suggestion}` : ''}`);
     }
   }
-  const passingCount = baselineScore.checks.filter(c => c.passed).length;
-  const failingCount = baselineScore.checks.filter(c => !c.passed).length;
 
   if (report) {
     report.markStep('Baseline scoring');
@@ -185,13 +160,10 @@ export async function initCommand(options: InitOptions) {
   }
 
   const hasExistingConfig = !!(
-    fingerprint.existingConfigs.claudeMd || fingerprint.existingConfigs.claudeSettings ||
-    fingerprint.existingConfigs.claudeSkills?.length ||
-    fingerprint.existingConfigs.cursorrules || fingerprint.existingConfigs.cursorRules?.length ||
-    fingerprint.existingConfigs.agentsMd
+    baselineScore.checks.some(c => c.id === 'claude_md_exists' && c.passed) ||
+    baselineScore.checks.some(c => c.id === 'cursorrules_exists' && c.passed)
   );
 
-  // Checks the LLM cannot fix — they require CLI actions, not config changes
   const NON_LLM_CHECKS = new Set([
     'hooks_configured',
     'agents_md_exists',
@@ -201,7 +173,10 @@ export async function initCommand(options: InitOptions) {
     'mcp_completeness',
   ]);
 
-  // Score gating: skip generation if already perfect, targeted fix if close
+  const passingCount = baselineScore.checks.filter(c => c.passed).length;
+  const failingCount = baselineScore.checks.filter(c => !c.passed).length;
+
+  // Score gating
   if (hasExistingConfig && baselineScore.score === 100) {
     trackInitScoreComputed(baselineScore.score, passingCount, failingCount, true);
     console.log(chalk.bold.green('  Your setup is already optimal — nothing to change.\n'));
@@ -209,10 +184,8 @@ export async function initCommand(options: InitOptions) {
     if (!options.force) return;
   }
 
-  // If the only failing checks are non-LLM-fixable, skip generation and show actionable hints
   const allFailingChecks = baselineScore.checks.filter(c => !c.passed && c.maxPoints > 0);
   const llmFixableChecks = allFailingChecks.filter(c => !NON_LLM_CHECKS.has(c.id));
-
   trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
 
   if (hasExistingConfig && llmFixableChecks.length === 0 && allFailingChecks.length > 0 && !options.force) {
@@ -229,97 +202,180 @@ export async function initCommand(options: InitOptions) {
     return;
   }
 
-  // Get project description if empty directory
+  // ───────────────────────────────────────────────────────────────────────────
+  // Step 2 — Parallel Engine
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log(title.bold('  Step 2/4 — Engine\n'));
+
+  const genModelInfo = fastModel
+    ? `  Using ${displayModel} for docs, ${fastModel} for skills`
+    : `  Using ${displayModel}`;
+  console.log(chalk.dim(genModelInfo + '\n'));
+
+  if (report) report.markStep('Generation');
+
+  trackInitGenerationStarted(false);
+  const genStartTime = Date.now();
+
+  let generatedSetup: Record<string, unknown> | null = null;
+  let rawOutput: string | undefined;
+  let genStopReason: string | undefined;
+  let skillSearchResult: SkillSearchResult = { results: [], contentMap: new Map() };
+  let fingerprint!: Fingerprint;
+
+  // Phase A: Fingerprint (before display — handles empty project prompt)
+  const fpSpinner = ora('Scanning project...').start();
+  try {
+    fingerprint = await collectFingerprint(process.cwd());
+    fpSpinner.succeed(`Stack detected — ${fingerprint.languages.join(', ') || 'no languages'}${fingerprint.frameworks.length > 0 ? `, ${fingerprint.frameworks.join(', ')}` : ''}`);
+  } catch (err) {
+    fpSpinner.fail('Failed to scan project');
+    throw new Error('__exit__');
+  }
+
+  trackInitProjectDiscovered(fingerprint.languages.length, fingerprint.frameworks.length, fingerprint.fileTree.length);
+  log(options.verbose, `Fingerprint: ${fingerprint.languages.length} languages, ${fingerprint.frameworks.length} frameworks, ${fingerprint.fileTree.length} files`);
+
+  if (report) {
+    report.addJson('Fingerprint: Git', { remote: fingerprint.gitRemoteUrl, packageName: fingerprint.packageName });
+    report.addCodeBlock('Fingerprint: File Tree', fingerprint.fileTree.join('\n'));
+    report.addJson('Fingerprint: Detected Stack', { languages: fingerprint.languages, frameworks: fingerprint.frameworks, tools: fingerprint.tools });
+    report.addJson('Fingerprint: Existing Configs', fingerprint.existingConfigs);
+    if (fingerprint.codeAnalysis) report.addJson('Fingerprint: Code Analysis', fingerprint.codeAnalysis);
+  }
+
+  // Get project description if empty
   const isEmpty = fingerprint.fileTree.length < 3;
   if (isEmpty) {
     fingerprint.description = await promptInput('What will you build in this project?');
   }
 
-  // Determine if this should be a targeted fix (score >= 95 with existing configs)
+  // Evaluate dismissals before generation (updates baseline consistently)
+  const failingForDismissal = baselineScore.checks.filter(c => !c.passed && c.maxPoints > 0);
+  if (failingForDismissal.length > 0) {
+    const newDismissals = await evaluateDismissals(failingForDismissal, fingerprint);
+    if (newDismissals.length > 0) {
+      const existing = readDismissedChecks();
+      const existingIds = new Set(existing.map(d => d.id));
+      const merged = [...existing, ...newDismissals.filter(d => !existingIds.has(d.id))];
+      writeDismissedChecks(merged);
+      baselineScore = computeLocalScore(process.cwd(), targetAgent);
+    }
+  }
+
+  // Determine targeted fix mode
   let failingChecks: FailingCheck[] | undefined;
   let passingChecks: PassingCheck[] | undefined;
   let currentScore: number | undefined;
 
   if (hasExistingConfig && baselineScore.score >= 95 && !options.force) {
-    failingChecks = llmFixableChecks
+    const currentLlmFixable = baselineScore.checks
+      .filter(c => !c.passed && c.maxPoints > 0 && !NON_LLM_CHECKS.has(c.id));
+    failingChecks = currentLlmFixable
       .map(c => ({ name: c.name, suggestion: c.suggestion, fix: c.fix }));
     passingChecks = baselineScore.checks
       .filter(c => c.passed)
       .map(c => ({ name: c.name }));
     currentScore = baselineScore.score;
-
-    if (failingChecks.length > 0) {
-      console.log(title.bold('  Step 3/5 — Generate\n'));
-      console.log(chalk.dim(`  Score is ${baselineScore.score}/100 — fine-tuning ${failingChecks.length} remaining issue${failingChecks.length === 1 ? '' : 's'}:\n`));
-      for (const check of failingChecks) {
-        console.log(chalk.dim(`    • ${check.name}`));
-      }
-      console.log('');
-    }
-  } else if (hasExistingConfig) {
-    console.log(title.bold('  Step 3/5 — Generate\n'));
-    console.log(chalk.dim('  Auditing your existing configs against your codebase and improving them.\n'));
-  } else {
-    console.log(title.bold('  Step 3/5 — Generate\n'));
-    console.log(chalk.dim('  Building CLAUDE.md, rules, and skills tailored to your project.\n'));
   }
-  const genModelInfo = fastModel
-    ? `  Using ${displayModel} for docs, ${fastModel} for skills`
-    : `  Using ${displayModel}`;
-  console.log(chalk.dim(genModelInfo));
-  console.log(chalk.dim('  This can take a couple of minutes depending on your model and provider.\n'));
 
   if (report) {
-    report.markStep('Generation');
     const fullPrompt = buildGeneratePrompt(fingerprint, targetAgent, fingerprint.description, failingChecks, currentScore, passingChecks);
     report.addCodeBlock('Generation: Full LLM Prompt', fullPrompt);
   }
 
-  trackInitGenerationStarted(!!failingChecks);
-  const genStartTime = Date.now();
-  const genSpinner = ora('Generating setup...').start();
-  const genMessages = new SpinnerMessages(genSpinner, GENERATION_MESSAGES, { showElapsedTime: true });
-  genMessages.start();
-
-  let generatedSetup: Record<string, unknown> | null = null;
-  let rawOutput: string | undefined;
-  let genStopReason: string | undefined;
+  // Phase B: Generate + search in parallel
+  const display = new ParallelTaskDisplay();
+  const TASK_CONFIG = display.add('Generating configs');
+  const TASK_SKILLS_GEN = display.add('Generating skills');
+  const TASK_SKILLS_SEARCH = wantsSkills ? display.add('Searching community skills') : -1;
+  display.start();
 
   try {
-    const result = await generateSetup(
-      fingerprint,
-      targetAgent,
-      fingerprint.description,
-      {
-        onStatus: (status) => { genMessages.handleServerStatus(status); },
-        onComplete: (setup) => { generatedSetup = setup; },
-        onError: (error) => {
-          genMessages.stop();
-          genSpinner.fail(`Generation error: ${error}`);
-        },
-      },
-      failingChecks,
-      currentScore,
-      passingChecks,
-    );
+    display.update(TASK_CONFIG, 'running');
 
-    if (!generatedSetup) {
-      generatedSetup = result.setup;
+    const generatePromise = (async () => {
+      const result = await generateSetup(
+        fingerprint,
+        targetAgent,
+        fingerprint.description,
+        {
+          onStatus: (status) => display.update(TASK_CONFIG, 'running', status),
+          onComplete: (setup) => { generatedSetup = setup; },
+          onError: (error) => display.update(TASK_CONFIG, 'failed', error),
+        },
+        failingChecks,
+        currentScore,
+        passingChecks,
+        { skipSkills: true },
+      );
+
+      if (!generatedSetup) generatedSetup = result.setup;
       rawOutput = result.raw;
-    }
-    genStopReason = result.stopReason;
+      genStopReason = result.stopReason;
+
+      if (!generatedSetup) {
+        display.update(TASK_CONFIG, 'failed', 'Could not parse LLM response');
+        display.update(TASK_SKILLS_GEN, 'failed', 'Skipped');
+        return;
+      }
+
+      display.update(TASK_CONFIG, 'done');
+
+      display.update(TASK_SKILLS_GEN, 'running');
+      const skillCount = await generateSkillsForSetup(
+        generatedSetup,
+        fingerprint,
+        targetAgent,
+        (status) => display.update(TASK_SKILLS_GEN, 'running', status),
+      );
+      display.update(TASK_SKILLS_GEN, 'done', `${skillCount} skills`);
+    })();
+
+    const SEARCH_TIMEOUT_MS = 60_000;
+    const searchPromise = wantsSkills ? (async () => {
+      display.update(TASK_SKILLS_SEARCH, 'running');
+      try {
+        const searchWithTimeout = Promise.race([
+          searchSkills(
+            fingerprint,
+            targetAgent,
+            (status) => display.update(TASK_SKILLS_SEARCH, 'running', status),
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('timeout')), SEARCH_TIMEOUT_MS)
+          ),
+        ]);
+        skillSearchResult = await searchWithTimeout;
+        const count = skillSearchResult.results.length;
+        display.update(TASK_SKILLS_SEARCH, 'done', count > 0 ? `${count} skills found` : 'No matches');
+      } catch (err) {
+        const reason = err instanceof Error && err.message === 'timeout' ? 'Timed out' : 'Search failed';
+        display.update(TASK_SKILLS_SEARCH, 'failed', reason);
+      }
+    })() : Promise.resolve();
+
+    await Promise.all([generatePromise, searchPromise]);
+
   } catch (err) {
-    genMessages.stop();
+    display.stop();
     const msg = err instanceof Error ? err.message : 'Unknown error';
-    genSpinner.fail(`Generation failed: ${msg}`);
+    console.log(chalk.red(`\n  Engine failed: ${msg}\n`));
     writeErrorLog(config, undefined, msg, 'exception');
     throw new Error('__exit__');
   }
 
-  genMessages.stop();
+  display.stop();
+
+  const elapsedMs = Date.now() - genStartTime;
+  trackInitGenerationCompleted(elapsedMs, 0);
+  const mins = Math.floor(elapsedMs / 60000);
+  const secs = Math.floor((elapsedMs % 60000) / 1000);
+  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  console.log(chalk.dim(`\n  Completed in ${timeStr}\n`));
 
   if (!generatedSetup) {
-    genSpinner.fail('Failed to generate setup.');
+    console.log(chalk.red('  Failed to generate setup.'));
     writeErrorLog(config, rawOutput, undefined, genStopReason);
     if (rawOutput) {
       console.log(chalk.dim('\nRaw LLM output (JSON parse failed):'));
@@ -333,35 +389,35 @@ export async function initCommand(options: InitOptions) {
     report.addJson('Generation: Parsed Setup', generatedSetup);
   }
 
-
-  const elapsedMs = Date.now() - genStartTime;
-  trackInitGenerationCompleted(elapsedMs, 0);
-  const mins = Math.floor(elapsedMs / 60000);
-  const secs = Math.floor((elapsedMs % 60000) / 1000);
-  const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-  genSpinner.succeed(`Setup generated ${chalk.dim(`in ${timeStr}`)}`);
   log(options.verbose, `Generation completed: ${elapsedMs}ms, stopReason: ${genStopReason || 'end_turn'}`);
   printSetupSummary(generatedSetup);
 
-  // Session context — carries through the entire init flow
   const sessionHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
   sessionHistory.push({
     role: 'assistant',
     content: summarizeSetup('Initial generation', generatedSetup),
   });
 
-  // Step 4: Review and apply
-  console.log(title.bold('  Step 4/5 — Review\n'));
+  // ───────────────────────────────────────────────────────────────────────────
+  // Step 3 — Review
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log(title.bold('  Step 3/4 — Review\n'));
 
   const setupFiles = collectSetupFiles(generatedSetup, targetAgent);
   const staged = stageFiles(setupFiles, process.cwd());
 
   const totalChanges = staged.newFiles + staged.modifiedFiles;
-  console.log(chalk.dim(`  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}\n`));
+  console.log(chalk.dim(`  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}`));
+
+  if (skillSearchResult.results.length > 0) {
+    console.log(chalk.dim(`  ${chalk.cyan(`${skillSearchResult.results.length}`)} community skills available to install\n`));
+  } else {
+    console.log('');
+  }
 
   let action: 'accept' | 'refine' | 'decline';
 
-  if (totalChanges === 0) {
+  if (totalChanges === 0 && skillSearchResult.results.length === 0) {
     console.log(chalk.dim('  No changes needed — your configs are already up to date.\n'));
     cleanupStaging();
     action = 'accept';
@@ -370,14 +426,16 @@ export async function initCommand(options: InitOptions) {
     action = 'accept';
     trackInitReviewAction(action, 'auto-approved');
   } else {
-    const wantsReview = await promptWantsReview();
-    if (wantsReview) {
-      const reviewMethod = await promptReviewMethod();
-      await openReview(reviewMethod, staged.stagedFiles);
+    if (totalChanges > 0) {
+      const wantsReview = await promptWantsReview();
+      if (wantsReview) {
+        const reviewMethod = await promptReviewMethod();
+        await openReview(reviewMethod, staged.stagedFiles);
+      }
     }
 
     action = await promptReviewAction();
-    trackInitReviewAction(action, wantsReview ? 'reviewed' : 'skipped');
+    trackInitReviewAction(action, totalChanges > 0 ? 'reviewed' : 'skipped');
   }
 
   let refinementRound = 0;
@@ -406,6 +464,11 @@ export async function initCommand(options: InitOptions) {
     return;
   }
 
+  // ───────────────────────────────────────────────────────────────────────────
+  // Step 4 — Finalize
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log(title.bold('\n  Step 4/4 — Finalize\n'));
+
   // Write files
   if (options.dryRun) {
     console.log(chalk.yellow('\n[Dry run] Would write the following files:'));
@@ -415,7 +478,6 @@ export async function initCommand(options: InitOptions) {
 
   const writeSpinner = ora('Writing config files...').start();
   try {
-    // Write AGENTS.md stub when codex is targeted and no content was generated
     if (targetAgent.includes('codex') && !fs.existsSync('AGENTS.md') && !generatedSetup.codex) {
       const claude = generatedSetup.claude as Record<string, unknown> | undefined;
       const cursor = generatedSetup.cursor as Record<string, unknown> | undefined;
@@ -455,10 +517,8 @@ export async function initCommand(options: InitOptions) {
     throw new Error('__exit__');
   }
 
-  // Ensure permissions.allow exists in .claude/settings.json
-  ensurePermissions(fingerprint);
+  if (fingerprint) ensurePermissions(fingerprint);
 
-  // Save target agent to state
   const sha = getCurrentHeadSha();
   writeState({
     lastRefreshSha: sha ?? '',
@@ -466,9 +526,49 @@ export async function initCommand(options: InitOptions) {
     targetAgent,
   });
 
-  // Auto-refresh hooks (part of applying the setup)
+  // Score regression check
+  const afterScore = computeLocalScore(process.cwd(), targetAgent);
+
+  if (afterScore.score < baselineScore.score) {
+    trackInitScoreRegression(baselineScore.score, afterScore.score);
+    console.log('');
+    console.log(chalk.yellow(`  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`));
+    try {
+      const { restored, removed } = undoSetup();
+      if (restored.length > 0 || removed.length > 0) {
+        console.log(chalk.dim(`  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`));
+      }
+    } catch { /* best effort */ }
+    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber init --force') + chalk.dim(' to override.\n'));
+    return;
+  }
+
+  if (report) {
+    report.markStep('Post-write scoring');
+    report.addSection('Scoring: Post-Write', `**Score**: ${afterScore.score}/100 (delta: ${afterScore.score - baselineScore.score >= 0 ? '+' : ''}${afterScore.score - baselineScore.score})\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
+      afterScore.checks.map(c => `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`).join('\n'));
+  }
+
+  displayScoreDelta(baselineScore, afterScore);
+  if (options.verbose) {
+    log(options.verbose, `Final score: ${afterScore.score}/100`);
+    for (const c of afterScore.checks.filter(ch => !ch.passed)) {
+      log(options.verbose, `  Still failing: ${c.name} (${c.earnedPoints}/${c.maxPoints})${c.suggestion ? ` — ${c.suggestion}` : ''}`);
+    }
+  }
+
+  // Community skills selection (after score check passes)
+  if (skillSearchResult.results.length > 0 && !options.autoApprove) {
+    console.log(chalk.dim('  Community skills matched to your project:\n'));
+    const selected = await selectSkills(skillSearchResult.results);
+    if (selected?.length) {
+      await installSkills(selected, targetAgent, skillSearchResult.contentMap);
+      trackInitSkillsSearch(true, selected.length);
+    }
+  }
+
+  // Auto-sync hooks
   console.log('');
-  console.log(chalk.dim('  Auto-refresh: keep your configs in sync as your code changes.\n'));
   let hookChoice: HookChoice;
   if (options.autoApprove) {
     hookChoice = 'skip';
@@ -509,75 +609,11 @@ export async function initCommand(options: InitOptions) {
   }
 
   if (hookChoice === 'skip') {
-    console.log(chalk.dim('  Skipped auto-refresh hooks. Run ') + chalk.hex('#83D1EB')('caliber hooks --install') + chalk.dim(' later to enable.'));
+    console.log(chalk.dim('  Skipped auto-sync hooks. Run ') + chalk.hex('#83D1EB')('caliber hooks --install') + chalk.dim(' later to enable.'));
   }
 
-  // Show score improvement
-  const afterScore = computeLocalScore(process.cwd(), targetAgent);
-
-  // Guard: if score regressed, auto-undo
-  if (afterScore.score < baselineScore.score) {
-    trackInitScoreRegression(baselineScore.score, afterScore.score);
-    console.log('');
-    console.log(chalk.yellow(`  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`));
-    try {
-      const { restored, removed } = undoSetup();
-      if (restored.length > 0 || removed.length > 0) {
-        console.log(chalk.dim(`  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`));
-      }
-    } catch { /* best effort */ }
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber init --force') + chalk.dim(' to override.\n'));
-    return;
-  }
-
-  if (report) {
-    report.markStep('Post-write scoring');
-    report.addSection('Scoring: Post-Write', `**Score**: ${afterScore.score}/100 (delta: ${afterScore.score - baselineScore.score >= 0 ? '+' : ''}${afterScore.score - baselineScore.score})\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
-      afterScore.checks.map(c => `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`).join('\n'));
-  }
-
-  displayScoreDelta(baselineScore, afterScore);
-  if (options.verbose) {
-    log(options.verbose, `Final score: ${afterScore.score}/100`);
-    for (const c of afterScore.checks.filter(ch => !ch.passed)) {
-      log(options.verbose, `  Still failing: ${c.name} (${c.earnedPoints}/${c.maxPoints})${c.suggestion ? ` — ${c.suggestion}` : ''}`);
-    }
-  }
-
-  // Step 5: Skills
-  console.log(title.bold('\n  Step 5/5 — Skills\n'));
-  console.log(chalk.dim('  Search community registries for skills that match your tech stack.\n'));
-
-  let wantsSkills: boolean;
-  if (options.autoApprove) {
-    wantsSkills = false;
-    log(options.verbose, 'Auto-approve: skipping skills search');
-  } else {
-    wantsSkills = await select({
-      message: 'Search public repos for relevant skills to add to this project?',
-      choices: [
-        { name: 'Yes, find skills for my project', value: true },
-        { name: 'Skip for now', value: false },
-      ],
-    });
-  }
-
-  if (wantsSkills) {
-    trackInitSkillsSearch(true, 0);
-    try {
-      await searchAndInstallSkills(targetAgent);
-    } catch (err) {
-      if ((err as Error).message !== '__exit__') {
-        console.log(chalk.dim('  Skills search failed: ' + ((err as Error).message || 'unknown error')));
-      }
-      console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber skills') + chalk.dim(' later to try again.\n'));
-    }
-  } else {
-    trackInitSkillsSearch(false, 0);
-    console.log(chalk.dim('  Skipped. Run ') + chalk.hex('#83D1EB')('caliber skills') + chalk.dim(' later to browse.\n'));
-  }
-
-  console.log(chalk.bold.green('  Setup complete!'));
+  // Done!
+  console.log(chalk.bold.green('\n  Setup complete!'));
   console.log(chalk.dim('  Your AI agents now understand your project\'s architecture, build commands,'));
   console.log(chalk.dim('  testing patterns, and conventions. All changes are backed up automatically.\n'));
 
@@ -615,7 +651,6 @@ async function refineLoop(
       return null;
     }
 
-    // Quick intent check — avoid sending non-refinement requests to the expensive model
     const isValid = await classifyRefineIntent(message);
     if (!isValid) {
       console.log(chalk.dim('  This doesn\'t look like a config change request.'));
@@ -675,7 +710,6 @@ Return {"valid": true} or {"valid": false}. Nothing else.`,
     });
     return result.valid === true;
   } catch {
-    // If the check fails, let it through — better to try than block
     return true;
   }
 }
@@ -684,6 +718,7 @@ async function evaluateDismissals(
   failingChecks: readonly Check[],
   fingerprint: { languages: string[]; frameworks: string[]; fileTree: string[]; tools: string[] },
 ): Promise<DismissedCheck[]> {
+  if (failingChecks.length === 0) return [];
   const fastModel = getFastModel();
   const checkList = failingChecks.map(c => ({
     id: c.id,
@@ -762,7 +797,7 @@ async function promptHookType(targetAgent: TargetAgent): Promise<HookChoice> {
   choices.push({ name: 'Skip for now', value: 'skip' });
 
   return select({
-    message: 'How would you like to auto-refresh your setup?',
+    message: 'Keep your AI docs & skills in sync as your code evolves?',
     choices,
   });
 }
@@ -1002,4 +1037,3 @@ function writeErrorLog(
     // best effort
   }
 }
-

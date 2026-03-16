@@ -461,6 +461,52 @@ async function generateMonolithic(
   return attemptGeneration();
 }
 
+export async function generateSkillsForSetup(
+  setup: Record<string, unknown>,
+  fingerprint: Fingerprint,
+  targetAgent: TargetAgent,
+  onStatus?: (message: string) => void,
+): Promise<number> {
+  const skillTopics = collectSkillTopics(setup, targetAgent, fingerprint);
+  if (skillTopics.length === 0) return 0;
+
+  onStatus?.(`Generating ${skillTopics.length} skills...`);
+
+  const allDeps = extractAllDeps(process.cwd());
+  const skillContext = buildSkillContext(fingerprint, setup, allDeps);
+  const fastModel = getFastModel();
+
+  const skillResults = await Promise.allSettled(
+    skillTopics.map(({ platform, topic }) =>
+      generateSkill(skillContext, topic, fastModel).then(skill => ({ platform, skill }))
+    )
+  );
+
+  for (const result of skillResults) {
+    if (result.status === 'fulfilled') {
+      const { platform, skill } = result.value;
+      const platformObj = (setup[platform] ?? {}) as Record<string, unknown>;
+      const skills = (platformObj.skills ?? []) as GeneratedSkill[];
+      skills.push(skill);
+      platformObj.skills = skills;
+      setup[platform] = platformObj;
+
+      const skillPath = platform === 'codex'
+        ? `.agents/skills/${skill.name}/SKILL.md`
+        : `.${platform}/skills/${skill.name}/SKILL.md`;
+      const descriptions = (setup.fileDescriptions ?? {}) as Record<string, string>;
+      descriptions[skillPath] = skill.description.slice(0, 80);
+      setup.fileDescriptions = descriptions;
+    }
+  }
+
+  const succeeded = skillResults.filter(r => r.status === 'fulfilled').length;
+  const failed = skillResults.filter(r => r.status === 'rejected').length;
+  if (failed > 0) onStatus?.(`${succeeded} generated, ${failed} failed`);
+
+  return succeeded;
+}
+
 const LIMITS = {
   FILE_TREE_ENTRIES: 500,
   EXISTING_CONFIG_CHARS: 8000,

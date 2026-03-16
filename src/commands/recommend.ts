@@ -12,7 +12,7 @@ import { readState } from '../lib/state.js';
 
 type Platform = 'claude' | 'cursor' | 'codex';
 
-interface SkillResult {
+export interface SkillResult {
   name: string;
   slug: string;
   source_url: string;
@@ -301,6 +301,76 @@ function extractTopDeps(): string[] {
     return [];
   }
 }
+
+// --- Parallel-friendly search (used by init's parallel engine) ---
+
+export interface SkillSearchResult {
+  results: SkillResult[];
+  contentMap: Map<string, string>;
+}
+
+export async function searchSkills(
+  fingerprint: Fingerprint,
+  targetPlatforms: Platform[],
+  onStatus?: (message: string) => void,
+): Promise<SkillSearchResult> {
+  const installedSkills = getInstalledSkills(targetPlatforms);
+
+  const technologies = [...new Set([
+    ...fingerprint.languages,
+    ...fingerprint.frameworks,
+    ...extractTopDeps(),
+  ].filter(Boolean))];
+
+  if (technologies.length === 0) {
+    return { results: [], contentMap: new Map() };
+  }
+
+  const primaryPlatform = targetPlatforms.includes('claude') ? 'claude' : targetPlatforms[0];
+
+  onStatus?.('Searching skill registries...');
+  const allCandidates = await searchAllProviders(technologies, primaryPlatform);
+
+  if (!allCandidates.length) {
+    return { results: [], contentMap: new Map() };
+  }
+
+  const newCandidates = allCandidates.filter(c => !installedSkills.has(c.slug.toLowerCase()));
+  if (!newCandidates.length) {
+    return { results: [], contentMap: new Map() };
+  }
+
+  onStatus?.(`Scoring ${newCandidates.length} candidates...`);
+  let results: SkillResult[];
+  const config = loadConfig();
+
+  if (config) {
+    try {
+      const projectContext = buildProjectContext(fingerprint, targetPlatforms);
+      results = await scoreWithLLM(newCandidates, projectContext, technologies);
+    } catch {
+      results = newCandidates.slice(0, 20);
+    }
+  } else {
+    results = newCandidates.slice(0, 20);
+  }
+
+  if (results.length === 0) {
+    return { results: [], contentMap: new Map() };
+  }
+
+  onStatus?.('Fetching skill content...');
+  const contentMap = new Map<string, string>();
+  await Promise.all(results.map(async (rec) => {
+    const content = await fetchSkillContent(rec);
+    if (content) contentMap.set(rec.slug, content);
+  }));
+
+  const available = results.filter(r => contentMap.has(r.slug));
+  return { results: available, contentMap };
+}
+
+export { interactiveSelect as selectSkills, installSkills };
 
 // --- Main command ---
 
