@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { loadConfig, getConfigFilePath, getFastModel } from '../llm/config.js';
+import { loadConfig, getConfigFilePath, getFastModel, getDisplayModel } from '../llm/config.js';
 import { runInteractiveProviderSetup } from './interactive-provider-setup.js';
 import { trackConfigProviderSet } from '../telemetry/events.js';
 
@@ -7,9 +7,7 @@ export async function configCommand() {
   const existing = loadConfig();
 
   if (existing) {
-    const displayModel = existing.model === 'default' && existing.provider === 'claude-cli'
-      ? process.env.ANTHROPIC_MODEL || 'default (inherited from Claude Code)'
-      : existing.model;
+    const displayModel = getDisplayModel(existing);
     const fastModel = getFastModel();
 
     console.log(chalk.bold('\nCurrent Configuration\n'));

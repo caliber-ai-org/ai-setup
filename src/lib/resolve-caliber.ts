@@ -20,9 +20,10 @@ export function resolveCaliber(): string {
     return _resolved;
   }
 
-  // 1. Try `which caliber`
+  // 1. Try to find caliber on PATH
   try {
-    const found = execSync('which caliber', {
+    const whichCmd = process.platform === 'win32' ? 'where caliber' : 'which caliber';
+    const found = execSync(whichCmd, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
     }).trim();

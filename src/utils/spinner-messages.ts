@@ -5,12 +5,12 @@ export const GENERATION_MESSAGES = [
   'Analyzing your project structure and dependencies...',
   'Mapping out build commands and test workflows...',
   'Reviewing coding patterns and conventions...',
-  'Crafting permission rules for safe tool usage...',
+  'Extracting architecture and key file references...',
   'Designing skills tailored to your codebase...',
-  'Evaluating MCP server integrations...',
+  'Writing concise, grounded config content...',
   'Optimizing settings for your development workflow...',
   'Building coding guidelines from your project style...',
-  'Setting up pre-commit hooks and quality gates...',
+  'Cross-referencing project files for accuracy...',
   'Assembling your complete agent configuration...',
 ];
 

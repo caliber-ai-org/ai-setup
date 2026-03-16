@@ -5,6 +5,11 @@ vi.mock('child_process');
 
 import { detectAvailableEditors, openDiffsInEditor } from '../editor.js';
 
+const IS_WINDOWS = process.platform === 'win32';
+const whichCmd = IS_WINDOWS ? 'where' : 'which';
+const expectedSpawnOpts = (base: Record<string, unknown>) =>
+  IS_WINDOWS ? { ...base, shell: true } : base;
+
 describe('detectAvailableEditors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -13,7 +18,7 @@ describe('detectAvailableEditors', () => {
 
   it('returns cursor and terminal when cursor is available', () => {
     vi.mocked(execSync).mockImplementation((cmd) => {
-      if (String(cmd) === 'which cursor') return Buffer.from('/usr/local/bin/cursor');
+      if (String(cmd) === `${whichCmd} cursor`) return Buffer.from('/usr/local/bin/cursor');
       throw new Error('not found');
     });
 
@@ -22,7 +27,7 @@ describe('detectAvailableEditors', () => {
 
   it('returns vscode and terminal when code is available', () => {
     vi.mocked(execSync).mockImplementation((cmd) => {
-      if (String(cmd) === 'which code') return Buffer.from('/usr/local/bin/code');
+      if (String(cmd) === `${whichCmd} code`) return Buffer.from('/usr/local/bin/code');
       throw new Error('not found');
     });
 
@@ -32,8 +37,8 @@ describe('detectAvailableEditors', () => {
   it('returns all three when both editors are available', () => {
     vi.mocked(execSync).mockImplementation((cmd) => {
       const s = String(cmd);
-      if (s === 'which cursor') return Buffer.from('/usr/local/bin/cursor');
-      if (s === 'which code') return Buffer.from('/usr/local/bin/code');
+      if (s === `${whichCmd} cursor`) return Buffer.from('/usr/local/bin/cursor');
+      if (s === `${whichCmd} code`) return Buffer.from('/usr/local/bin/code');
       throw new Error('not found');
     });
 
@@ -61,7 +66,7 @@ describe('openDiffsInEditor', () => {
     expect(spawn).toHaveBeenCalledWith(
       'cursor',
       ['--diff', '/project/CLAUDE.md', '/tmp/proposed/CLAUDE.md'],
-      { stdio: 'ignore', detached: true }
+      expectedSpawnOpts({ stdio: 'ignore', detached: true })
     );
     expect(mockUnref).toHaveBeenCalled();
   });
@@ -74,7 +79,7 @@ describe('openDiffsInEditor', () => {
     expect(spawn).toHaveBeenCalledWith(
       'code',
       ['/tmp/proposed/new.md'],
-      { stdio: 'ignore', detached: true }
+      expectedSpawnOpts({ stdio: 'ignore', detached: true })
     );
   });
 

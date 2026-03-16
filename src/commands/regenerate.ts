@@ -88,7 +88,7 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   genSpinner.succeed('Setup regenerated');
 
   // 4. Diff review
-  const setupFiles = collectSetupFiles(generatedSetup);
+  const setupFiles = collectSetupFiles(generatedSetup, targetAgent);
   const staged = stageFiles(setupFiles, process.cwd());
   const totalChanges = staged.newFiles + staged.modifiedFiles;
 

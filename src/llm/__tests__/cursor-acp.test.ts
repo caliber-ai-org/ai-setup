@@ -123,7 +123,8 @@ describe('isCursorAgentAvailable', () => {
   it('returns true when agent binary is on PATH', () => {
     execSync.mockReturnValue(undefined);
     expect(isCursorAgentAvailable()).toBe(true);
-    expect(execSync).toHaveBeenCalledWith('which agent', { stdio: 'ignore' });
+    const expectedCmd = process.platform === 'win32' ? 'where agent' : 'which agent';
+    expect(execSync).toHaveBeenCalledWith(expectedCmd, { stdio: 'ignore' });
   });
 
   it('returns false when agent binary is not found', () => {

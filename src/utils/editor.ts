@@ -1,10 +1,13 @@
 import { execSync, spawn } from 'child_process';
 
+const IS_WINDOWS = process.platform === 'win32';
+
 export type ReviewMethod = 'cursor' | 'vscode' | 'terminal';
 
 function commandExists(cmd: string): boolean {
   try {
-    execSync(`which ${cmd}`, { stdio: 'ignore' });
+    const check = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+    execSync(check, { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -31,11 +34,13 @@ export function openDiffsInEditor(
         spawn(cmd, ['--diff', file.originalPath, file.proposedPath], {
           stdio: 'ignore',
           detached: true,
+          ...(IS_WINDOWS && { shell: true }),
         }).unref();
       } else {
         spawn(cmd, [file.proposedPath], {
           stdio: 'ignore',
           detached: true,
+          ...(IS_WINDOWS && { shell: true }),
         }).unref();
       }
     } catch {

@@ -1,28 +1,18 @@
 import chalk from 'chalk';
-import readline from 'readline';
 import select from '@inquirer/select';
 import confirm from '@inquirer/confirm';
 import { writeConfigFile, DEFAULT_MODELS } from '../llm/config.js';
 import type { ProviderType, LLMConfig } from '../llm/types.js';
 import { isCursorAgentAvailable } from '../llm/cursor-acp.js';
 import { isClaudeCliAvailable } from '../llm/claude-cli.js';
-
-function promptInput(question: string): Promise<string> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(chalk.cyan(`${question} `), (answer) => {
-      rl.close();
-      resolve(answer.trim());
-    });
-  });
-}
+import { promptInput } from '../utils/prompt.js';
 
 const PROVIDER_CHOICES: Array<{ name: string; value: ProviderType }> = [
-  { name: 'Claude Code — Use my Claude Code subscription', value: 'claude-cli' },
-  { name: 'Cursor (use my Cursor subscription — no API key)', value: 'cursor' },
-  { name: 'Anthropic (Claude) — API key from console.anthropic.com', value: 'anthropic' },
-  { name: 'Google Vertex AI (Claude)', value: 'vertex' },
-  { name: 'OpenAI / OpenAI-compatible', value: 'openai' },
+  { name: 'Claude Code — use your existing subscription (no API key)', value: 'claude-cli' },
+  { name: 'Cursor — use your existing subscription (no API key)', value: 'cursor' },
+  { name: 'Anthropic — API key from console.anthropic.com', value: 'anthropic' },
+  { name: 'Google Vertex AI — Claude models via GCP', value: 'vertex' },
+  { name: 'OpenAI — or any OpenAI-compatible endpoint', value: 'openai' },
 ];
 
 /**

@@ -5,7 +5,10 @@ export function buildSkillContent(skill: { name: string; description: string; co
   return frontmatter + skill.content;
 }
 
-export function collectSetupFiles(setup: Record<string, unknown>): Array<{ path: string; content: string }> {
+export function collectSetupFiles(
+  setup: Record<string, unknown>,
+  targetAgent?: ('claude' | 'cursor' | 'codex')[],
+): Array<{ path: string; content: string }> {
   const files: Array<{ path: string; content: string }> = [];
   const claude = setup.claude as Record<string, unknown> | undefined;
   const cursor = setup.cursor as Record<string, unknown> | undefined;
@@ -47,7 +50,8 @@ export function collectSetupFiles(setup: Record<string, unknown>): Array<{ path:
     }
   }
 
-  if (!fs.existsSync('AGENTS.md') && !(codex && codex.agentsMd)) {
+  const codexTargeted = targetAgent ? targetAgent.includes('codex') : false;
+  if (codexTargeted && !fs.existsSync('AGENTS.md') && !(codex && codex.agentsMd)) {
     const agentRefs: string[] = [];
     if (claude) agentRefs.push('See `CLAUDE.md` for Claude Code configuration.');
     if (cursor) agentRefs.push('See `.cursor/rules/` for Cursor rules.');

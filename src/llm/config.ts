@@ -107,6 +107,13 @@ export function getConfigFilePath(): string {
   return CONFIG_FILE;
 }
 
+export function getDisplayModel(config: { provider: string; model: string }): string {
+  if (config.model === 'default' && config.provider === 'claude-cli') {
+    return process.env.ANTHROPIC_MODEL || 'default (inherited from Claude Code)';
+  }
+  return config.model;
+}
+
 export function getFastModel(): string | undefined {
   if (process.env.CALIBER_FAST_MODEL) return process.env.CALIBER_FAST_MODEL;
   if (process.env.ANTHROPIC_SMALL_FAST_MODEL) return process.env.ANTHROPIC_SMALL_FAST_MODEL;
