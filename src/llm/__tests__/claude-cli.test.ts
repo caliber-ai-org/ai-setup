@@ -15,10 +15,12 @@ describe('ClaudeCliProvider', () => {
     vi.clearAllMocks();
   });
 
-  it('call() spawns claude -p with combined prompt and returns stdout', async () => {
+  it('call() spawns claude -p and pipes combined prompt via stdin', async () => {
     const stdoutChunks = [Buffer.from('Hello from Claude.\n')];
     let closeCb: (code: number) => void;
+    const stdinEnd = vi.fn();
     spawn.mockReturnValue({
+      stdin: { end: stdinEnd },
       stdout: {
         on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
           if (ev === 'data') setTimeout(() => stdoutChunks.forEach(fn), 0);
@@ -45,17 +47,19 @@ describe('ClaudeCliProvider', () => {
     expect(result).toBe('Hello from Claude.');
     expect(spawn).toHaveBeenCalledWith(
       'claude',
-      expect.arrayContaining(['-p', expect.stringContaining('[[System]]')]),
+      expect.arrayContaining(['-p']),
       expect.objectContaining({ cwd: process.cwd() })
     );
-    const promptArg = spawn.mock.calls[0][1][1];
-    expect(promptArg).toContain('You are helpful.');
-    expect(promptArg).toContain('Say hello.');
+    const args = spawn.mock.calls[0][1];
+    expect(args).not.toContain(expect.stringContaining('[[System]]'));
+    expect(stdinEnd).toHaveBeenCalledWith(expect.stringContaining('You are helpful.'));
+    expect(stdinEnd).toHaveBeenCalledWith(expect.stringContaining('Say hello.'));
   });
 
-  it('stream() calls call() then invokes onText and onEnd', async () => {
+  it('stream() pipes prompt via stdin and invokes onText and onEnd', async () => {
     let closeCb: (code: number) => void;
     spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
       stdout: {
         on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
           if (ev === 'data') setTimeout(() => fn(Buffer.from('Streamed response.')), 0);
@@ -88,6 +92,7 @@ describe('ClaudeCliProvider', () => {
     const stdoutChunks = [Buffer.from('response')];
     let closeCb: (code: number) => void;
     spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
       stdout: {
         on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
           if (ev === 'data') setTimeout(() => stdoutChunks.forEach(fn), 0);
@@ -119,6 +124,7 @@ describe('ClaudeCliProvider', () => {
     const stdoutChunks = [Buffer.from('response')];
     let closeCb: (code: number) => void;
     spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
       stdout: {
         on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
           if (ev === 'data') setTimeout(() => stdoutChunks.forEach(fn), 0);
@@ -144,6 +150,7 @@ describe('ClaudeCliProvider', () => {
   it('stream() passes --model flag when options.model is set', async () => {
     let closeCb: (code: number) => void;
     spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
       stdout: {
         on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
           if (ev === 'data') setTimeout(() => fn(Buffer.from('ok')), 0);

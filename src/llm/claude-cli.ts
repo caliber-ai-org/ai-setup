@@ -31,13 +31,14 @@ export class ClaudeCliProvider implements LLMProvider {
 
   async stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void> {
     const combined = this.buildCombinedPrompt(options);
-    const args = ['-p', combined];
+    const args = ['-p'];
     if (options.model) args.push('--model', options.model);
     const child = spawn(CLAUDE_CLI_BIN, args, {
       cwd: process.cwd(),
-      stdio: ['ignore', 'pipe', 'inherit'],
+      stdio: ['pipe', 'pipe', 'inherit'],
       env: process.env,
     });
+    child.stdin!.end(combined);
 
     let settled = false;
     const chunks: Buffer[] = [];
@@ -104,13 +105,14 @@ export class ClaudeCliProvider implements LLMProvider {
 
   private runClaudePrint(combinedPrompt: string, model?: string): Promise<string> {
     return new Promise((resolve, reject) => {
-      const args = ['-p', combinedPrompt];
+      const args = ['-p'];
       if (model) args.push('--model', model);
       const child = spawn(CLAUDE_CLI_BIN, args, {
         cwd: process.cwd(),
-        stdio: ['ignore', 'pipe', 'inherit'],
+        stdio: ['pipe', 'pipe', 'inherit'],
         env: process.env,
       });
+      child.stdin!.end(combinedPrompt);
 
       const chunks: Buffer[] = [];
       child.stdout!.on('data', (chunk: Buffer) => chunks.push(chunk));
