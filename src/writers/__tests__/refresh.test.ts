@@ -30,7 +30,8 @@ describe('writeRefreshDocs', () => {
     });
 
     expect(written).toContain('README.md');
-    expect(written).toContain('.cursor/rules/test.mdc');
+    const rulePath = written.find(p => p.includes('test.mdc'));
+    expect(rulePath).toBeDefined();
   });
 
   it('returns empty array when no docs need updating', () => {

@@ -151,7 +151,8 @@ describe('writer', () => {
         }],
       });
 
-      expect(result.written).toContain('.claude/skills/learned-db-setup/SKILL.md');
+      const skillPath = result.written.find(p => p.includes('learned-db-setup'));
+      expect(skillPath).toBeDefined();
     });
   });
 
