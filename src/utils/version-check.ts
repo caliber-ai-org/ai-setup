@@ -11,6 +11,28 @@ const pkg = JSON.parse(
   fs.readFileSync(path.resolve(__dirname_vc, '..', 'package.json'), 'utf-8')
 );
 
+export function getChannel(version: string): string {
+  const match = version.match(/-(dev|next)\./);
+  return match ? match[1] : 'latest';
+}
+
+export function isNewer(registry: string, current: string): boolean {
+  const parse = (v: string) => {
+    const [core, pre] = v.split('-');
+    const parts = core.split('.').map(Number);
+    return { major: parts[0], minor: parts[1], patch: parts[2], pre };
+  };
+  const r = parse(registry);
+  const c = parse(current);
+  if (r.major !== c.major) return r.major > c.major;
+  if (r.minor !== c.minor) return r.minor > c.minor;
+  if (r.patch !== c.patch) return r.patch > c.patch;
+  if (!r.pre && c.pre) return true;
+  if (r.pre && !c.pre) return false;
+  if (r.pre && c.pre) return r.pre > c.pre;
+  return false;
+}
+
 function getInstalledVersion(): string | null {
   try {
     const globalRoot = execSync('npm root -g', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
@@ -25,10 +47,13 @@ export async function checkForUpdates(): Promise<void> {
   if (process.env.CALIBER_SKIP_UPDATE_CHECK) return;
 
   try {
+    const current = pkg.version as string;
+    const channel = getChannel(current);
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 2000);
 
-    const res = await fetch('https://registry.npmjs.org/@rely-ai/caliber/latest', {
+    const res = await fetch(`https://registry.npmjs.org/@rely-ai/caliber/${channel}`, {
       signal: controller.signal,
     });
     clearTimeout(timeout);
@@ -39,15 +64,15 @@ export async function checkForUpdates(): Promise<void> {
     const latest = data.version;
     if (!latest) return;
 
-    const current = pkg.version as string;
-    if (current === latest) return;
+    if (!isNewer(latest, current)) return;
 
     const isInteractive = process.stdin.isTTY === true;
 
     if (!isInteractive) {
+      const installTag = channel === 'latest' ? '' : `@${channel}`;
       console.log(
         chalk.yellow(
-          `\nUpdate available: ${current} -> ${latest}\nRun ${chalk.bold('npm install -g @rely-ai/caliber')} to upgrade.\n`
+          `\nUpdate available: ${current} -> ${latest}\nRun ${chalk.bold(`npm install -g @rely-ai/caliber${installTag}`)} to upgrade.\n`
         )
       );
       return;
@@ -63,9 +88,10 @@ export async function checkForUpdates(): Promise<void> {
       return;
     }
 
+    const tag = channel === 'latest' ? latest : channel;
     const spinner = ora('Updating caliber...').start();
     try {
-      execSync(`npm install -g @rely-ai/caliber@${latest}`, {
+      execSync(`npm install -g @rely-ai/caliber@${tag}`, {
         stdio: 'pipe',
         timeout: 120_000,
         env: { ...process.env, npm_config_fund: 'false', npm_config_audit: 'false' },
@@ -74,7 +100,7 @@ export async function checkForUpdates(): Promise<void> {
       const installed = getInstalledVersion();
       if (installed !== latest) {
         spinner.fail(`Update incomplete — got ${installed ?? 'unknown'}, expected ${latest}`);
-        console.log(chalk.yellow(`Run ${chalk.bold(`npm install -g @rely-ai/caliber@${latest}`)} manually.\n`));
+        console.log(chalk.yellow(`Run ${chalk.bold(`npm install -g @rely-ai/caliber@${tag}`)} manually.\n`));
         return;
       }
 
@@ -96,7 +122,7 @@ export async function checkForUpdates(): Promise<void> {
       }
       console.log(
         chalk.yellow(
-          `Run ${chalk.bold(`npm install -g @rely-ai/caliber@${latest}`)} manually to upgrade.\n`
+          `Run ${chalk.bold(`npm install -g @rely-ai/caliber@${tag}`)} manually to upgrade.\n`
         )
       );
     }
