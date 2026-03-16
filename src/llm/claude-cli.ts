@@ -4,6 +4,7 @@ import type { LLMProvider, LLMCallOptions, LLMStreamOptions, LLMStreamCallbacks,
 const CLAUDE_CLI_BIN = 'claude';
 /** Max time for a single claude -p invocation (e.g. long generation). */
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
+const IS_WINDOWS = process.platform === 'win32';
 
 /**
  * Provider that uses the Claude Code CLI (`claude -p "..."`).
@@ -37,6 +38,7 @@ export class ClaudeCliProvider implements LLMProvider {
       cwd: process.cwd(),
       stdio: ['pipe', 'pipe', 'inherit'],
       env: process.env,
+      ...(IS_WINDOWS && { shell: true }),
     });
     child.stdin!.end(combined);
 
@@ -111,6 +113,7 @@ export class ClaudeCliProvider implements LLMProvider {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'inherit'],
         env: process.env,
+        ...(IS_WINDOWS && { shell: true }),
       });
       child.stdin!.end(combinedPrompt);
 
