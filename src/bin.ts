@@ -10,7 +10,10 @@ if (process.env.CALIBER_LOCAL) {
   process.env.CALIBER_SKIP_UPDATE_CHECK = '1';
 }
 
-await checkForUpdates();
+const isVersionCheck = process.argv.includes('--version') || process.argv.includes('-V');
+if (!isVersionCheck) {
+  await checkForUpdates();
+}
 
 program.parseAsync()
   .catch((err) => {
