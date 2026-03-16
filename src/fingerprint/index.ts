@@ -40,7 +40,7 @@ export async function collectFingerprint(dir: string): Promise<Fingerprint> {
     codeAnalysis,
   };
 
-  await enrichWithLLM(fingerprint, dir);
+  await enrichWithLLM(fingerprint);
 
   return fingerprint;
 }
@@ -65,50 +65,22 @@ export function computeFingerprintHash(fingerprint: Fingerprint): string {
   return crypto.createHash('sha256').update(key).digest('hex');
 }
 
-const DEP_FILE_PATTERNS = [
-  'package.json',
-  'pyproject.toml',
-  'requirements.txt',
-  'setup.py',
-  'Pipfile',
-  'Cargo.toml',
-  'go.mod',
-  'Gemfile',
-  'build.gradle',
-  'pom.xml',
-  'composer.json',
-];
-
-const MAX_CONTENT_SIZE = 50 * 1024;
-
-async function enrichWithLLM(fingerprint: Fingerprint, dir: string): Promise<void> {
+async function enrichWithLLM(fingerprint: Fingerprint): Promise<void> {
   try {
     const config = loadConfig();
     if (!config) return;
+    if (fingerprint.fileTree.length === 0) return;
 
-    const fileContents: Record<string, string> = {};
-    let totalSize = 0;
-
-    for (const treePath of fingerprint.fileTree) {
-      const basename = path.basename(treePath);
-      if (!DEP_FILE_PATTERNS.includes(basename)) continue;
-
-      const fullPath = path.join(dir, treePath);
-      if (!fs.existsSync(fullPath)) continue;
-
-      try {
-        const content = fs.readFileSync(fullPath, 'utf-8');
-        if (totalSize + content.length > MAX_CONTENT_SIZE) break;
-        fileContents[treePath] = content;
-        totalSize += content.length;
-      } catch {
-        continue;
+    const suffixCounts: Record<string, number> = {};
+    for (const entry of fingerprint.fileTree) {
+      if (entry.endsWith('/')) continue;
+      const ext = path.extname(entry).toLowerCase();
+      if (ext) {
+        suffixCounts[ext] = (suffixCounts[ext] || 0) + 1;
       }
     }
 
-    if (Object.keys(fileContents).length === 0 && fingerprint.fileTree.length === 0) return;
-
-    const result = await detectProjectStack(fingerprint.fileTree, fileContents);
+    const result = await detectProjectStack(fingerprint.fileTree, suffixCounts);
 
     if (result.languages?.length) fingerprint.languages = result.languages;
     if (result.frameworks?.length) fingerprint.frameworks = result.frameworks;

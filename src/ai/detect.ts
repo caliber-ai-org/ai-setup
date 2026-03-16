@@ -10,7 +10,7 @@ interface DetectResult {
 
 export async function detectProjectStack(
   fileTree: string[],
-  fileContents: Record<string, string>
+  suffixCounts: Record<string, number>
 ): Promise<DetectResult> {
   const parts: string[] = ['Analyze this project and detect languages, frameworks, and external tools/services.\n'];
 
@@ -20,11 +20,11 @@ export async function detectProjectStack(
     parts.push(cappedTree.join('\n'));
   }
 
-  if (Object.keys(fileContents).length > 0) {
-    parts.push('\nDependency file contents:');
-    for (const [filePath, content] of Object.entries(fileContents)) {
-      parts.push(`\n[${filePath}]`);
-      parts.push(content);
+  const sorted = Object.entries(suffixCounts).sort((a, b) => b[1] - a[1]);
+  if (sorted.length > 0) {
+    parts.push('\nFile extension distribution (sorted by frequency):');
+    for (const [ext, count] of sorted) {
+      parts.push(`${ext}: ${count}`);
     }
   }
 
