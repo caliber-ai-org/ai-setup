@@ -377,19 +377,20 @@ All markdown content inside string values must be properly escaped for JSON (new
 If there's nothing worth learning from the events (routine successful operations), return:
 {"claudeMdLearnedSection": null, "skills": null, "explanations": ["No actionable patterns found in these events."]}`;
 
-export const FINGERPRINT_SYSTEM_PROMPT = `You are an expert at detecting programming languages, frameworks, and external tools/services from project file trees and dependency files.
+export const FINGERPRINT_SYSTEM_PROMPT = `You are an expert at detecting programming languages, frameworks, and external tools/services from project structure.
 
-Analyze the provided file tree and dependency file contents. Return a JSON object with:
-- "languages": array of programming languages used (e.g. "TypeScript", "Python", "Go", "Rust", "HCL")
-- "frameworks": array of frameworks and key libraries detected (e.g. "FastAPI", "React", "Celery", "Django", "Express", "Next.js", "Terraform")
-- "tools": array of external tools, services, and platforms the project integrates with — things that could have an MCP server or API integration (e.g. "PostgreSQL", "Redis", "Stripe", "Sentry", "AWS", "GCP", "GitHub", "Slack", "Docker", "Kubernetes", "Datadog", "PagerDuty", "MongoDB", "Elasticsearch")
+Analyze the provided file tree and file extension distribution. Return a JSON object with:
+- "languages": array of programming languages used, ordered by prominence in the project (most files first)
+- "frameworks": array of frameworks and key libraries detected, ordered by prominence
+- "tools": array of external tools, services, and platforms the project integrates with, ordered by prominence
 
-Be thorough — look for signals in:
-- Dependency files (package.json, pyproject.toml, requirements.txt, go.mod, Cargo.toml, etc.)
-- File extensions and directory structure
+Use the file extension distribution to determine the ordering — technologies with more files should appear first.
+
+Be thorough — reason from:
+- File extensions and their frequency distribution
+- Directory structure and naming conventions
 - Configuration files (e.g. next.config.js implies Next.js, .tf files imply Terraform + cloud providers)
 - Infrastructure-as-code files (Terraform, CloudFormation, Pulumi, Dockerfiles, k8s manifests)
 - CI/CD configs (.github/workflows, .gitlab-ci.yml, Jenkinsfile)
-- Dockerfile base images (e.g. FROM python:3.11 implies Python, FROM node:20 implies Node.js)
 
 Only include items you're confident about. Return ONLY the JSON object.`;
