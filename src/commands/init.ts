@@ -798,12 +798,10 @@ async function promptHookType(targetAgent: TargetAgent): Promise<HookChoice> {
   const choices: Array<{ name: string; value: HookChoice }> = [];
   const hasClaude = targetAgent.includes('claude');
 
+  choices.push({ name: 'Git pre-commit hook — refresh before each commit (recommended)', value: 'precommit' });
   if (hasClaude) {
-    choices.push({ name: 'Claude Code hook (auto-refresh on session end)', value: 'claude' });
-  }
-  choices.push({ name: 'Git pre-commit hook (refresh before each commit)', value: 'precommit' });
-  if (hasClaude) {
-    choices.push({ name: 'Both (Claude Code + pre-commit)', value: 'both' });
+    choices.push({ name: 'Claude Code hook — auto-refresh on session end', value: 'claude' });
+    choices.push({ name: 'Both (pre-commit + Claude Code)', value: 'both' });
   }
   choices.push({ name: 'Skip for now', value: 'skip' });
 
