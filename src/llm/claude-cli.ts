@@ -34,12 +34,18 @@ export class ClaudeCliProvider implements LLMProvider {
     const combined = this.buildCombinedPrompt(options);
     const args = ['-p'];
     if (options.model) args.push('--model', options.model);
-    const child = spawn(CLAUDE_CLI_BIN, args, {
-      cwd: process.cwd(),
-      stdio: ['pipe', 'pipe', 'inherit'],
-      env: process.env,
-      ...(IS_WINDOWS && { shell: true }),
-    });
+    const child = IS_WINDOWS
+      ? spawn([CLAUDE_CLI_BIN, ...args].join(' '), {
+          cwd: process.cwd(),
+          stdio: ['pipe', 'pipe', 'inherit'] as const,
+          env: process.env,
+          shell: true,
+        })
+      : spawn(CLAUDE_CLI_BIN, args, {
+          cwd: process.cwd(),
+          stdio: ['pipe', 'pipe', 'inherit'],
+          env: process.env,
+        });
     child.stdin!.end(combined);
 
     let settled = false;
@@ -109,12 +115,18 @@ export class ClaudeCliProvider implements LLMProvider {
     return new Promise((resolve, reject) => {
       const args = ['-p'];
       if (model) args.push('--model', model);
-      const child = spawn(CLAUDE_CLI_BIN, args, {
-        cwd: process.cwd(),
-        stdio: ['pipe', 'pipe', 'inherit'],
-        env: process.env,
-        ...(IS_WINDOWS && { shell: true }),
-      });
+      const child = IS_WINDOWS
+        ? spawn([CLAUDE_CLI_BIN, ...args].join(' '), {
+            cwd: process.cwd(),
+            stdio: ['pipe', 'pipe', 'inherit'] as const,
+            env: process.env,
+            shell: true,
+          })
+        : spawn(CLAUDE_CLI_BIN, args, {
+            cwd: process.cwd(),
+            stdio: ['pipe', 'pipe', 'inherit'],
+            env: process.env,
+          });
       child.stdin!.end(combinedPrompt);
 
       const chunks: Buffer[] = [];
