@@ -121,9 +121,9 @@ export function getFastModel(): string | undefined {
   const config = loadConfig();
   const provider = config?.provider;
 
-  // ANTHROPIC_SMALL_FAST_MODEL only applies to Anthropic/Vertex (or when no provider is configured)
+  // ANTHROPIC_SMALL_FAST_MODEL applies to Anthropic/Vertex/Claude CLI (or when no provider is configured)
   if (process.env.ANTHROPIC_SMALL_FAST_MODEL &&
-      (!provider || provider === 'anthropic' || provider === 'vertex')) {
+      (!provider || provider === 'anthropic' || provider === 'vertex' || provider === 'claude-cli')) {
     return process.env.ANTHROPIC_SMALL_FAST_MODEL;
   }
 
