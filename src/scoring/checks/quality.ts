@@ -20,6 +20,7 @@ import {
   classifyLine,
   countConcreteness,
   countTreeLines,
+  calculateDuplicatePercent,
 } from '../utils.js';
 
 export function checkQuality(dir: string): Check[] {
@@ -164,17 +165,9 @@ export function checkQuality(dir: string): Check[] {
   });
 
   // 5. No duplicate content across files
-  let duplicatePercent = 0;
-  if (claudeMd && cursorrules) {
-    const claudeLines = new Set(
-      claudeMd.split('\n').map(l => l.trim()).filter(l => l.length > 10),
-    );
-    const cursorLines = cursorrules.split('\n').map(l => l.trim()).filter(l => l.length > 10);
-    const overlapping = cursorLines.filter(l => claudeLines.has(l)).length;
-    duplicatePercent = cursorLines.length > 0
-      ? Math.round((overlapping / cursorLines.length) * 100)
-      : 0;
-  }
+  const duplicatePercent = claudeMd && cursorrules
+    ? calculateDuplicatePercent(claudeMd, cursorrules)
+    : 0;
 
   const hasDuplicates = duplicatePercent > 50;
   checks.push({

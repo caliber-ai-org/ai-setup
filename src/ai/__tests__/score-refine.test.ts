@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { existsSync } from 'fs';
 import { validateSetup, scoreAndRefine } from '../score-refine.js';
+import type { ProjectStructure } from '../../scoring/utils.js';
 
 vi.mock('fs', async () => {
   const actual = await vi.importActual<typeof import('fs')>('fs');
@@ -21,6 +22,8 @@ import { llmCall } from '../../llm/index.js';
 const mockExistsSync = existsSync as ReturnType<typeof vi.fn>;
 const mockLlmCall = llmCall as ReturnType<typeof vi.fn>;
 
+const emptyStructure: ProjectStructure = { dirs: [], files: [] };
+
 function makeSetup(claudeMd: string): Record<string, unknown> {
   return {
     targetAgent: ['claude'],
@@ -28,6 +31,55 @@ function makeSetup(claudeMd: string): Record<string, unknown> {
     fileDescriptions: { 'CLAUDE.md': 'test' },
   };
 }
+
+function makeMultiSetup(claudeMd: string, cursorrules: string): Record<string, unknown> {
+  return {
+    targetAgent: ['claude', 'cursor'],
+    claude: { claudeMd },
+    cursor: { cursorrules },
+    fileDescriptions: { 'CLAUDE.md': 'test', '.cursorrules': 'test' },
+  };
+}
+
+function makeSetupWithSkills(
+  claudeMd: string,
+  skills: Array<{ name: string; description: string; content: string }>,
+): Record<string, unknown> {
+  return {
+    targetAgent: ['claude'],
+    claude: { claudeMd, skills },
+    fileDescriptions: { 'CLAUDE.md': 'test' },
+  };
+}
+
+// Content that passes ALL quality, density, and structure checks
+const wellFormedContent = [
+  '## Commands',
+  '',
+  '```bash',
+  'npm run build',
+  '```',
+  '',
+  '```bash',
+  'npm run test',
+  '```',
+  '',
+  '```bash',
+  'npm run lint',
+  '```',
+  '',
+  '## Architecture',
+  '',
+  '- Entry: `src/index.ts` → `src/app.ts`',
+  '- Config: `tsconfig.json` and `package.json`',
+  '- Tests: `src/__tests__/` with `vitest`',
+  '',
+  '## Conventions',
+  '',
+  '- Lint: `eslint` with config in `.eslintrc.js`',
+  '- Format: `prettier` with `.prettierrc`',
+  '- Run `npm run build` before `npm publish`',
+].join('\n');
 
 describe('validateSetup', () => {
   beforeEach(() => {
@@ -37,36 +89,8 @@ describe('validateSetup', () => {
 
   it('returns no issues for a well-formed setup', () => {
     mockExistsSync.mockReturnValue(true);
-    const setup = makeSetup([
-      '# Project',
-      '',
-      '## Commands',
-      '',
-      '```bash',
-      'npm run build',
-      '```',
-      '',
-      '```bash',
-      'npm run test',
-      '```',
-      '',
-      '```bash',
-      'npm run lint',
-      '```',
-      '',
-      '## Architecture',
-      '',
-      '- Entry: `src/index.ts`',
-      '- Config: `tsconfig.json`',
-      '- Tests: `src/__tests__/`',
-      '',
-      '## Conventions',
-      '',
-      '- Use `vitest` for testing',
-      '- Run `npm run build` before deploying',
-    ].join('\n'));
-
-    const issues = validateSetup(setup, '/project');
+    const setup = makeSetup(wellFormedContent);
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
     expect(issues).toHaveLength(0);
   });
 
@@ -84,7 +108,7 @@ describe('validateSetup', () => {
       '- `nonexistent/path/` missing',
     ].join('\n'));
 
-    const issues = validateSetup(setup, '/project');
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
     const refIssue = issues.find(i => i.check === 'References valid');
     expect(refIssue).toBeDefined();
     expect(refIssue!.fixInstruction).toContain('fake-file.ts');
@@ -104,7 +128,7 @@ describe('validateSetup', () => {
       '```',
     ].join('\n'));
 
-    const issues = validateSetup(setup, '/project');
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
     const treeIssue = issues.find(i => i.check === 'No directory tree listings');
     expect(treeIssue).toBeDefined();
     expect(treeIssue!.pointsLost).toBe(3);
@@ -127,7 +151,7 @@ describe('validateSetup', () => {
       '- Use TypeScript',
     ].join('\n'));
 
-    const issues = validateSetup(setup, '/project');
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
     const blockIssue = issues.find(i => i.check === 'Executable content');
     expect(blockIssue).toBeDefined();
     expect(blockIssue!.pointsLost).toBeGreaterThan(0);
@@ -147,7 +171,7 @@ describe('validateSetup', () => {
       'Test thoroughly before deploying.',
     ].join('\n'));
 
-    const issues = validateSetup(setup, '/project');
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
     const concIssue = issues.find(i => i.check === 'Concrete instructions');
     expect(concIssue).toBeDefined();
     expect(concIssue!.pointsLost).toBeGreaterThan(0);
@@ -155,7 +179,7 @@ describe('validateSetup', () => {
 
   it('returns empty for setup with no config content', () => {
     const setup = { targetAgent: ['claude'], claude: {} };
-    const issues = validateSetup(setup, '/project');
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
     expect(issues).toHaveLength(0);
   });
 
@@ -169,10 +193,184 @@ describe('validateSetup', () => {
       '- `src/also-fake.ts` another path',
     ].join('\n'));
 
-    const issues = validateSetup(setup, '/project');
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
     for (let i = 1; i < issues.length; i++) {
       expect(issues[i - 1].pointsLost).toBeGreaterThanOrEqual(issues[i].pointsLost);
     }
+  });
+
+  // New checks
+
+  it('detects low project grounding', () => {
+    mockExistsSync.mockReturnValue(true);
+    const setup = makeSetup([
+      '## Commands',
+      '',
+      '```bash',
+      'npm run build',
+      '```',
+      '',
+      '## Architecture',
+      '',
+      '- Uses TypeScript',
+      '',
+      '## Conventions',
+      '',
+      '- Follow standard patterns',
+    ].join('\n'));
+
+    const structure: ProjectStructure = {
+      dirs: ['src', 'tests', 'docs', 'scripts'],
+      files: ['package.json', 'tsconfig.json', 'README.md'],
+    };
+
+    const issues = validateSetup(setup, '/project', undefined, structure);
+    const groundingIssue = issues.find(i => i.check === 'Project grounding');
+    expect(groundingIssue).toBeDefined();
+    expect(groundingIssue!.pointsLost).toBeGreaterThan(0);
+    expect(groundingIssue!.fixInstruction).toContain('src');
+  });
+
+  it('returns no grounding issue when dirs are mentioned', () => {
+    mockExistsSync.mockReturnValue(true);
+    const setup = makeSetup([
+      '## Architecture',
+      '',
+      '- Source: `src/` · `tests/` · `docs/`',
+      '- Config: `package.json` · `tsconfig.json` · `README.md`',
+      '- Deploy: `scripts/`',
+      '',
+      '## Commands',
+      '',
+      '```bash',
+      'npm test',
+      '```',
+      '',
+      '```bash',
+      'npm build',
+      '```',
+      '',
+      '```bash',
+      'npm lint',
+      '```',
+      '',
+      '## Conventions',
+      '',
+      '- Use `eslint` and `prettier`',
+    ].join('\n'));
+
+    const structure: ProjectStructure = {
+      dirs: ['src', 'tests', 'docs', 'scripts'],
+      files: ['package.json', 'tsconfig.json', 'README.md'],
+    };
+
+    const issues = validateSetup(setup, '/project', undefined, structure);
+    const groundingIssue = issues.find(i => i.check === 'Project grounding');
+    expect(groundingIssue).toBeUndefined();
+  });
+
+  it('detects low reference density', () => {
+    const setup = makeSetup([
+      '## Overview',
+      '',
+      'This project uses standard patterns.',
+      'Follow the coding conventions.',
+      'Write tests for all features.',
+      'Use proper error handling.',
+      'Keep code organized.',
+      '',
+      '## Architecture',
+      '',
+      '- The source code is organized by feature',
+      '',
+      '## Conventions',
+      '',
+      '- Standard TypeScript practices',
+    ].join('\n'));
+
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
+    const densityIssue = issues.find(i => i.check === 'Reference density');
+    expect(densityIssue).toBeDefined();
+    expect(densityIssue!.pointsLost).toBeGreaterThan(0);
+  });
+
+  it('detects duplicate content between claude and cursor', () => {
+    const sharedContent = [
+      '## Commands',
+      '',
+      '- Run `npm run build` to build the project',
+      '- Run `npm run test` to run tests',
+      '- Run `npm run lint` to lint code',
+      '',
+      '## Architecture',
+      '',
+      '- Entry: `src/index.ts`',
+      '- Config: `tsconfig.json`',
+    ].join('\n');
+
+    const setup = makeMultiSetup(sharedContent, sharedContent);
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
+    const dupIssue = issues.find(i => i.check === 'No duplicate content');
+    expect(dupIssue).toBeDefined();
+    expect(dupIssue!.pointsLost).toBe(2);
+  });
+
+  it('detects low-quality skills', () => {
+    mockExistsSync.mockImplementation((path: string) => {
+      if (typeof path === 'string' && path.includes('nonexistent')) return false;
+      return true;
+    });
+
+    const setup = makeSetupWithSkills(wellFormedContent, [
+      {
+        name: 'deploy-guide',
+        description: 'Deployment instructions',
+        content: [
+          'Follow the deployment process.',
+          'Make sure everything is ready.',
+          'Use the correct environment variables.',
+          'Check that the build succeeds.',
+          'Deploy to the staging environment first.',
+          'Verify the deployment was successful.',
+          'Reference `src/nonexistent/path.ts` for config.',
+        ].join('\n'),
+      },
+    ]);
+
+    const issues = validateSetup(setup, '/project', undefined, emptyStructure);
+    const skillIssue = issues.find(i => i.check === 'Skill quality: deploy-guide');
+    expect(skillIssue).toBeDefined();
+    expect(skillIssue!.pointsLost).toBe(0);
+    expect(skillIssue!.detail).toContain('no code blocks');
+  });
+
+  it('includes enriched directory contents in grounding fix instruction', () => {
+    mockExistsSync.mockReturnValue(true);
+    const setup = makeSetup([
+      '## Architecture',
+      '',
+      '- Generic description',
+      '',
+      '## Commands',
+      '',
+      '- Standard commands',
+      '',
+      '## Conventions',
+      '',
+      '- Follow conventions',
+    ].join('\n'));
+
+    const structure: ProjectStructure = {
+      dirs: ['src', 'src/api', 'src/models', 'tests'],
+      files: ['package.json', 'src/index.ts', 'src/api/routes.ts'],
+    };
+
+    const issues = validateSetup(setup, '/project', undefined, structure);
+    const groundingIssue = issues.find(i => i.check === 'Project grounding');
+    expect(groundingIssue).toBeDefined();
+    // Fix instruction should include subdirectory contents
+    expect(groundingIssue!.fixInstruction).toContain('api');
+    expect(groundingIssue!.fixInstruction).toContain('models');
   });
 });
 
@@ -183,32 +381,7 @@ describe('scoreAndRefine', () => {
   });
 
   it('returns setup unchanged when no issues found', async () => {
-    const setup = makeSetup([
-      '## Commands',
-      '',
-      '```bash',
-      'npm run build',
-      '```',
-      '',
-      '```bash',
-      'npm run test',
-      '```',
-      '',
-      '```bash',
-      'npm run lint',
-      '```',
-      '',
-      '## Architecture',
-      '',
-      '- Entry: `src/index.ts`',
-      '- Config: `tsconfig.json`',
-      '- Tests: `src/__tests__/`',
-      '',
-      '## Conventions',
-      '',
-      '- Use `vitest` for testing',
-      '- Run `npm run build` before deploying',
-    ].join('\n'));
+    const setup = makeSetup(wellFormedContent);
 
     const history: Array<{ role: 'user' | 'assistant'; content: string }> = [];
     const result = await scoreAndRefine(setup, '/project', history);
@@ -285,5 +458,67 @@ describe('scoreAndRefine', () => {
     const history: Array<{ role: 'user' | 'assistant'; content: string }> = [];
     await scoreAndRefine(setup, '/project', history);
     expect(mockLlmCall).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not trigger LLM for zero-point-only issues', async () => {
+    mockExistsSync.mockImplementation((path: string) => {
+      if (typeof path === 'string' && path.includes('nonexistent')) return false;
+      return true;
+    });
+
+    // Well-formed content with a low-quality skill (0 pts lost)
+    const setup = makeSetupWithSkills(wellFormedContent, [
+      {
+        name: 'bad-skill',
+        description: 'A vague skill',
+        content: 'Follow best practices.\nWrite clean code.\nEnsure quality.\nMaintain standards.\nUse proper patterns.\nKeep things organized.\nReview everything.\nTest thoroughly.',
+      },
+    ]);
+
+    const history: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    await scoreAndRefine(setup, '/project', history);
+    expect(mockLlmCall).not.toHaveBeenCalled();
+  });
+
+  it('includes skills in fix when point-losing issues also exist', async () => {
+    mockExistsSync.mockImplementation((path: string) => {
+      if (typeof path === 'string' && path.includes('nonexistent')) return false;
+      return true;
+    });
+
+    const setup = makeSetupWithSkills(
+      '## A\n\n- `src/nonexistent.ts` ref\n\n## B\n\n## C',
+      [{
+        name: 'test-skill',
+        description: 'A skill',
+        content: [
+          'This is generic advice.',
+          'Be sure to follow standard practices.',
+          'Write clean code always.',
+          'Keep things organized properly.',
+          'Always test before merging.',
+          'Review code before deploying.',
+          'Reference `src/nonexistent/config.ts` for details.',
+        ].join('\n'),
+      }],
+    );
+
+    const fixedMd = '## A\n\n- `src/index.ts` ref\n\n## B\n\n## C';
+    mockLlmCall.mockResolvedValueOnce(JSON.stringify({
+      claudeMd: fixedMd,
+      'skill:test-skill': 'Fixed skill with `src/index.ts` ref.\n\n```bash\nnpm test\n```',
+    }));
+
+    const history: Array<{ role: 'user' | 'assistant'; content: string }> = [];
+    const result = await scoreAndRefine(setup, '/project', history);
+
+    expect(mockLlmCall).toHaveBeenCalled();
+    const prompt = mockLlmCall.mock.calls[0][0].prompt as string;
+    expect(prompt).toContain('test-skill');
+
+    const claude = result.claude as Record<string, unknown>;
+    const skills = claude.skills as Array<{ name: string; content: string }>;
+    const updatedSkill = skills.find(s => s.name === 'test-skill');
+    expect(updatedSkill?.content).toContain('src/index.ts');
   });
 });

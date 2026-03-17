@@ -1,4 +1,3 @@
-import { join } from 'path';
 import type { Check } from '../index.js';
 import {
   POINTS_PROJECT_GROUNDING,
@@ -8,8 +7,10 @@ import {
 import {
   collectAllConfigContent,
   collectProjectStructure,
+  isEntryMentioned,
   extractReferences,
   analyzeMarkdownStructure,
+  calculateDensityPoints,
 } from '../utils.js';
 
 export function checkGrounding(dir: string): Check[] {
@@ -25,31 +26,13 @@ export function checkGrounding(dir: string): Check[] {
     ...projectStructure.files,
   ];
 
-  // Filter to meaningful entries (skip very short names that could false-match)
   const meaningfulEntries = allProjectEntries.filter(e => e.length > 2);
 
   const mentioned: string[] = [];
   const notMentioned: string[] = [];
 
   for (const entry of meaningfulEntries) {
-    const entryLower = entry.toLowerCase();
-    // Check if the config mentions this entry using word-boundary matching
-    // to avoid false positives (e.g., "src" matching "describe")
-    const variants = [
-      entryLower,
-      entryLower.replace(/\\/g, '/'),
-    ];
-    const lastSegment = entry.split('/').pop()?.toLowerCase();
-    if (lastSegment && lastSegment.length > 3) {
-      variants.push(lastSegment);
-    }
-
-    const ismentioned = variants.some(v => {
-      const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      return new RegExp(`(?:^|[\\s\`/"'\\.,(])${escaped}(?:[\\s\`/"'.,;:!?)\\\\]|$)`, 'i').test(configLower);
-    });
-
-    if (ismentioned) {
+    if (isEntryMentioned(entry, configLower)) {
       mentioned.push(entry);
     } else {
       notMentioned.push(entry);
@@ -65,17 +48,12 @@ export function checkGrounding(dir: string): Check[] {
     ? 0
     : groundingThreshold?.points ?? 0;
 
-  // Top unmentioned dirs (most useful for the LLM fix)
   const topDirs = projectStructure.dirs
-    .filter(d => !d.includes('/')) // top-level only
+    .filter(d => !d.includes('/'))
     .filter(d => d.length > 2);
-  const matchesConfig = (name: string): boolean => {
-    const escaped = name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`(?:^|[\\s\`/"'\\.,(])${escaped}(?:[\\s\`/"'.,;:!?)\\\\]|$)`, 'i').test(configLower);
-  };
 
-  const unmentionedTopDirs = topDirs.filter(d => !matchesConfig(d));
-  const mentionedTopDirs = topDirs.filter(d => matchesConfig(d));
+  const unmentionedTopDirs = topDirs.filter(d => !isEntryMentioned(d, configLower));
+  const mentionedTopDirs = topDirs.filter(d => isEntryMentioned(d, configLower));
 
   checks.push({
     id: 'project_grounding',
@@ -109,24 +87,13 @@ export function checkGrounding(dir: string): Check[] {
   const mdStructure = analyzeMarkdownStructure(configContent);
   const totalSpecificRefs = refs.length + mdStructure.inlineCodeCount;
 
-  // Density: specific references per 100 lines of config
   const density = mdStructure.nonEmptyLines > 0
     ? (totalSpecificRefs / mdStructure.nonEmptyLines) * 100
     : 0;
 
-  // Scale: 0 refs = 0pts, increasing density = more points
-  let densityPoints = 0;
-  if (configContent.length === 0) {
-    densityPoints = 0;
-  } else if (density >= 40) {
-    densityPoints = POINTS_REFERENCE_DENSITY;
-  } else if (density >= 25) {
-    densityPoints = Math.round(POINTS_REFERENCE_DENSITY * 0.75);
-  } else if (density >= 15) {
-    densityPoints = Math.round(POINTS_REFERENCE_DENSITY * 0.5);
-  } else if (density >= 5) {
-    densityPoints = Math.round(POINTS_REFERENCE_DENSITY * 0.25);
-  }
+  const densityPoints = configContent.length === 0
+    ? 0
+    : calculateDensityPoints(density, POINTS_REFERENCE_DENSITY);
 
   checks.push({
     id: 'reference_density',

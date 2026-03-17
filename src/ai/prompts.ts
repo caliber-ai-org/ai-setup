@@ -86,6 +86,12 @@ Note: Permissions, hooks, freshness tracking, and OpenSkills frontmatter are sco
 
 const OUTPUT_SIZE_CONSTRAINTS = `OUTPUT SIZE CONSTRAINTS — these are critical:
 - CLAUDE.md / AGENTS.md: MUST be under 150 lines for maximum score. Aim for 100-140 lines. Be concise — commands, architecture overview, and key conventions. Use bullet points and tables, not prose.
+
+Pack project references densely in architecture sections — use inline paths, not prose paragraphs:
+GOOD: **Entry**: \`src/bin.ts\` → \`src/cli.ts\` · **LLM** (\`src/llm/\`): \`anthropic.ts\` · \`vertex.ts\` · \`openai-compat.ts\`
+BAD: The entry point of the application is located in the src directory. The LLM module handles different providers.
+For command sections, use code blocks with one command per line.
+
 - Each skill content: max 150 lines. Focus on patterns and examples, not exhaustive docs.
 - Cursor rules: max 5 .mdc files.
 - If the project is large, prioritize depth on the 3-4 most critical tools over breadth across everything.`;

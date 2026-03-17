@@ -6,6 +6,12 @@ import {
   analyzeMarkdownStructure,
   countConcreteness,
   countTreeLines,
+  collectProjectStructure,
+  isEntryMentioned,
+  extractReferences,
+  calculateDuplicatePercent,
+  calculateDensityPoints,
+  type ProjectStructure,
 } from '../scoring/utils.js';
 import {
   TOKEN_BUDGET_THRESHOLDS,
@@ -14,6 +20,10 @@ import {
   POINTS_REFERENCES_VALID,
   POINTS_NO_DIR_TREE,
   POINTS_HAS_STRUCTURE,
+  POINTS_PROJECT_GROUNDING,
+  POINTS_REFERENCE_DENSITY,
+  POINTS_NO_DUPLICATES,
+  GROUNDING_THRESHOLDS,
 } from '../scoring/constants.js';
 import { llmCall } from '../llm/index.js';
 import { stripMarkdownFences } from '../llm/utils.js';
@@ -31,22 +41,73 @@ interface ScoreRefineCallbacks {
   onStatus?: (message: string) => void;
 }
 
-function extractConfigContent(setup: Record<string, unknown>): { claudeMd: string | null; agentsMd: string | null } {
+interface ConfigContent {
+  claudeMd: string | null;
+  agentsMd: string | null;
+  cursorrules: string | null;
+  skills: Array<{ name: string; content: string; platform: string }>;
+}
+
+function extractConfigContent(setup: Record<string, unknown>): ConfigContent {
   const claude = setup.claude as Record<string, unknown> | undefined;
   const codex = setup.codex as Record<string, unknown> | undefined;
+  const cursor = setup.cursor as Record<string, unknown> | undefined;
+
+  let cursorrules: string | null = null;
+  if (typeof cursor?.cursorrules === 'string' && cursor.cursorrules.length > 0) {
+    cursorrules = cursor.cursorrules as string;
+  }
+
+  const skills: Array<{ name: string; content: string; platform: string }> = [];
+  for (const [platform, obj] of [['claude', claude], ['codex', codex], ['cursor', cursor]] as const) {
+    const platformSkills = (obj as Record<string, unknown> | undefined)?.skills as
+      Array<{ name: string; content: string }> | undefined;
+    if (Array.isArray(platformSkills)) {
+      for (const skill of platformSkills) {
+        if (typeof skill.content === 'string' && skill.content.length > 0) {
+          skills.push({ name: skill.name, content: skill.content, platform });
+        }
+      }
+    }
+  }
+
   return {
     claudeMd: (claude?.claudeMd as string) ?? null,
     agentsMd: (codex?.agentsMd as string) ?? null,
+    cursorrules,
+    skills,
   };
+}
+
+function buildGroundingFixInstruction(
+  unmentionedTopDirs: string[],
+  projectStructure: ProjectStructure,
+): string {
+  const dirDescriptions = unmentionedTopDirs.slice(0, 8).map(dir => {
+    const subdirs = projectStructure.dirs.filter(d => d.startsWith(`${dir}/`) && !d.includes('/', dir.length + 1));
+    const files = projectStructure.files.filter(f => f.startsWith(`${dir}/`) && !f.includes('/', dir.length + 1));
+    const children = [...subdirs.slice(0, 4), ...files.slice(0, 2)];
+    const childList = children.map(c => c.split('/').pop()).join(', ');
+    return childList
+      ? `- \`${dir}/\` (contains: ${childList})`
+      : `- \`${dir}/\``;
+  });
+
+  return [
+    'Reference these project directories with descriptions of their contents:',
+    ...dirDescriptions,
+    'Mention them naturally in architecture descriptions using dense inline references.',
+  ].join('\n');
 }
 
 export function validateSetup(
   setup: Record<string, unknown>,
   dir: string,
   checkExists: (path: string) => boolean = existsSync,
+  projectStructure?: ProjectStructure,
 ): ScoringIssue[] {
   const issues: ScoringIssue[] = [];
-  const { claudeMd, agentsMd } = extractConfigContent(setup);
+  const { claudeMd, agentsMd, cursorrules, skills } = extractConfigContent(setup);
   const primaryContent = [claudeMd, agentsMd].filter(Boolean).join('\n');
 
   if (!primaryContent) return issues;
@@ -138,6 +199,96 @@ export function validateSetup(
     }
   }
 
+  // 7. Project grounding
+  const structure = projectStructure ?? collectProjectStructure(dir);
+  const allEntries = [...structure.dirs, ...structure.files].filter(e => e.length > 2);
+
+  if (allEntries.length > 0) {
+    const contentLower = primaryContent.toLowerCase();
+    const mentionedEntries = allEntries.filter(e => isEntryMentioned(e, contentLower));
+    const groundingRatio = mentionedEntries.length / allEntries.length;
+    const groundingThreshold = GROUNDING_THRESHOLDS.find(t => groundingRatio >= t.minRatio);
+    const groundingPoints = groundingThreshold?.points ?? 0;
+    const groundingLost = POINTS_PROJECT_GROUNDING - groundingPoints;
+
+    if (groundingLost > 0) {
+      const topDirs = structure.dirs.filter(d => !d.includes('/') && d.length > 2);
+      const unmentionedTopDirs = topDirs.filter(d => !isEntryMentioned(d, contentLower));
+
+      if (unmentionedTopDirs.length > 0) {
+        issues.push({
+          check: 'Project grounding',
+          detail: `${mentionedEntries.length}/${allEntries.length} project entries referenced (${Math.round(groundingRatio * 100)}%)`,
+          fixInstruction: buildGroundingFixInstruction(unmentionedTopDirs, structure),
+          pointsLost: groundingLost,
+        });
+      }
+    }
+  }
+
+  // 8. Reference density
+  const allRefs = extractReferences(primaryContent);
+  const primaryStructure = analyzeMarkdownStructure(primaryContent);
+  const totalSpecificRefs = allRefs.length + primaryStructure.inlineCodeCount;
+  const density = primaryStructure.nonEmptyLines > 0
+    ? (totalSpecificRefs / primaryStructure.nonEmptyLines) * 100
+    : 0;
+
+  const densityPoints = calculateDensityPoints(density, POINTS_REFERENCE_DENSITY);
+  const densityLost = POINTS_REFERENCE_DENSITY - densityPoints;
+  if (densityLost > 0) {
+    issues.push({
+      check: 'Reference density',
+      detail: `${totalSpecificRefs} references across ${primaryStructure.nonEmptyLines} lines (${Math.round(density)}% density, need ≥40% for full points)`,
+      fixInstruction: `Add more backtick references around file paths, commands, and identifiers. Use the dense reference style: \`src/api/\` routes · \`src/models/\` data. Current density: ${Math.round(density)}%, target: ≥40%.`,
+      pointsLost: densityLost,
+    });
+  }
+
+  // 9. Duplicate content
+  if (claudeMd && cursorrules) {
+    const duplicatePercent = calculateDuplicatePercent(claudeMd, cursorrules);
+
+    if (duplicatePercent > 50) {
+      issues.push({
+        check: 'No duplicate content',
+        detail: `${duplicatePercent}% overlap between CLAUDE.md and .cursorrules`,
+        fixInstruction: 'Deduplicate content. Keep shared instructions in CLAUDE.md only. Make .cursorrules contain only Cursor-specific settings and platform differences.',
+        pointsLost: POINTS_NO_DUPLICATES,
+      });
+    }
+  }
+
+  // 10. Skills quality (0 pts — only fixed alongside point-losing issues)
+  for (const skill of skills) {
+    const skillIssues: string[] = [];
+
+    const skillRefs = validateFileReferences(skill.content, dir, checkExists);
+    if (skillRefs.invalid.length > 0) {
+      skillIssues.push(`invalid refs: ${skillRefs.invalid.slice(0, 3).join(', ')}`);
+    }
+
+    const skillStructure = analyzeMarkdownStructure(skill.content);
+    if (skillStructure.codeBlockCount === 0 && skill.content.length > 200) {
+      skillIssues.push('no code blocks');
+    }
+
+    const { concrete, abstract } = countConcreteness(skill.content);
+    const total = concrete + abstract;
+    if (total > 3 && concrete / total < 0.3) {
+      skillIssues.push('low concreteness');
+    }
+
+    if (skillIssues.length > 0) {
+      issues.push({
+        check: `Skill quality: ${skill.name}`,
+        detail: skillIssues.join('; '),
+        fixInstruction: `Fix skill "${skill.name}": ${skillIssues.join(', ')}.${skillRefs.invalid.length > 0 ? ` Remove invalid paths: ${skillRefs.invalid.join(', ')}.` : ''} Add code blocks and specific file references.`,
+        pointsLost: 0,
+      });
+    }
+  }
+
   return issues.sort((a, b) => b.pointsLost - a.pointsLost);
 }
 
@@ -174,12 +325,14 @@ export async function scoreAndRefine(
     return result;
   };
 
+  const projectStructure = collectProjectStructure(dir);
+
   let currentSetup = setup;
   let bestSetup = setup;
   let bestLostPoints = Infinity;
 
   for (let iteration = 0; iteration < MAX_REFINE_ITERATIONS; iteration++) {
-    const issues = validateSetup(currentSetup, dir, cachedExists);
+    const issues = validateSetup(currentSetup, dir, cachedExists, projectStructure);
     const lostPoints = countIssuePoints(issues);
 
     if (lostPoints < bestLostPoints) {
@@ -187,14 +340,16 @@ export async function scoreAndRefine(
       bestLostPoints = lostPoints;
     }
 
-    if (issues.length === 0) {
+    if (lostPoints === 0) {
       if (callbacks?.onStatus) callbacks.onStatus('Setup passes all scoring checks');
       return bestSetup;
     }
 
+    const pointIssues = issues.filter(i => i.pointsLost > 0);
+    const pointIssueNames = pointIssues.map(i => i.check).join(', ');
+
     if (callbacks?.onStatus) {
-      const issueNames = issues.map(i => i.check).join(', ');
-      callbacks.onStatus(`Fixing ${issues.length} scoring issue${issues.length === 1 ? '' : 's'}: ${issueNames}...`);
+      callbacks.onStatus(`Fixing ${pointIssues.length} scoring issue${pointIssues.length === 1 ? '' : 's'}: ${pointIssueNames}...`);
     }
 
     const refined = await applyTargetedFixes(currentSetup, issues);
@@ -206,18 +361,18 @@ export async function scoreAndRefine(
 
     sessionHistory.push({
       role: 'user',
-      content: `Fix scoring issues: ${issues.map(i => i.check).join(', ')}`,
+      content: `Fix scoring issues: ${pointIssueNames}`,
     });
     sessionHistory.push({
       role: 'assistant',
-      content: `Applied scoring fixes for: ${issues.map(i => i.check).join(', ')}`,
+      content: `Applied scoring fixes for: ${pointIssueNames}`,
     });
 
     currentSetup = refined;
   }
 
   // Final check after last iteration
-  const finalIssues = validateSetup(currentSetup, dir, cachedExists);
+  const finalIssues = validateSetup(currentSetup, dir, cachedExists, projectStructure);
   const finalLostPoints = countIssuePoints(finalIssues);
   if (finalLostPoints < bestLostPoints) {
     bestSetup = currentSetup;
@@ -230,11 +385,24 @@ async function applyTargetedFixes(
   setup: Record<string, unknown>,
   issues: ScoringIssue[],
 ): Promise<Record<string, unknown> | null> {
-  const { claudeMd, agentsMd } = extractConfigContent(setup);
+  const { claudeMd, agentsMd, cursorrules, skills } = extractConfigContent(setup);
 
-  const targets: { key: 'claudeMd' | 'agentsMd'; label: string; content: string }[] = [];
+  const targets: { key: string; label: string; content: string }[] = [];
   if (claudeMd) targets.push({ key: 'claudeMd', label: 'CLAUDE.md', content: claudeMd });
   if (agentsMd) targets.push({ key: 'agentsMd', label: 'AGENTS.md', content: agentsMd });
+
+  const failingChecks = new Set(issues.map(i => i.check));
+
+  if (cursorrules && failingChecks.has('No duplicate content')) {
+    targets.push({ key: 'cursorrules', label: '.cursorrules', content: cursorrules });
+  }
+
+  for (const skill of skills) {
+    if (failingChecks.has(`Skill quality: ${skill.name}`)) {
+      targets.push({ key: `skill:${skill.name}`, label: `Skill: ${skill.name}`, content: skill.content });
+    }
+  }
+
   if (targets.length === 0) return null;
 
   const feedbackMessage = buildFeedbackMessage(issues);
@@ -251,11 +419,13 @@ async function applyTargetedFixes(
     `\nReturn ONLY the fixed content as a JSON object with keys ${targets.map(t => `"${t.key}"`).join(', ')}. Each value is the fixed markdown string. No code fences, no explanations.`,
   ].join('\n');
 
+  const maxTokens = Math.min(12000, 4000 + targets.length * 2000);
+
   try {
     const raw = await llmCall({
-      system: 'You fix scoring issues in AI agent configuration files. Return only a JSON object with the fixed content — no explanations, no code fences.',
+      system: 'You fix scoring issues in AI agent configuration files. You may receive CLAUDE.md, AGENTS.md, .cursorrules, and/or skill files. Return only a JSON object with the fixed content — no explanations, no code fences.',
       prompt,
-      maxTokens: 8000,
+      maxTokens,
     });
 
     const cleaned = stripMarkdownFences(raw);
@@ -265,11 +435,29 @@ async function applyTargetedFixes(
 
     const patched = structuredClone(setup);
     for (const target of targets) {
-      if (typeof fixes[target.key] === 'string' && fixes[target.key].length > 50) {
-        const parent = target.key === 'claudeMd'
-          ? (patched.claude as Record<string, unknown>)
-          : (patched.codex as Record<string, unknown>);
-        if (parent) parent[target.key] = fixes[target.key];
+      const fixedValue = fixes[target.key];
+      if (typeof fixedValue !== 'string' || fixedValue.length < 50) continue;
+
+      if (target.key === 'claudeMd') {
+        const parent = patched.claude as Record<string, unknown> | undefined;
+        if (parent) parent.claudeMd = fixedValue;
+      } else if (target.key === 'agentsMd') {
+        const parent = patched.codex as Record<string, unknown> | undefined;
+        if (parent) parent.agentsMd = fixedValue;
+      } else if (target.key === 'cursorrules') {
+        const parent = patched.cursor as Record<string, unknown> | undefined;
+        if (parent) parent.cursorrules = fixedValue;
+      } else if (target.key.startsWith('skill:')) {
+        const skillName = target.key.slice(6);
+        for (const platform of ['claude', 'cursor', 'codex'] as const) {
+          const platformObj = patched[platform] as Record<string, unknown> | undefined;
+          const platformSkills = platformObj?.skills as Array<{ name: string; content: string }> | undefined;
+          const skill = platformSkills?.find(s => s.name === skillName);
+          if (skill) {
+            skill.content = fixedValue;
+            break;
+          }
+        }
       }
     }
 

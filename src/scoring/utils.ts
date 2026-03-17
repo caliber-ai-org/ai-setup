@@ -314,6 +314,44 @@ export function countTreeLines(content: string): number {
 }
 
 /**
+ * Calculate the percentage of lines in content2 that also appear in content1.
+ * Lines are trimmed and filtered to > 10 chars.
+ */
+export function calculateDuplicatePercent(content1: string, content2: string): number {
+  const lines1 = new Set(content1.split('\n').map(l => l.trim()).filter(l => l.length > 10));
+  const lines2 = content2.split('\n').map(l => l.trim()).filter(l => l.length > 10);
+  const overlapping = lines2.filter(l => lines1.has(l)).length;
+  return lines2.length > 0 ? Math.round((overlapping / lines2.length) * 100) : 0;
+}
+
+/**
+ * Calculate density points from a reference density percentage.
+ */
+export function calculateDensityPoints(density: number, maxPoints: number): number {
+  if (density >= 40) return maxPoints;
+  if (density >= 25) return Math.round(maxPoints * 0.75);
+  if (density >= 15) return Math.round(maxPoints * 0.5);
+  if (density >= 5) return Math.round(maxPoints * 0.25);
+  return 0;
+}
+
+/**
+ * Check if a project entry (directory or file) is mentioned in content.
+ * Uses word-boundary matching with variants to avoid false positives.
+ */
+export function isEntryMentioned(entry: string, contentLower: string): boolean {
+  const entryLower = entry.toLowerCase();
+  const variants = [entryLower, entryLower.replace(/\\/g, '/')];
+  const lastSegment = entry.split('/').pop()?.toLowerCase();
+  if (lastSegment && lastSegment.length > 3) variants.push(lastSegment);
+
+  return variants.some(v => {
+    const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(?:^|[\\s\`/"'\\.,(])${escaped}(?:[\\s\`/"'.,;:!?)\\\\]|$)`, 'i').test(contentLower);
+  });
+}
+
+/**
  * Classify a line as "concrete" (has specific project references) or "abstract" (generic prose).
  * Lines inside code blocks, with backticks, or with path-like content are concrete.
  * Returns null for neutral lines (empty, headings) that should be excluded from the ratio.
