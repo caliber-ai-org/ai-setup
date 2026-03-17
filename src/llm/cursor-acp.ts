@@ -260,6 +260,11 @@ export class CursorAcpProvider implements LLMProvider {
     const hasHistory = streamOpts.messages && streamOpts.messages.length > 0;
     let combined = '';
 
+    combined += 'IMPORTANT: You are being used as a direct LLM, not as a coding agent. ';
+    combined += 'Do NOT use tools, do NOT read or write files, do NOT check the repository. ';
+    combined += 'Process the prompt below and output your response directly in your message. ';
+    combined += 'Follow the system instructions exactly.\n\n';
+
     combined += '[[System]]\n' + options.system + '\n\n';
 
     if (hasHistory) {
