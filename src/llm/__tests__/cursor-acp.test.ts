@@ -54,14 +54,14 @@ describe('CursorAcpProvider', () => {
     process.env = originalEnv;
   });
 
-  it('call() returns concatenated agent_message_chunk text when mock agent responds', async () => {
+  it('call() returns concatenated agent_message_chunk text', async () => {
     mockAcpAgent(['Hello!', ' World.']);
 
-    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'default' });
+    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'sonnet-4.6' });
     const result = await provider.call({ system: 'You are a helper.', prompt: 'Say hello.' });
 
     expect(result).toBe('Hello! World.');
-    expect(spawn).toHaveBeenCalledWith('agent', ['acp'], expect.any(Object));
+    expect(spawn).toHaveBeenCalledWith('agent', ['--model', 'sonnet-4.6', '--mode', 'ask', 'acp'], expect.any(Object));
     provider.shutdown();
   });
 
@@ -69,22 +69,34 @@ describe('CursorAcpProvider', () => {
     process.env.CURSOR_API_KEY = 'test-key';
     mockAcpAgent();
 
-    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'default' });
+    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'sonnet-4.6' });
     await provider.call({ system: 'S', prompt: 'P' });
 
-    expect(spawn).toHaveBeenCalledWith('agent', ['--api-key', 'test-key', 'acp'], expect.any(Object));
+    expect(spawn).toHaveBeenCalledWith('agent', ['--api-key', 'test-key', '--model', 'sonnet-4.6', '--mode', 'ask', 'acp'], expect.any(Object));
     provider.shutdown();
   });
 
-  it('reuses the same process across multiple calls', async () => {
+  it('reuses the same process for calls with the same model', async () => {
     mockAcpAgent();
 
-    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'auto' });
+    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'sonnet-4.6' });
     await provider.call({ system: 'S', prompt: 'P1' });
     await provider.call({ system: 'S', prompt: 'P2' });
-    await provider.call({ system: 'S', prompt: 'P3' });
 
     expect(spawn).toHaveBeenCalledTimes(1);
+    provider.shutdown();
+  });
+
+  it('spawns separate processes for different models', async () => {
+    mockAcpAgent();
+
+    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'sonnet-4.6' });
+    await provider.call({ system: 'S', prompt: 'P1' });
+    await provider.call({ system: 'S', prompt: 'P2', model: 'gpt-5.3-codex-fast' });
+
+    expect(spawn).toHaveBeenCalledTimes(2);
+    expect(spawn).toHaveBeenNthCalledWith(1, 'agent', ['--model', 'sonnet-4.6', '--mode', 'ask', 'acp'], expect.any(Object));
+    expect(spawn).toHaveBeenNthCalledWith(2, 'agent', ['--model', 'gpt-5.3-codex-fast', '--mode', 'ask', 'acp'], expect.any(Object));
     provider.shutdown();
   });
 
@@ -94,7 +106,7 @@ describe('CursorAcpProvider', () => {
     const provider = new CursorAcpProvider({ provider: 'cursor', model: 'auto' });
     await provider.call({ system: 'S', prompt: 'P' });
 
-    expect(spawn).toHaveBeenCalledWith('agent', ['acp'], expect.any(Object));
+    expect(spawn).toHaveBeenCalledWith('agent', ['--mode', 'ask', 'acp'], expect.any(Object));
     provider.shutdown();
   });
 

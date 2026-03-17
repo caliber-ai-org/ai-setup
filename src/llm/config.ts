@@ -10,7 +10,7 @@ export const DEFAULT_MODELS: Record<ProviderType, string> = {
   anthropic: 'claude-sonnet-4-6',
   vertex: 'claude-sonnet-4-6',
   openai: 'gpt-4.1',
-  cursor: 'auto',
+  cursor: 'sonnet-4.6',
   'claude-cli': 'default',
 };
 
@@ -18,6 +18,7 @@ export const DEFAULT_FAST_MODELS: Partial<Record<ProviderType, string>> = {
   anthropic: 'claude-haiku-4-5-20251001',
   vertex: 'claude-haiku-4-5-20251001',
   openai: 'gpt-4.1-mini',
+  cursor: 'gpt-5.3-codex-fast',
 };
 
 export function loadConfig(): LLMConfig | null {
