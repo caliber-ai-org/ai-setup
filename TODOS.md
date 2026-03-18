@@ -21,6 +21,13 @@
 **Effort:** S (human: ~2 hrs / CC: ~10 min)
 **Depends on:** First-run vs re-run awareness feature.
 
+## P3: Dynamic score badge service
+**What:** HTTP endpoint (e.g. Cloudflare Worker) that returns a shields.io-compatible badge with a repo's Caliber score, auto-updated from CI.
+**Why:** Users embed auto-updating score badges in their READMEs — every badge is a free acquisition channel. Gamification drives score improvement.
+**Context:** Static badge template ships in the README reposition PR. Dynamic version needs a small API that reads score from CI artifacts or a score registry. Could use shields.io endpoint badge format.
+**Effort:** M (human: ~1 week / CC: ~2 hrs)
+**Depends on:** CI integration for automated score computation.
+
 ## P3: Windows CI test runner
 **What:** Add a Windows GitHub Actions runner to test seat-based providers on Windows.
 **Why:** Windows shell escaping in claude-cli.ts and cursor-acp.ts is untested.
