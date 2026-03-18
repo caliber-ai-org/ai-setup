@@ -20,13 +20,13 @@ npx vitest run src/scoring/__tests__/accuracy.test.ts  # Single file
 
 **Entry**: `src/bin.ts` → `src/cli.ts` (Commander.js, all commands)
 
-**LLM** (`src/llm/`): `types.ts` interface · `config.ts` (`DEFAULT_MODELS`, `DEFAULT_FAST_MODELS`, `~/.caliber/config.json`) · `anthropic.ts` · `vertex.ts` · `openai-compat.ts` · `claude-cli.ts` (`claude -p`) · `cursor-acp.ts` (JSON-RPC) · `utils.ts` (`extractJson`, `estimateTokens`) · `index.ts` (`llmCall`, `llmJsonCall`, retry/backoff)
+**LLM** (`src/llm/`): `types.ts` interface · `config.ts` (`DEFAULT_MODELS`, `DEFAULT_FAST_MODELS`, `MODEL_CONTEXT_WINDOWS`, `getMaxPromptTokens`, `~/.caliber/config.json`) · `anthropic.ts` · `vertex.ts` · `openai-compat.ts` · `claude-cli.ts` (`claude -p`) · `cursor-acp.ts` (JSON-RPC) · `utils.ts` (`extractJson`, `estimateTokens`) · `index.ts` (`llmCall`, `llmJsonCall`, retry/backoff)
 
 **AI** (`src/ai/`): `generate.ts` (streaming init) · `refine.ts` (chat refinement) · `refresh.ts` (diff-based updates) · `learn.ts` (session analysis) · `detect.ts` (LLM framework detection) · `prompts.ts` (all system prompts)
 
 **Commands** (`src/commands/`): `init`, `regenerate` (alias `regen`/`re`), `status`, `undo`, `config`, `score`, `refresh`, `hooks`, `learn`, `recommend`
 
-**Fingerprint** (`src/fingerprint/`): `git.ts` · `file-tree.ts` · `existing-config.ts` · `code-analysis.ts` · `index.ts` (orchestrates + LLM enrichment)
+**Fingerprint** (`src/fingerprint/`): `git.ts` · `file-tree.ts` · `existing-config.ts` · `code-analysis.ts` · `cache.ts` (`.caliber/cache/fingerprint.json`) · `index.ts` (orchestrates + LLM enrichment + caching)
 
 **Writers** (`src/writers/`): `claude/index.ts` · `cursor/index.ts` · `codex/index.ts` · `staging.ts` (buffer before confirm) · `manifest.ts` (`.caliber/manifest.json`) · `backup.ts` (`.caliber/backups/`) · `refresh.ts`
 
