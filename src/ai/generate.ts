@@ -5,7 +5,7 @@ import { estimateTokens } from '../llm/utils.js';
 import { CORE_GENERATION_PROMPT, GENERATION_SYSTEM_PROMPT, SKILL_GENERATION_PROMPT } from './prompts.js';
 import { extractAllDeps } from '../utils/dependencies.js';
 
-type TargetAgent = ('claude' | 'cursor' | 'codex')[];
+type TargetAgent = ('claude' | 'cursor' | 'codex' | 'github-copilot')[];
 
 interface GenerateCallbacks {
   onStatus: (message: string) => void;

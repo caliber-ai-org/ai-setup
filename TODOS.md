@@ -21,6 +21,13 @@
 **Effort:** S (human: ~2 hrs / CC: ~10 min)
 **Depends on:** First-run vs re-run awareness feature.
 
+## P3: Refactor cross-platform parity scoring for N agents
+**What:** Change parity check from hardcoded `hasClaudeConfigs && hasCursorConfigs` to "any 2 of N configured platforms."
+**Why:** With GitHub Copilot as a 4th agent, the parity check ignores Copilot entirely. Users targeting Claude+Copilot don't get parity points.
+**Context:** `src/scoring/checks/existence.ts:197-223`. The `hasParity` variable is currently `hasClaudeConfigs && hasCursorConfigs`. Refactor to count platforms with configs and check `>= 2`. Changes scoring semantics — users who only target non-Claude+Cursor pairs would newly get parity points.
+**Effort:** S (human: ~1 hr / CC: ~5 min)
+**Depends on:** Copilot support (shipped in this PR).
+
 ## P3: Windows CI test runner
 **What:** Add a Windows GitHub Actions runner to test seat-based providers on Windows.
 **Why:** Windows shell escaping in claude-cli.ts and cursor-acp.ts is untested.
