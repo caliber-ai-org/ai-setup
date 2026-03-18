@@ -23,16 +23,26 @@ export function getFileTree(dir: string, maxDepth = 3): string[] {
     (e.isDir ? dirs : files).push(e);
   }
 
-  // Score each directory by the max mtime of any file it contains
-  for (const d of dirs) {
-    const prefix = d.relPath;
-    let maxChildMtime = d.mtime;
-    for (const f of files) {
-      if (f.relPath.startsWith(prefix) && f.mtime > maxChildMtime) {
-        maxChildMtime = f.mtime;
+  // Score each directory by the max mtime of any descendant file (single-pass)
+  const dirMaxMtime = new Map<string, number>();
+  for (const d of dirs) dirMaxMtime.set(d.relPath, d.mtime);
+
+  for (const f of files) {
+    let remaining = f.relPath;
+    while (true) {
+      const lastSlash = remaining.lastIndexOf('/');
+      if (lastSlash === -1) break;
+      const dirPrefix = remaining.slice(0, lastSlash + 1);
+      const current = dirMaxMtime.get(dirPrefix);
+      if (current !== undefined && f.mtime > current) {
+        dirMaxMtime.set(dirPrefix, f.mtime);
       }
+      remaining = remaining.slice(0, lastSlash);
     }
-    d.mtime = maxChildMtime;
+  }
+
+  for (const d of dirs) {
+    d.mtime = dirMaxMtime.get(d.relPath) ?? d.mtime;
   }
 
   dirs.sort((a, b) => b.mtime - a.mtime);

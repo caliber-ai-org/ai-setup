@@ -1,6 +1,6 @@
 import type { Fingerprint } from '../fingerprint/index.js';
 import { getProvider, llmJsonCall, TRANSIENT_ERRORS } from '../llm/index.js';
-import { getFastModel } from '../llm/config.js';
+import { getFastModel, getMaxPromptTokens } from '../llm/config.js';
 import { estimateTokens } from '../llm/utils.js';
 import { CORE_GENERATION_PROMPT, GENERATION_SYSTEM_PROMPT, SKILL_GENERATION_PROMPT } from './prompts.js';
 import { extractAllDeps } from '../utils/dependencies.js';
@@ -228,27 +228,27 @@ async function generateSkill(context: string, topic: SkillTopic, model?: string)
   };
 }
 
-// Core generation — streaming call that produces CLAUDE.md, AGENTS.md, cursor rules, and skill topics
-async function generateCore(
-  fingerprint: Fingerprint,
-  targetAgent: TargetAgent,
-  prompt?: string,
-  callbacks?: GenerateCallbacks,
-  failingChecks?: FailingCheck[],
-  currentScore?: number,
-  passingChecks?: PassingCheck[],
-): Promise<{ setup: Record<string, unknown> | null; explanation?: string; raw?: string; stopReason?: string }> {
-  const provider = getProvider();
-  const userMessage = buildGeneratePrompt(fingerprint, targetAgent, prompt, failingChecks, currentScore, passingChecks);
+type GenerationResult = { setup: Record<string, unknown> | null; explanation?: string; raw?: string; stopReason?: string };
 
+interface StreamGenerationConfig {
+  systemPrompt: string;
+  userMessage: string;
+  baseMaxTokens: number;
+  tokenIncrement: number;
+  maxTokensCap: number;
+  callbacks?: GenerateCallbacks;
+}
+
+async function streamGeneration(config: StreamGenerationConfig): Promise<GenerationResult> {
+  const provider = getProvider();
   let attempt = 0;
 
-  const attemptGeneration = async (): Promise<{ setup: Record<string, unknown> | null; explanation?: string; raw?: string; stopReason?: string }> => {
+  const attemptGeneration = async (): Promise<GenerationResult> => {
     attempt++;
 
     const maxTokensForAttempt = Math.min(
-      CORE_MAX_TOKENS + (attempt * 8000),
-      GENERATION_MAX_TOKENS
+      config.baseMaxTokens + (attempt * config.tokenIncrement),
+      config.maxTokensCap
     );
 
     return new Promise((resolve) => {
@@ -260,8 +260,8 @@ async function generateCore(
 
       provider.stream(
         {
-          system: CORE_GENERATION_PROMPT,
-          prompt: userMessage,
+          system: config.systemPrompt,
+          prompt: config.userMessage,
           maxTokens: maxTokensForAttempt,
         },
         {
@@ -274,7 +274,7 @@ async function generateCore(
                 const trimmed = completedLines[i].trim();
                 if (trimmed.startsWith('STATUS:')) {
                   const status = trimmed.slice(7).trim();
-                  if (status && callbacks) callbacks.onStatus(status);
+                  if (status && config.callbacks) config.callbacks.onStatus(status);
                 }
               }
               sentStatuses = completedLines.length;
@@ -307,7 +307,7 @@ async function generateCore(
             } catch {}
 
             if (!setup && stopReason === 'max_tokens' && attempt < MAX_RETRIES) {
-              if (callbacks) callbacks.onStatus('Output was truncated, retrying with higher token limit...');
+              if (config.callbacks) config.callbacks.onStatus('Output was truncated, retrying with higher token limit...');
               setTimeout(() => attemptGeneration().then(resolve), 1000);
               return;
             }
@@ -319,7 +319,7 @@ async function generateCore(
             }
 
             if (setup) {
-              if (callbacks) callbacks.onComplete(setup, explanation);
+              if (config.callbacks) config.callbacks.onComplete(setup, explanation);
               resolve({ setup, explanation, stopReason: stopReason ?? undefined });
             } else {
               resolve({ setup: null, explanation, raw: preJsonBuffer, stopReason: stopReason ?? undefined });
@@ -327,16 +327,16 @@ async function generateCore(
           },
           onError: (error) => {
             if (isTransientError(error) && attempt < MAX_RETRIES) {
-              if (callbacks) callbacks.onStatus('Connection interrupted, retrying...');
+              if (config.callbacks) config.callbacks.onStatus('Connection interrupted, retrying...');
               setTimeout(() => attemptGeneration().then(resolve), 2000);
               return;
             }
-            if (callbacks) callbacks.onError(error.message);
+            if (config.callbacks) config.callbacks.onError(error.message);
             resolve({ setup: null, raw: error.message, stopReason: 'error' });
           },
         }
       ).catch((error: Error) => {
-        if (callbacks) callbacks.onError(error.message);
+        if (config.callbacks) config.callbacks.onError(error.message);
         resolve({ setup: null, raw: error.message, stopReason: 'error' });
       });
     });
@@ -345,7 +345,26 @@ async function generateCore(
   return attemptGeneration();
 }
 
-// Monolithic generation — used for targeted fix mode where full skill content is needed
+async function generateCore(
+  fingerprint: Fingerprint,
+  targetAgent: TargetAgent,
+  prompt?: string,
+  callbacks?: GenerateCallbacks,
+  failingChecks?: FailingCheck[],
+  currentScore?: number,
+  passingChecks?: PassingCheck[],
+): Promise<GenerationResult> {
+  const userMessage = buildGeneratePrompt(fingerprint, targetAgent, prompt, failingChecks, currentScore, passingChecks);
+  return streamGeneration({
+    systemPrompt: CORE_GENERATION_PROMPT,
+    userMessage,
+    baseMaxTokens: CORE_MAX_TOKENS,
+    tokenIncrement: 8000,
+    maxTokensCap: GENERATION_MAX_TOKENS,
+    callbacks,
+  });
+}
+
 async function generateMonolithic(
   fingerprint: Fingerprint,
   targetAgent: TargetAgent,
@@ -354,112 +373,16 @@ async function generateMonolithic(
   failingChecks?: FailingCheck[],
   currentScore?: number,
   passingChecks?: PassingCheck[],
-): Promise<{ setup: Record<string, unknown> | null; explanation?: string; raw?: string; stopReason?: string }> {
-  const provider = getProvider();
+): Promise<GenerationResult> {
   const userMessage = buildGeneratePrompt(fingerprint, targetAgent, prompt, failingChecks, currentScore, passingChecks);
-
-  let attempt = 0;
-
-  const attemptGeneration = async (): Promise<{ setup: Record<string, unknown> | null; explanation?: string; raw?: string; stopReason?: string }> => {
-    attempt++;
-
-    const maxTokensForAttempt = Math.min(
-      GENERATION_MAX_TOKENS + (attempt * 16000),
-      MODEL_MAX_OUTPUT_TOKENS
-    );
-
-    return new Promise((resolve) => {
-      let preJsonBuffer = '';
-      let jsonContent = '';
-      let inJson = false;
-      let sentStatuses = 0;
-      let stopReason: string | null = null;
-
-      provider.stream(
-        {
-          system: GENERATION_SYSTEM_PROMPT,
-          prompt: userMessage,
-          maxTokens: maxTokensForAttempt,
-        },
-        {
-          onText: (text) => {
-            if (!inJson) {
-              preJsonBuffer += text;
-              const lines = preJsonBuffer.split('\n');
-              const completedLines = lines.slice(0, -1);
-              for (let i = sentStatuses; i < completedLines.length; i++) {
-                const trimmed = completedLines[i].trim();
-                if (trimmed.startsWith('STATUS:')) {
-                  const status = trimmed.slice(7).trim();
-                  if (status && callbacks) callbacks.onStatus(status);
-                }
-              }
-              sentStatuses = completedLines.length;
-
-              const jsonStartMatch = preJsonBuffer.match(/(?:^|\n)\s*(?:```json\s*\n\s*)?\{(?=\s*")/);
-              if (jsonStartMatch) {
-                const matchIndex = preJsonBuffer.indexOf('{', jsonStartMatch.index!);
-                inJson = true;
-                jsonContent = preJsonBuffer.slice(matchIndex);
-              }
-            } else {
-              jsonContent += text;
-            }
-          },
-          onEnd: (meta) => {
-            stopReason = meta?.stopReason ?? null;
-            let setup: Record<string, unknown> | null = null;
-            let jsonToParse = (jsonContent || preJsonBuffer).replace(/```\s*$/g, '').trim();
-
-            if (!jsonContent && preJsonBuffer) {
-              const fallbackMatch = preJsonBuffer.match(/(?:^|\n)\s*(?:```json\s*\n\s*)?\{(?=\s*")/);
-              if (fallbackMatch) {
-                const matchIndex = preJsonBuffer.indexOf('{', fallbackMatch.index!);
-                jsonToParse = preJsonBuffer.slice(matchIndex).replace(/```\s*$/g, '').trim();
-              }
-            }
-
-            try {
-              setup = JSON.parse(jsonToParse);
-            } catch {}
-
-            if (!setup && stopReason === 'max_tokens' && attempt < MAX_RETRIES) {
-              if (callbacks) callbacks.onStatus('Output was truncated, retrying with higher token limit...');
-              setTimeout(() => attemptGeneration().then(resolve), 1000);
-              return;
-            }
-
-            let explanation: string | undefined;
-            const explainMatch = preJsonBuffer.match(/EXPLAIN:\s*\n([\s\S]*?)(?=\n\s*(`{3}|\{))/);
-            if (explainMatch) {
-              explanation = explainMatch[1].trim();
-            }
-
-            if (setup) {
-              if (callbacks) callbacks.onComplete(setup, explanation);
-              resolve({ setup, explanation, stopReason: stopReason ?? undefined });
-            } else {
-              resolve({ setup: null, explanation, raw: preJsonBuffer, stopReason: stopReason ?? undefined });
-            }
-          },
-          onError: (error) => {
-            if (isTransientError(error) && attempt < MAX_RETRIES) {
-              if (callbacks) callbacks.onStatus('Connection interrupted, retrying...');
-              setTimeout(() => attemptGeneration().then(resolve), 2000);
-              return;
-            }
-            if (callbacks) callbacks.onError(error.message);
-            resolve({ setup: null, raw: error.message, stopReason: 'error' });
-          },
-        }
-      ).catch((error: Error) => {
-        if (callbacks) callbacks.onError(error.message);
-        resolve({ setup: null, raw: error.message, stopReason: 'error' });
-      });
-    });
-  };
-
-  return attemptGeneration();
+  return streamGeneration({
+    systemPrompt: GENERATION_SYSTEM_PROMPT,
+    userMessage,
+    baseMaxTokens: GENERATION_MAX_TOKENS,
+    tokenIncrement: 16000,
+    maxTokensCap: MODEL_MAX_OUTPUT_TOKENS,
+    callbacks,
+  });
 }
 
 export async function generateSkillsForSetup(
@@ -508,8 +431,6 @@ export async function generateSkillsForSetup(
   return succeeded;
 }
 
-const MAX_PROMPT_TOKENS = 120_000;
-
 const LIMITS = {
   FILE_TREE_ENTRIES: 500,
   EXISTING_CONFIG_CHARS: 8000,
@@ -526,8 +447,7 @@ function truncate(text: string, maxChars: number): string {
 export function sampleFileTree(fileTree: string[], codeAnalysisPaths: string[], limit: number): string[] {
   if (fileTree.length <= limit) return fileTree;
 
-  // getFileTree returns dirs sorted by most-recent-child mtime, then files sorted by mtime.
-  // Separate them so we can apply budget allocation.
+  const fileTreeSet = new Set(fileTree);
   const dirs: string[] = [];
   const rootFiles: string[] = [];
   const nestedFiles: string[] = [];
@@ -552,20 +472,16 @@ export function sampleFileTree(fileTree: string[], codeAnalysisPaths: string[], 
     }
   }
 
-  // 1. Directories (already sorted by activity from getFileTree)
   const dirBudget = Math.min(dirs.length, Math.floor(limit * 0.4));
   for (let i = 0; i < dirBudget; i++) add(dirs[i]);
 
-  // 2. Root-level files (config, README, etc.)
   for (const f of rootFiles.slice(0, 50)) add(f);
 
-  // 3. Code analysis paths (priority-sorted by git freq + imports + file type)
   for (const p of codeAnalysisPaths) {
     if (result.length >= limit) break;
-    if (fileTree.includes(p)) add(p);
+    if (fileTreeSet.has(p)) add(p);
   }
 
-  // 4. Remaining files by mtime (nestedFiles already sorted by mtime from getFileTree)
   for (const f of nestedFiles) {
     if (result.length >= limit) break;
     add(f);
@@ -689,22 +605,27 @@ export function buildGeneratePrompt(
   if (fingerprint.codeAnalysis) {
     const ca = fingerprint.codeAnalysis;
     const basePrompt = parts.join('\n');
+    const maxPromptTokens = getMaxPromptTokens();
     const baseTokens = estimateTokens(basePrompt);
-    const tokenBudgetForCode = Math.max(0, MAX_PROMPT_TOKENS - baseTokens);
+    const tokenBudgetForCode = Math.max(0, maxPromptTokens - baseTokens);
 
     const codeLines: string[] = [];
     let codeChars = 0;
 
-    codeLines.push('Study these files to extract patterns for skills. Use the exact code patterns you see here.\n');
+    const introLine = 'Study these files to extract patterns for skills. Use the exact code patterns you see here.\n';
+    codeLines.push(introLine);
+    let runningCodeLen = introLine.length;
 
     const sortedFiles = [...ca.files].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0));
 
     let includedFiles = 0;
     for (const f of sortedFiles) {
       const entry = `[${f.path}]\n${f.content}\n`;
-      if (estimateTokens(codeLines.join('\n') + entry) > tokenBudgetForCode && includedFiles > 0) break;
+      const projectedLen = runningCodeLen + 1 + entry.length;
+      if (Math.ceil(projectedLen / 4) > tokenBudgetForCode && includedFiles > 0) break;
       codeLines.push(entry);
       codeChars += f.content.length;
+      runningCodeLen = projectedLen;
       includedFiles++;
     }
 
