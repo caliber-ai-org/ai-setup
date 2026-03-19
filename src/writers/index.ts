@@ -112,7 +112,7 @@ export function undoSetup(): { restored: string[]; removed: string[] } {
   return { restored, removed };
 }
 
-function getFilesToWrite(setup: AgentSetup): string[] {
+export function getFilesToWrite(setup: AgentSetup): string[] {
   const files: string[] = [];
 
   if (setup.targetAgent.includes('claude') && setup.claude) {
@@ -120,7 +120,7 @@ function getFilesToWrite(setup: AgentSetup): string[] {
     if (setup.claude.mcpServers) files.push('.mcp.json');
     if (setup.claude.skills) {
       for (const s of setup.claude.skills) {
-        files.push(`.claude/skills/${s.name.replace(/[^a-z0-9-]/gi, '-').toLowerCase()}.md`);
+        files.push(`.claude/skills/${s.name.replace(/[^a-z0-9-]/gi, '-').toLowerCase()}/SKILL.md`);
       }
     }
   }
