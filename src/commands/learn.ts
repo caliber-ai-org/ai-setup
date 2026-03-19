@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import chalk from 'chalk';
 import { readStdin } from '../learner/stdin.js';
 import {
@@ -32,7 +33,7 @@ import { validateModel } from '../llm/index.js';
 import { recordSession, formatROISummary, readROIStats, writeROIStats } from '../learner/roi.js';
 import type { LearningCostEntry, SessionROISummary } from '../learner/roi.js';
 import { matchLearningsToFailures, semanticMatchFallback, updateActivations, findStaleLearnings } from '../learner/attribution.js';
-import { PERSONAL_LEARNINGS_FILE } from '../constants.js';
+import { PERSONAL_LEARNINGS_FILE, LEARNING_DIR, LEARNING_FINALIZE_LOG, LEARNING_LAST_ERROR_FILE } from '../constants.js';
 import {
   trackLearnSessionAnalyzed,
   trackLearnROISnapshot,
@@ -44,6 +45,30 @@ const MIN_EVENTS_FOR_ANALYSIS = 25;
 const MIN_EVENTS_AUTO = 10;
 const AUTO_SETTLE_MS = 200;
 const INCREMENTAL_INTERVAL = 50;
+
+function writeFinalizeError(message: string): void {
+  try {
+    const errorPath = path.join(LEARNING_DIR, LEARNING_LAST_ERROR_FILE);
+    if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
+    fs.writeFileSync(errorPath, JSON.stringify({
+      timestamp: new Date().toISOString(),
+      error: message,
+      pid: process.pid,
+    }, null, 2));
+  } catch {
+    // Best effort
+  }
+}
+
+function readFinalizeError(): { timestamp: string; error: string } | null {
+  try {
+    const errorPath = path.join(LEARNING_DIR, LEARNING_LAST_ERROR_FILE);
+    if (!fs.existsSync(errorPath)) return null;
+    return JSON.parse(fs.readFileSync(errorPath, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
 
 export async function learnObserveCommand(options: { failure?: boolean; prompt?: boolean }) {
   try {
@@ -95,10 +120,14 @@ export async function learnObserveCommand(options: { failure?: boolean; prompt?:
         const { resolveCaliber } = await import('../lib/resolve-caliber.js');
         const bin = resolveCaliber();
         const { spawn } = await import('child_process');
+        const logPath = path.join(LEARNING_DIR, LEARNING_FINALIZE_LOG);
+        if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
+        const logFd = fs.openSync(logPath, 'a');
         spawn(bin, ['learn', 'finalize', '--auto', '--incremental'], {
           detached: true,
-          stdio: 'ignore',
+          stdio: ['ignore', logFd, logFd],
         }).unref();
+        fs.closeSync(logFd);
       } catch {
         // Best effort — don't block the hook
       }
@@ -332,9 +361,11 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
       console.log(chalk.dim(`caliber: ${totalLearnings} learnings active — est. ~${t.estimatedSavingsTokens.toLocaleString()} tokens saved across ${t.totalSessionsWithLearnings} sessions`));
     }
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     if (options?.force && !isAuto) {
-      console.error(chalk.red('caliber: finalize failed —'), err instanceof Error ? err.message : err);
+      console.error(chalk.red('caliber: finalize failed —'), errorMsg);
     }
+    writeFinalizeError(errorMsg);
   } finally {
     if (analyzed) {
       if (isIncremental) {
@@ -440,6 +471,16 @@ export async function learnStatusCommand() {
     console.log(`Last analysis: ${chalk.cyan(state.lastAnalysisTimestamp)}`);
   } else {
     console.log(`Last analysis: ${chalk.dim('none')}`);
+  }
+
+  const lastError = readFinalizeError();
+  if (lastError) {
+    console.log(`Last error: ${chalk.red(lastError.error)}`);
+    console.log(chalk.dim(`  at ${lastError.timestamp}`));
+    const logPath = path.join(LEARNING_DIR, LEARNING_FINALIZE_LOG);
+    if (fs.existsSync(logPath)) {
+      console.log(chalk.dim(`  Full log: ${logPath}`));
+    }
   }
 
   const learnedSection = readLearnedSection();

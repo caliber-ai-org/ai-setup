@@ -37,3 +37,39 @@ export function appendPreCommitBlock(content: string): string {
 export function getCursorPreCommitRule(): { filename: string; content: string } {
   return { filename: CURSOR_RULE_FILENAME, content: CURSOR_RULE_CONTENT };
 }
+
+// ── Learnings reference block ────────────────────────────────────────
+
+const LEARNINGS_BLOCK_START = '<!-- caliber:managed:learnings -->';
+const LEARNINGS_BLOCK_END = '<!-- /caliber:managed:learnings -->';
+
+const LEARNINGS_BLOCK = `${LEARNINGS_BLOCK_START}
+## Session Learnings
+
+Read \`CALIBER_LEARNINGS.md\` for patterns and anti-patterns learned from previous sessions.
+These are auto-extracted from real tool usage — treat them as project-specific rules.
+${LEARNINGS_BLOCK_END}`;
+
+const CURSOR_LEARNINGS_FILENAME = 'caliber-learnings.mdc';
+
+const CURSOR_LEARNINGS_CONTENT = `---
+description: Reference session-learned patterns from CALIBER_LEARNINGS.md
+alwaysApply: true
+---
+Read \`CALIBER_LEARNINGS.md\` for patterns and anti-patterns learned from previous sessions.
+These are auto-extracted from real tool usage — treat them as project-specific rules.
+`;
+
+export function hasLearningsBlock(content: string): boolean {
+  return content.includes(LEARNINGS_BLOCK_START);
+}
+
+export function appendLearningsBlock(content: string): string {
+  if (hasLearningsBlock(content)) return content;
+  const trimmed = content.trimEnd();
+  return trimmed + '\n\n' + LEARNINGS_BLOCK + '\n';
+}
+
+export function getCursorLearningsRule(): { filename: string; content: string } {
+  return { filename: CURSOR_LEARNINGS_FILENAME, content: CURSOR_LEARNINGS_CONTENT };
+}

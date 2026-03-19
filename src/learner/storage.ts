@@ -156,11 +156,18 @@ export function acquireFinalizeLock(): boolean {
     try {
       const stat = fs.statSync(lockPath);
       if (Date.now() - stat.mtimeMs < LOCK_STALE_MS) {
-        return false; // Lock is held and not stale
+        // Check if the holding process is still alive
+        const pid = parseInt(fs.readFileSync(lockPath, 'utf-8').trim(), 10);
+        if (!isNaN(pid) && isProcessAlive(pid)) {
+          return false; // Lock is held by a live process
+        }
+        // Process is dead — treat as stale despite timestamp
       }
     } catch {
-      // Can't stat — treat as stale
+      // Can't stat or read — treat as stale
     }
+    // Stale lock — remove it before re-creating
+    try { fs.unlinkSync(lockPath); } catch { /* race — another process may have cleaned it */ }
   }
 
   try {
@@ -168,6 +175,15 @@ export function acquireFinalizeLock(): boolean {
     return true;
   } catch {
     // File was created between check and write — another process won
+    return false;
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
     return false;
   }
 }

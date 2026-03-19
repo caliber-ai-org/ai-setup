@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { getCursorPreCommitRule } from '../pre-commit-block.js';
+import { getCursorPreCommitRule, getCursorLearningsRule } from '../pre-commit-block.js';
 
 interface CursorConfig {
   cursorrules?: string;
@@ -18,7 +18,8 @@ export function writeCursorConfig(config: CursorConfig): string[] {
   }
 
   const preCommitRule = getCursorPreCommitRule();
-  const allRules = [...(config.rules || []), preCommitRule];
+  const learningsRule = getCursorLearningsRule();
+  const allRules = [...(config.rules || []), preCommitRule, learningsRule];
   const rulesDir = path.join('.cursor', 'rules');
   if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
 

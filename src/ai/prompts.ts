@@ -344,6 +344,11 @@ DO NOT extract:
 - General programming best practices everyone already knows
 - Summaries of successful routine operations that need no special handling
 - Anything already covered in the existing CLAUDE.md
+- **One-time debugging artifacts** — fixes for a specific bug that was resolved in this session and won't recur (e.g. "fixed the stream parser by adding a null check at line 42"). Only extract if the pattern will help future sessions avoid the same trap.
+- **Session-specific file paths, worktree locations, or branch names** — these are ephemeral and won't apply to future sessions
+- **Implementation details of a feature being built** — the learning should be about HOW to work in this project, not WHAT was built
+
+The litmus test for every learning: "Would a different developer, working on a DIFFERENT task in this same repo next week, benefit from knowing this?" If the answer is no — if it only matters for the exact problem being debugged today — do NOT include it.
 
 From these observations, produce:
 
@@ -377,6 +382,9 @@ Bad examples (do NOT produce these):
 - "The codebase uses TypeScript with strict mode" (describes code, not actionable)
 - "Components follow a pattern of X" (describes architecture, not operational)
 - "The project has a scoring module" (summarizes code structure)
+- "Cursor provider with \`--print --output-format stream-json\` outputs multiple events" (implementation detail of a specific feature, not a reusable pattern)
+- "When merging to \`next\`, use the worktree at \`/path/to/worktree\`" (session-specific path, won't apply next week)
+- "Fixed the lock bug by adding \`process.kill(pid, 0)\`" (one-time bug fix, not a reusable lesson)
 - Any bullet without a **[type]** prefix
 
 Rules for the learned section:
