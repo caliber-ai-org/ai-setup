@@ -11,9 +11,8 @@ export function writeGithubCopilotConfig(config: CopilotConfig): string[] {
 
   if (config.instructions) {
     fs.mkdirSync('.github', { recursive: true });
-    const filePath = path.join('.github', 'copilot-instructions.md');
-    fs.writeFileSync(filePath, config.instructions);
-    written.push(filePath);
+    fs.writeFileSync(path.join('.github', 'copilot-instructions.md'), config.instructions);
+    written.push('.github/copilot-instructions.md');
   }
 
   if (config.instructionFiles?.length) {
@@ -21,9 +20,8 @@ export function writeGithubCopilotConfig(config: CopilotConfig): string[] {
     fs.mkdirSync(instructionsDir, { recursive: true });
 
     for (const file of config.instructionFiles) {
-      const filePath = path.join(instructionsDir, file.filename);
-      fs.writeFileSync(filePath, file.content);
-      written.push(filePath);
+      fs.writeFileSync(path.join(instructionsDir, file.filename), file.content);
+      written.push(`.github/instructions/${file.filename}`);
     }
   }
 
