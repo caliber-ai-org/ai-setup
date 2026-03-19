@@ -4,6 +4,7 @@ import { writeCursorConfig } from './cursor/index.js';
 import { writeCodexConfig } from './codex/index.js';
 import { writeGithubCopilotConfig } from './github-copilot/index.js';
 import { createBackup, restoreBackup } from './backup.js';
+import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
 import {
   readManifest,
   writeManifest,
@@ -56,6 +57,8 @@ export function writeSetup(setup: AgentSetup): { written: string[]; deleted: str
     fs.unlinkSync(filePath);
     deleted.push(filePath);
   }
+
+  written.push(...ensureBuiltinSkills());
 
   ensureGitignore();
 
