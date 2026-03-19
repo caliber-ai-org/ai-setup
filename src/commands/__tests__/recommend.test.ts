@@ -5,7 +5,7 @@ import { scanLocalState } from '../../scanner/index.js';
 
 vi.mock('fs');
 vi.mock('../../scanner/index.js', () => ({
-  scanLocalState: vi.fn().mockReturnValue([]),
+  scanLocalState: vi.fn().mockReturnValue({ items: [], warnings: [] }),
 }));
 
 type Platform = 'claude' | 'cursor' | 'codex';
@@ -43,7 +43,7 @@ function getSkillPath(platform: Platform, slug: string): string {
 }
 
 function detectLocalPlatforms(): Platform[] {
-  const items = scanLocalState(process.cwd());
+  const { items } = scanLocalState(process.cwd());
   const platforms = new Set<Platform>();
   for (const item of items) {
     platforms.add(item.platform as Platform);
@@ -135,18 +135,21 @@ describe('platform resolution', () => {
   });
 
   it('detectLocalPlatforms defaults to claude when no platforms found', () => {
-    vi.mocked(scanLocalState).mockReturnValue([]);
+    vi.mocked(scanLocalState).mockReturnValue({ items: [], warnings: [] });
 
     const platforms = detectLocalPlatforms();
     expect(platforms).toEqual(['claude']);
   });
 
   it('detectLocalPlatforms returns only detected platforms', () => {
-    vi.mocked(scanLocalState).mockReturnValue([
-      { platform: 'claude' },
-      { platform: 'claude' },
-      { platform: 'cursor' },
-    ] as ReturnType<typeof scanLocalState>);
+    vi.mocked(scanLocalState).mockReturnValue({
+      items: [
+        { platform: 'claude' },
+        { platform: 'claude' },
+        { platform: 'cursor' },
+      ],
+      warnings: [],
+    } as ReturnType<typeof scanLocalState>);
 
     const platforms = detectLocalPlatforms();
     expect(platforms).toContain('claude');
@@ -158,11 +161,14 @@ describe('platform resolution', () => {
     // This tests the resolution logic: targetPlatforms ?? detectLocalPlatforms()
     const targetPlatforms: Platform[] = ['claude'];
 
-    vi.mocked(scanLocalState).mockReturnValue([
-      { platform: 'claude' },
-      { platform: 'cursor' },
-      { platform: 'codex' },
-    ] as ReturnType<typeof scanLocalState>);
+    vi.mocked(scanLocalState).mockReturnValue({
+      items: [
+        { platform: 'claude' },
+        { platform: 'cursor' },
+        { platform: 'codex' },
+      ],
+      warnings: [],
+    } as ReturnType<typeof scanLocalState>);
 
     // When targetPlatforms is provided, it should be used directly
     const platforms = targetPlatforms ?? detectLocalPlatforms();
@@ -172,9 +178,12 @@ describe('platform resolution', () => {
   it('falls back to detectLocalPlatforms when no targetPlatforms', () => {
     const targetPlatforms: Platform[] | undefined = undefined;
 
-    vi.mocked(scanLocalState).mockReturnValue([
-      { platform: 'cursor' },
-    ] as ReturnType<typeof scanLocalState>);
+    vi.mocked(scanLocalState).mockReturnValue({
+      items: [
+        { platform: 'cursor' },
+      ],
+      warnings: [],
+    } as ReturnType<typeof scanLocalState>);
 
     const platforms = targetPlatforms ?? detectLocalPlatforms();
     expect(platforms).toEqual(['cursor']);

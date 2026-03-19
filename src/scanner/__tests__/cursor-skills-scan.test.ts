@@ -35,7 +35,7 @@ describe('scanLocalState — cursor skills', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(fs.readFileSync).mockReturnValue('---\nname: My Skill\n---\nContent' as any);
 
-    const items = scanLocalState(dir);
+    const { items } = scanLocalState(dir);
     const cursorSkills = items.filter(i => i.type === 'skill' && i.platform === 'cursor');
 
     expect(cursorSkills).toHaveLength(1);
@@ -46,7 +46,7 @@ describe('scanLocalState — cursor skills', () => {
 
   it('returns no cursor skills when directory does not exist', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
-    const items = scanLocalState('/project');
+    const { items } = scanLocalState('/project');
     const cursorSkills = items.filter(i => i.type === 'skill' && i.platform === 'cursor');
     expect(cursorSkills).toHaveLength(0);
   });

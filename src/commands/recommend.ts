@@ -29,7 +29,7 @@ interface ScoredCandidate {
 }
 
 function detectLocalPlatforms(): Platform[] {
-  const items = scanLocalState(process.cwd());
+  const { items } = scanLocalState(process.cwd());
   const platforms = new Set<Platform>();
   for (const item of items) {
     platforms.add(item.platform);

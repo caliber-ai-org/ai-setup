@@ -26,8 +26,9 @@ export function detectPlatforms(): PlatformDetection {
   };
 }
 
-export function scanLocalState(dir: string): LocalItem[] {
+export function scanLocalState(dir: string): { items: LocalItem[]; warnings: string[] } {
   const items: LocalItem[] = [];
+  const warnings: string[] = [];
 
   // Claude: CLAUDE.md
   const claudeMdPath = path.join(dir, 'CLAUDE.md');
@@ -72,11 +73,12 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      warnings.push(`Warning: ${mcpJsonPath} could not be parsed (${e instanceof Error ? e.message : String(e)}) — skipping MCP scan`);
+    }
   }
 
   // Codex: AGENTS.md (when used as primary instructions)
-  const agentsMdPath = path.join(dir, 'AGENTS.md');
   if (fs.existsSync(agentsMdPath)) {
     items.push({
       type: 'rule',
@@ -103,11 +105,12 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      warnings.push(`Warning: ${codexSkillsDir} could not be scanned (${e instanceof Error ? e.message : String(e)}) — skipping Codex skills scan`);
+    }
   }
 
   // Cursor: .cursorrules
-  const cursorrulesPath = path.join(dir, '.cursorrules');
   if (fs.existsSync(cursorrulesPath)) {
     items.push({
       type: 'rule',
@@ -149,11 +152,12 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      warnings.push(`Warning: ${cursorSkillsDir} could not be scanned (${e instanceof Error ? e.message : String(e)}) — skipping Cursor skills scan`);
+    }
   }
 
   // Cursor: .cursor/mcp.json mcpServers
-  const cursorMcpPath = path.join(dir, '.cursor', 'mcp.json');
   if (fs.existsSync(cursorMcpPath)) {
     try {
       const mcpJson = JSON.parse(fs.readFileSync(cursorMcpPath, 'utf-8'));
@@ -168,10 +172,12 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      warnings.push(`Warning: ${cursorMcpPath} could not be parsed (${e instanceof Error ? e.message : String(e)}) — skipping Cursor MCP scan`);
+    }
   }
 
-  return items;
+  return { items, warnings };
 }
 
 export interface ServerItem {
