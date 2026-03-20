@@ -72,7 +72,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanIssue(mcpJsonPath, 'MCP server definitions', error);
+    }
   }
 
   // Codex: AGENTS.md (when used as primary instructions)
@@ -103,7 +105,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanIssue(codexSkillsDir, 'Codex skills directory scan', error);
+    }
   }
 
   // Cursor: .cursorrules
@@ -149,7 +153,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanIssue(cursorSkillsDir, 'Cursor skills directory scan', error);
+    }
   }
 
   // Cursor: .cursor/mcp.json mcpServers
@@ -168,7 +174,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanIssue(cursorMcpPath, 'Cursor MCP server definitions', error);
+    }
   }
 
   return items;
@@ -236,4 +244,11 @@ function getCursorConfigDir(): string {
     return path.join(home, 'AppData', 'Roaming', 'Cursor');
   }
   return path.join(home, '.config', 'Cursor');
+}
+
+function warnScanIssue(targetPath: string, context: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(
+    `Warning: unable to read ${context} at ${targetPath} (${message}) — skipping\n`
+  );
 }
