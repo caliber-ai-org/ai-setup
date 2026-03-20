@@ -72,7 +72,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanSkip('.mcp.json', error);
+    }
   }
 
   // Codex: AGENTS.md (when used as primary instructions)
@@ -103,7 +105,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanSkip('.agents/skills', error);
+    }
   }
 
   // Cursor: .cursorrules
@@ -149,7 +153,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanSkip('.cursor/skills', error);
+    }
   }
 
   // Cursor: .cursor/mcp.json mcpServers
@@ -168,7 +174,9 @@ export function scanLocalState(dir: string): LocalItem[] {
           });
         }
       }
-    } catch { /* ignore */ }
+    } catch (error) {
+      warnScanSkip('.cursor/mcp.json', error);
+    }
   }
 
   return items;
@@ -225,6 +233,11 @@ function hashFile(filePath: string): string {
 
 function hashJson(obj: unknown): string {
   return crypto.createHash('sha256').update(JSON.stringify(obj)).digest('hex');
+}
+
+function warnScanSkip(target: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.warn(`Warning: ${target} scan skipped (${message})`);
 }
 
 function getCursorConfigDir(): string {
