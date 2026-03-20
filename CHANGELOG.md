@@ -1,3 +1,9 @@
+## v1.27.0 (2026-03-20)
+
+### Features
+
+- warn when no supported AI platforms are detected
+
 ## v1.26.1 (2026-03-20)
 
 ### Bug Fixes
