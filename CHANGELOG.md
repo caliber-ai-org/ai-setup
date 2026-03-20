@@ -1,3 +1,14 @@
+## v1.28.0 (2026-03-20)
+
+### Features
+
+- replace static header image with Remotion-rendered product video
+
+### Bug Fixes
+
+- restore CLI demo GIF, use separate MP4 for header only
+- use MP4 video embed with larger text for README header
+
 ## v1.27.0 (2026-03-20)
 
 ### Features
