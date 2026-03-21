@@ -39,9 +39,9 @@ export const CaliberDemo: React.FC = () => {
       {/* Subtle grid texture */}
       <AbsoluteFill
         style={{
-          backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 39px, ${theme.surfaceHeader} 39px, ${theme.surfaceHeader} 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, ${theme.surfaceHeader} 39px, ${theme.surfaceHeader} 40px)`,
-          backgroundSize: "40px 40px",
-          opacity: 0.4,
+          backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 59px, ${theme.surfaceHeader} 59px, ${theme.surfaceHeader} 60px), repeating-linear-gradient(90deg, transparent, transparent 59px, ${theme.surfaceHeader} 59px, ${theme.surfaceHeader} 60px)`,
+          backgroundSize: "60px 60px",
+          opacity: 0.35,
         }}
       />
 

@@ -3,30 +3,10 @@ import { Logo } from "./Logo";
 import { theme } from "./theme";
 
 const stats = [
-  {
-    value: "20x",
-    label: "Fewer tokens",
-    desc: "Grounded configs = focused agents",
-    color: theme.brand3,
-  },
-  {
-    value: "10x",
-    label: "Faster velocity",
-    desc: "Best practices built in from day one",
-    color: theme.accent,
-  },
-  {
-    value: "4",
-    label: "Platforms",
-    desc: "Claude · Cursor · Codex · Copilot",
-    color: theme.green,
-  },
-  {
-    value: "0",
-    label: "Config drift",
-    desc: "Continuous sync keeps it all aligned",
-    color: theme.brand1,
-  },
+  { value: "20x", label: "Fewer tokens", desc: "Grounded configs = focused agents", color: theme.brand3 },
+  { value: "10x", label: "Faster velocity", desc: "Best practices built in from day one", color: theme.accent },
+  { value: "4", label: "Platforms", desc: "Claude · Cursor · Codex · Copilot", color: theme.green },
+  { value: "0", label: "Config drift", desc: "Continuous sync keeps it all aligned", color: theme.brand1 },
 ];
 
 export const ROIStats: React.FC = () => {
@@ -34,9 +14,7 @@ export const ROIStats: React.FC = () => {
   const { fps } = useVideoConfig();
 
   const headerOpacity = interpolate(frame, [0, 14], [0, 1], { extrapolateRight: "clamp" });
-  const ctaOpacity = interpolate(frame, [68, 88], [0, 1], { extrapolateRight: "clamp" });
-
-  // Blinking cursor for CTA
+  const ctaOpacity = interpolate(frame, [50, 68], [0, 1], { extrapolateRight: "clamp" });
   const cursorVisible = Math.floor(frame / 15) % 2 === 0;
 
   return (
@@ -47,12 +25,11 @@ export const ROIStats: React.FC = () => {
         background: `radial-gradient(ellipse 60% 50% at 50% 45%, ${theme.brand3}08, transparent)`,
       }}
     >
-      {/* Section label */}
       <div
         style={{
           position: "absolute",
-          top: "6%",
-          fontSize: 22,
+          top: "5%",
+          fontSize: 32,
           fontFamily: theme.fontMono,
           color: theme.textMuted,
           textTransform: "uppercase",
@@ -63,12 +40,11 @@ export const ROIStats: React.FC = () => {
         The Impact
       </div>
 
-      {/* Headline */}
       <div
         style={{
           position: "absolute",
-          top: "13%",
-          fontSize: 48,
+          top: "12%",
+          fontSize: 64,
           fontWeight: 700,
           fontFamily: theme.fontSans,
           color: theme.text,
@@ -79,17 +55,11 @@ export const ROIStats: React.FC = () => {
         Maximum velocity. Minimum cost.
       </div>
 
-      {/* Stats grid */}
-      <div style={{ display: "flex", gap: 24, marginTop: 10 }}>
+      <div style={{ display: "flex", gap: 32, marginTop: 14 }}>
         {stats.map((stat, i) => {
-          const delay = 10 + i * 6;
+          const delay = 8 + i * 5;
           const s = spring({ frame: frame - delay, fps, config: { damping: 14, stiffness: 65 } });
-
-          const counterProgress = spring({
-            frame: frame - delay - 4,
-            fps,
-            config: { damping: 20, mass: 0.6 },
-          });
+          const counterProgress = spring({ frame: frame - delay - 3, fps, config: { damping: 20, mass: 0.6 } });
 
           const numericValue = parseInt(stat.value, 10);
           const isMultiplier = stat.value.includes("x");
@@ -103,66 +73,59 @@ export const ROIStats: React.FC = () => {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                padding: "34px 30px",
+                padding: "44px 40px",
                 backgroundColor: theme.surface,
                 border: `1px solid ${theme.surfaceBorder}`,
-                borderRadius: theme.radiusLg,
-                minWidth: 230,
+                borderRadius: 20,
+                minWidth: 300,
                 opacity: s,
-                transform: `translateY(${interpolate(s, [0, 1], [22, 0])}px)`,
+                transform: `translateY(${interpolate(s, [0, 1], [24, 0])}px)`,
                 boxShadow: theme.cardGlow,
               }}
             >
-              {/* Accent line */}
               <div
                 style={{
-                  width: 40,
-                  height: 4,
-                  borderRadius: 2,
+                  width: 52,
+                  height: 5,
+                  borderRadius: 3,
                   backgroundColor: stat.color,
-                  marginBottom: 20,
-                  boxShadow: `0 0 16px ${stat.color}40`,
+                  marginBottom: 24,
+                  boxShadow: `0 0 20px ${stat.color}40`,
                 }}
               />
-
-              {/* Big number */}
               <div
                 style={{
-                  fontSize: 68,
+                  fontSize: 96,
                   fontWeight: 800,
                   fontFamily: theme.fontSans,
                   color: stat.color,
                   letterSpacing: "-0.03em",
                   fontVariantNumeric: "tabular-nums",
                   lineHeight: 1,
-                  marginBottom: 12,
+                  marginBottom: 14,
                 }}
               >
                 {displayValue}
               </div>
-
-              {/* Label */}
               <div
                 style={{
-                  fontSize: 24,
+                  fontSize: 32,
                   fontWeight: 600,
                   fontFamily: theme.fontSans,
                   color: theme.text,
-                  marginBottom: 8,
+                  marginBottom: 10,
                   textAlign: "center",
                 }}
               >
                 {stat.label}
               </div>
-
-              {/* Description */}
               <div
                 style={{
-                  fontSize: 16,
+                  fontSize: 22,
                   fontFamily: theme.fontSans,
                   color: theme.textMuted,
                   textAlign: "center",
-                  maxWidth: 200,
+                  maxWidth: 260,
                   lineHeight: 1.4,
                 }}
               >
@@ -173,57 +136,37 @@ export const ROIStats: React.FC = () => {
         })}
       </div>
 
-      {/* CTA section — terminal-style install command */}
       <div
         style={{
           position: "absolute",
-          bottom: "5%",
+          bottom: "4%",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 16,
+          gap: 20,
           opacity: ctaOpacity,
         }}
       >
-        <Logo size={0.55} animate={false} />
-
-        {/* Terminal-style command */}
+        <Logo size={0.8} animate={false} />
         <div
           style={{
             backgroundColor: theme.surface,
             border: `1px solid ${theme.surfaceBorder}`,
-            borderRadius: 32,
-            padding: "16px 40px",
+            borderRadius: 44,
+            padding: "20px 52px",
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 14,
             boxShadow: theme.terminalGlow,
           }}
         >
-          <span style={{ color: theme.textMuted, fontFamily: theme.fontMono, fontSize: 26 }}>$</span>
-          <span style={{ color: theme.text, fontFamily: theme.fontMono, fontSize: 26, fontWeight: 500 }}>
+          <span style={{ color: theme.textMuted, fontFamily: theme.fontMono, fontSize: 36 }}>$</span>
+          <span style={{ color: theme.text, fontFamily: theme.fontMono, fontSize: 36, fontWeight: 500 }}>
             npx @rely-ai/caliber init
           </span>
-          {/* Blinking cursor */}
-          <div
-            style={{
-              width: 3,
-              height: 26,
-              backgroundColor: theme.brand3,
-              opacity: cursorVisible ? 1 : 0,
-              marginLeft: 4,
-            }}
-          />
+          <div style={{ width: 4, height: 36, backgroundColor: theme.brand3, opacity: cursorVisible ? 1 : 0, marginLeft: 6 }} />
         </div>
-
-        <div
-          style={{
-            fontSize: 22,
-            fontFamily: theme.fontSans,
-            color: theme.textSecondary,
-            fontWeight: 400,
-          }}
-        >
+        <div style={{ fontSize: 30, fontFamily: theme.fontSans, color: theme.textSecondary, fontWeight: 400 }}>
           One command. Every AI agent. Always in sync.
         </div>
       </div>

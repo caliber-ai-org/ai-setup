@@ -19,11 +19,9 @@ export const SyncAnimation: React.FC = () => {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-
   const loopPulse = Math.sin(((frame % 30) / 30) * Math.PI * 2);
   const loopOpacity = interpolate(frame, [70, 88], [0, 1], { extrapolateRight: "clamp" });
-
-  const arrowRotation = interpolate(frame, [38, 120], [0, 360], { extrapolateRight: "clamp" });
+  const arrowRotation = interpolate(frame, [38, 105], [0, 360], { extrapolateRight: "clamp" });
 
   return (
     <AbsoluteFill
@@ -33,21 +31,20 @@ export const SyncAnimation: React.FC = () => {
         background: `radial-gradient(ellipse 50% 40% at 30% 50%, ${theme.green}06, transparent)`,
       }}
     >
-      {/* Section label with GitHub icon */}
       <div
         style={{
           position: "absolute",
           top: "6%",
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 14,
           opacity: headerOpacity,
         }}
       >
-        <GitHubIcon size={22} color={theme.textMuted} />
+        <GitHubIcon size={32} color={theme.textMuted} />
         <span
           style={{
-            fontSize: 22,
+            fontSize: 32,
             fontFamily: theme.fontMono,
             color: theme.textMuted,
             textTransform: "uppercase",
@@ -58,12 +55,11 @@ export const SyncAnimation: React.FC = () => {
         </span>
       </div>
 
-      {/* Headline */}
       <div
         style={{
           position: "absolute",
-          top: "13%",
-          fontSize: 46,
+          top: "14%",
+          fontSize: 64,
           fontWeight: 700,
           fontFamily: theme.fontSans,
           color: theme.text,
@@ -74,44 +70,39 @@ export const SyncAnimation: React.FC = () => {
         Configs evolve with your code
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 44, marginTop: 24 }}>
-        {/* Terminal-style diff card with GitHub icon in header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 60, marginTop: 36 }}>
         <div
           style={{
             backgroundColor: theme.surface,
             border: `1px solid ${theme.surfaceBorder}`,
-            borderRadius: theme.radiusLg,
+            borderRadius: 20,
             opacity: codeSpring,
             transform: `scale(${interpolate(codeSpring, [0, 1], [0.95, 1])})`,
-            minWidth: 340,
+            minWidth: 500,
             overflow: "hidden",
             boxShadow: theme.terminalGlow,
           }}
         >
-          {/* Terminal header with GitHub icon */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 7,
-              padding: "10px 16px",
+              gap: 10,
+              padding: "14px 22px",
               backgroundColor: theme.surfaceHeader,
               borderBottom: `1px solid ${theme.surfaceBorder}`,
             }}
           >
-            <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.red }} />
-            <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.yellow }} />
-            <div style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.green }} />
-            <div style={{ marginLeft: 10, display: "flex", alignItems: "center", gap: 6 }}>
-              <GitHubIcon size={14} color={theme.textMuted} />
-              <span style={{ color: theme.textMuted, fontSize: 14, fontFamily: theme.fontMono }}>
-                git diff
-              </span>
+            <div style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: theme.red }} />
+            <div style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: theme.yellow }} />
+            <div style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: theme.green }} />
+            <div style={{ marginLeft: 14, display: "flex", alignItems: "center", gap: 8 }}>
+              <GitHubIcon size={20} color={theme.textMuted} />
+              <span style={{ color: theme.textMuted, fontSize: 20, fontFamily: theme.fontMono }}>git diff</span>
             </div>
           </div>
 
-          {/* Diff content */}
-          <div style={{ padding: "18px 22px", fontFamily: theme.fontMono, fontSize: 19, lineHeight: 2 }}>
+          <div style={{ padding: "24px 30px", fontFamily: theme.fontMono, fontSize: 28, lineHeight: 2 }}>
             <div>
               <span style={{ color: theme.green, fontWeight: 600 }}>+</span>
               <span style={{ color: "#c4b5fd" }}> export function </span>
@@ -127,19 +118,18 @@ export const SyncAnimation: React.FC = () => {
               <span style={{ color: "#c4b5fd" }}> export function </span>
               <span style={{ color: theme.text }}>rateLimit</span>
             </div>
-            <div style={{ marginTop: 8, color: theme.textMuted, fontSize: 15 }}>
+            <div style={{ marginTop: 10, color: theme.textMuted, fontSize: 22 }}>
               src/lib/auth.ts — 3 new exports
             </div>
           </div>
         </div>
 
-        {/* Animated sync circle */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
           <div
             style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
+              width: 100,
+              height: 100,
+              borderRadius: 50,
               backgroundColor: theme.surface,
               border: `1px solid ${theme.surfaceBorder}`,
               display: "flex",
@@ -147,48 +137,22 @@ export const SyncAnimation: React.FC = () => {
               alignItems: "center",
               opacity: arrowProgress,
               transform: `scale(${arrowProgress})`,
-              boxShadow: `0 0 30px ${theme.brand3}18`,
+              boxShadow: `0 0 40px ${theme.brand3}18`,
             }}
           >
-            <svg
-              width={38}
-              height={38}
-              viewBox="0 0 24 24"
-              fill="none"
-              style={{ transform: `rotate(${arrowRotation}deg)` }}
-            >
-              <path
-                d="M4 12C4 7.58 7.58 4 12 4C15.37 4 18.24 6.11 19.38 9"
-                stroke={theme.brand2}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-              />
-              <path
-                d="M20 12C20 16.42 16.42 20 12 20C8.63 20 5.76 17.89 4.62 15"
-                stroke={theme.brand2}
-                strokeWidth={2.5}
-                strokeLinecap="round"
-              />
+            <svg width={54} height={54} viewBox="0 0 24 24" fill="none" style={{ transform: `rotate(${arrowRotation}deg)` }}>
+              <path d="M4 12C4 7.58 7.58 4 12 4C15.37 4 18.24 6.11 19.38 9" stroke={theme.brand2} strokeWidth={2.5} strokeLinecap="round" />
+              <path d="M20 12C20 16.42 16.42 20 12 20C8.63 20 5.76 17.89 4.62 15" stroke={theme.brand2} strokeWidth={2.5} strokeLinecap="round" />
               <path d="M17 9H20V6" stroke={theme.brand2} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
               <path d="M7 15H4V18" stroke={theme.brand2} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <span
-            style={{
-              fontSize: 16,
-              fontFamily: theme.fontMono,
-              color: theme.brand2,
-              opacity: arrowProgress,
-              fontWeight: 600,
-              letterSpacing: "0.05em",
-            }}
-          >
+          <span style={{ fontSize: 22, fontFamily: theme.fontMono, color: theme.brand2, opacity: arrowProgress, fontWeight: 600 }}>
             $ caliber refresh
           </span>
         </div>
 
-        {/* Output files with real platform icons */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {outputFiles.map((file, i) => {
             const delay = 24 + i * 6;
             const s = spring({ frame: frame - delay, fps, config: { damping: 14, stiffness: 75 } });
@@ -198,41 +162,40 @@ export const SyncAnimation: React.FC = () => {
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 14,
-                  padding: "12px 20px",
+                  gap: 18,
+                  padding: "16px 28px",
                   backgroundColor: theme.surface,
                   border: `1px solid ${theme.surfaceBorder}`,
                   borderRadius: theme.radiusSm,
                   opacity: s,
-                  transform: `translateX(${interpolate(s, [0, 1], [20, 0])}px)`,
+                  transform: `translateX(${interpolate(s, [0, 1], [24, 0])}px)`,
                 }}
               >
-                <file.Icon size={24} color={file.color} />
+                <file.Icon size={32} color={file.color} />
                 <div style={{ display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: theme.text, fontSize: 20, fontFamily: theme.fontMono, fontWeight: 500 }}>
+                  <span style={{ color: theme.text, fontSize: 28, fontFamily: theme.fontMono, fontWeight: 500 }}>
                     {file.name}
                   </span>
-                  <span style={{ color: theme.textMuted, fontSize: 15, fontFamily: theme.fontSans }}>
+                  <span style={{ color: theme.textMuted, fontSize: 20, fontFamily: theme.fontSans }}>
                     {file.platform}
                   </span>
                 </div>
-                <span style={{ color: theme.green, fontSize: 18, fontWeight: 700, marginLeft: "auto" }}>✓</span>
+                <span style={{ color: theme.green, fontSize: 24, fontWeight: 700, marginLeft: "auto" }}>✓</span>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Continuous sync bar with GitHub icon */}
       <div
         style={{
           position: "absolute",
-          bottom: "7%",
+          bottom: "6%",
           display: "flex",
           alignItems: "center",
-          gap: 14,
-          padding: "16px 36px",
-          borderRadius: 32,
+          gap: 18,
+          padding: "22px 48px",
+          borderRadius: 40,
           backgroundColor: `${theme.brand3}0d`,
           border: `1px solid ${theme.brand3}20`,
           opacity: loopOpacity,
@@ -241,15 +204,15 @@ export const SyncAnimation: React.FC = () => {
       >
         <div
           style={{
-            width: 12,
-            height: 12,
-            borderRadius: 6,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
             backgroundColor: theme.green,
-            boxShadow: `0 0 ${8 + loopPulse * 5}px ${theme.green}60`,
+            boxShadow: `0 0 ${10 + loopPulse * 6}px ${theme.green}60`,
           }}
         />
-        <GitHubIcon size={20} color={theme.textSecondary} />
-        <span style={{ color: theme.text, fontSize: 24, fontFamily: theme.fontSans, fontWeight: 600 }}>
+        <GitHubIcon size={28} color={theme.textSecondary} />
+        <span style={{ color: theme.text, fontSize: 34, fontFamily: theme.fontSans, fontWeight: 600 }}>
           Every push. Every branch. Always in sync.
         </span>
       </div>
