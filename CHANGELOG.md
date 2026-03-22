@@ -1,3 +1,9 @@
+## v1.29.4 (2026-03-22)
+
+### Bug Fixes
+
+- make scoring checks agent-aware and respect .gitignore (#64)
+
 ## v1.29.3 (2026-03-22)
 
 ### Other
