@@ -73,3 +73,35 @@ export function appendLearningsBlock(content: string): string {
 export function getCursorLearningsRule(): { filename: string; content: string } {
   return { filename: CURSOR_LEARNINGS_FILENAME, content: CURSOR_LEARNINGS_CONTENT };
 }
+
+// ── Skill listing block ────────────────────────────────────────────────
+
+const SKILLS_HEADING = '## Available Skills';
+
+function truncateDescription(description: string): string {
+  const match = description.match(/^[^.]*\.\s/);
+  if (match) return match[0].trim();
+  if (description.length > 80) return description.slice(0, 77) + '...';
+  return description;
+}
+
+export function appendSkillListing(
+  content: string,
+  skills: Array<{ name: string; description: string }>,
+  pathPrefix: string,
+): string {
+  if (skills.length === 0) return content;
+  if (content.includes(SKILLS_HEADING)) return content;
+  const lines = [
+    '',
+    SKILLS_HEADING,
+    '',
+    'The following skill files are available in this repo. Read them when working on related areas:',
+    '',
+  ];
+  for (const skill of skills) {
+    const shortDesc = truncateDescription(skill.description);
+    lines.push(`- \`${pathPrefix}${skill.name}/SKILL.md\` — ${shortDesc}`);
+  }
+  return content.trimEnd() + '\n' + lines.join('\n') + '\n';
+}

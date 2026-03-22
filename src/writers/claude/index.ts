@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { appendPreCommitBlock, appendLearningsBlock } from '../pre-commit-block.js';
+import { appendPreCommitBlock, appendLearningsBlock, appendSkillListing } from '../pre-commit-block.js';
 
 interface ClaudeConfig {
   claudeMd: string;
@@ -11,7 +11,11 @@ interface ClaudeConfig {
 export function writeClaudeConfig(config: ClaudeConfig): string[] {
   const written: string[] = [];
 
-  fs.writeFileSync('CLAUDE.md', appendLearningsBlock(appendPreCommitBlock(config.claudeMd)));
+  let claudeMd = config.claudeMd;
+  if (config.skills?.length) {
+    claudeMd = appendSkillListing(claudeMd, config.skills, '.claude/skills/');
+  }
+  fs.writeFileSync('CLAUDE.md', appendLearningsBlock(appendPreCommitBlock(claudeMd)));
   written.push('CLAUDE.md');
 
   if (config.skills?.length) {

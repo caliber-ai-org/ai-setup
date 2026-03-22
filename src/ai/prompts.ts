@@ -97,7 +97,16 @@ For command sections, use code blocks with one command per line.
 
 - Each skill content: max 150 lines. Focus on patterns and examples, not exhaustive docs.
 - Cursor rules: max 5 .mdc files.
-- If the project is large, prioritize depth on the 3-4 most critical tools over breadth across everything.`;
+- If the project is large, prioritize depth on the 3-4 most critical tools over breadth across everything.
+
+CONVENTIONS SECTION PRIORITY — this is the highest-value section for agent performance:
+The Conventions section determines whether agents choose correct, project-consistent solutions vs technically clever but fragile ones. Prioritize:
+1. Error handling patterns — does the project use try/except, Result types, or assertions? Show the actual pattern with a code example.
+2. Backward compatibility approach — does the project prefer duck typing (try/except TypeError) over introspection (inspect.signature)? Defensive patterns over clever ones?
+3. Testing infrastructure — test runner, key fixtures, how to add a new test. Agents that understand the test infra write tests that pass.
+4. "Prefer X over Y" guidelines — for common trade-offs in this codebase (e.g. "prefer composition over inheritance", "prefer simple try/except over type checking").
+5. Anti-patterns — 2-3 specific things NOT to do in this codebase. These prevent agents from choosing overengineered solutions.
+Keep this section tight — bullet points, not prose. Each line should be a decision rule an agent can act on.`;
 
 // ── Exported prompts ───────────────────────────────────────────────────
 
@@ -221,7 +230,8 @@ Structure:
    - Have a validation gate: "Verify X before proceeding to the next step"
    - Specify dependencies: "This step uses the output from Step N"
 4. "## Examples" — at least one example showing: User says → Actions taken → Result. The example should mirror how existing code in the project is structured.
-5. "## Common Issues" (required) — specific error messages and their fixes. Not "check your config" but "If you see 'Connection refused on port 5432': 1. Verify postgres is running: docker ps | grep postgres 2. Check .env has correct DATABASE_URL"
+5. "## Anti-patterns" (required) — 2-3 specific approaches to AVOID, with the correct alternative. Focus on cases where the "clever" solution breaks things. Example: "Do NOT use inspect.signature() to check function parameters — use try/except TypeError instead. The introspection approach breaks with decorated functions and functools.partial."
+6. "## Common Issues" (required) — specific error messages and their fixes. Not "check your config" but "If you see 'Connection refused on port 5432': 1. Verify postgres is running: docker ps | grep postgres 2. Check .env has correct DATABASE_URL"
 
 Rules:
 - Max 150 lines. Focus on actionable instructions, not documentation prose.
