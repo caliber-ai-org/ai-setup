@@ -7,6 +7,7 @@ import {
   POINTS_AGENTS_MD,
   POINTS_OPEN_SKILLS_FORMAT,
   POINTS_LEARNED_CONTENT,
+  POINTS_MODEL_PINNED,
 } from '../constants.js';
 import { resolveCaliber } from '../../lib/resolve-caliber.js';
 import { readFileOrNull } from '../utils.js';
@@ -171,6 +172,53 @@ export function checkBonus(dir: string): Check[] {
     suggestion: hasLearned
       ? undefined
       : `Session learnings capture patterns from your coding sessions so the agent improves over time. Run \`${resolveCaliber()} learn install\``,
+  });
+
+  // 5. Model and effort level pinned
+  const configContent = (() => {
+    const parts: string[] = [];
+    const p = join(dir, 'CLAUDE.md');
+    const c = readFileOrNull(p);
+    if (c) parts.push(c);
+    try {
+      const rulesDir = join(dir, '.cursor', 'rules');
+      for (const f of readdirSync(rulesDir).filter((x) => x.endsWith('.mdc'))) {
+        const content = readFileOrNull(join(rulesDir, f));
+        if (content) parts.push(content);
+      }
+    } catch { /* dir missing */ }
+    return parts.join('\n').toLowerCase();
+  })();
+
+  const hasModelRef =
+    /\bcaliber_model\b/.test(configContent) ||
+    /\/(model|set model)\b/.test(configContent) ||
+    /\b(model|effort)\s*[:=]/.test(configContent) ||
+    /claude-(sonnet|opus|haiku)[-\d.]+/i.test(configContent) ||
+    /gpt-4[o.-]?\d*|gpt-5/i.test(configContent) ||
+    /\bhigh\s+effort|\bmedium\s+effort|\blow\s+effort/.test(configContent);
+
+  checks.push({
+    id: 'model_pinned',
+    name: 'Model & effort pinned',
+    category: 'bonus',
+    maxPoints: POINTS_MODEL_PINNED,
+    earnedPoints: hasModelRef ? POINTS_MODEL_PINNED : 0,
+    passed: hasModelRef,
+    detail: hasModelRef
+      ? 'Model or effort level explicitly set in config'
+      : "Config doesn't pin model or effort level — behavior may change when defaults are updated",
+    suggestion: hasModelRef
+      ? undefined
+      : 'Add model/effort to config: CALIBER_MODEL env var, or /model in Claude Code, or a Model Configuration section in CLAUDE.md',
+    fix: hasModelRef
+      ? undefined
+      : {
+          action: 'pin_model',
+          data: {},
+          instruction:
+            'Add a Model Configuration section to CLAUDE.md with recommended model and effort. Set via CALIBER_MODEL env var or /model in Claude Code.',
+        },
   });
 
   return checks;
