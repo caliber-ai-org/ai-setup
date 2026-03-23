@@ -5,7 +5,7 @@ describe('cli command registration', () => {
   it('registers regenerate as the primary command', () => {
     const cmd = program.commands.find((c) => c.name() === 'regenerate');
     expect(cmd).toBeDefined();
-    expect(cmd!.description()).toBe('Re-analyze project and regenerate setup');
+    expect(cmd!.description()).toBe('Re-analyze project and regenerate config');
   });
 
   it.each(['regen', 're'])('registers "%s" as an alias for regenerate', (alias) => {

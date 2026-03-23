@@ -26,7 +26,7 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
 
   const manifest = readManifest();
   if (!manifest) {
-    console.log(chalk.yellow('No existing setup found. Run ') + chalk.hex('#83D1EB')('caliber init') + chalk.yellow(' first.'));
+    console.log(chalk.yellow('No existing config found. Run ') + chalk.hex('#83D1EB')('caliber init') + chalk.yellow(' first.'));
     throw new Error('__exit__');
   }
 
@@ -45,12 +45,12 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   displayScoreSummary(baselineScore);
 
   if (baselineScore.score === 100) {
-    console.log(chalk.green('  Your setup is already at 100/100 — nothing to regenerate.\n'));
+    console.log(chalk.green('  Your config is already at 100/100 — nothing to regenerate.\n'));
     return;
   }
 
   // 3. Generate
-  const genSpinner = ora('Regenerating setup...').start();
+  const genSpinner = ora('Regenerating config...').start();
   const genMessages = new SpinnerMessages(genSpinner, GENERATION_MESSAGES, { showElapsedTime: true });
   genMessages.start();
 
@@ -82,11 +82,11 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   genMessages.stop();
 
   if (!generatedSetup) {
-    genSpinner.fail('Failed to regenerate setup.');
+    genSpinner.fail('Failed to regenerate config.');
     throw new Error('__exit__');
   }
 
-  genSpinner.succeed('Setup regenerated');
+  genSpinner.succeed('Config regenerated');
 
   // 3b. Score-based auto-refinement
   generatedSetup = await runScoreRefineWithSpinner(generatedSetup, process.cwd(), []);
@@ -120,7 +120,7 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   }
 
   const action = await select({
-    message: 'Apply regenerated setup?',
+    message: 'Apply regenerated config?',
     choices: [
       { name: 'Accept and apply', value: 'accept' as const },
       { name: 'Decline', value: 'decline' as const },

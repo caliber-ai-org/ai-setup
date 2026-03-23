@@ -141,6 +141,7 @@ Only dismiss checks that truly don't apply. Examples:
 - "Build/test/lint commands" for a GitOps/Helm/Terraform/config repo with no build system
 - "Build/test/lint commands" for a repo with only YAML, HCL, or config files and no package.json/Makefile
 - "Dependency coverage" for a repo with no package manager
+- "Skills configured" for a documentation-only or data-science notebook repo with no repeating code patterns
 
 Do NOT dismiss checks that could reasonably apply even if the project doesn't use them yet.
 
@@ -153,7 +154,7 @@ Top files: ${topFiles}
 
 Failing checks:
 ${JSON.stringify(checkList, null, 2)}`,
-      maxTokens: 300,
+      maxTokens: 500,
       ...(fastModel ? { model: fastModel } : {}),
     });
 

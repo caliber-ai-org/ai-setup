@@ -8,7 +8,7 @@ const AGENT_DISPLAY_NAMES: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<CheckCategory, { icon: string; label: string }> = {
-  existence: { icon: '📁', label: 'FILES & SETUP' },
+  existence: { icon: '📁', label: 'FILES & CONFIG' },
   quality: { icon: '⚡', label: 'QUALITY' },
   grounding: { icon: '🎯', label: 'GROUNDING' },
   accuracy: { icon: '🔍', label: 'ACCURACY' },

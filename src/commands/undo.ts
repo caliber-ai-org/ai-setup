@@ -4,7 +4,7 @@ import { undoSetup } from '../writers/index.js';
 import { trackUndoExecuted } from '../telemetry/events.js';
 
 export function undoCommand() {
-  const spinner = ora('Reverting setup...').start();
+  const spinner = ora('Reverting config changes...').start();
 
   try {
     const { restored, removed } = undoSetup();
@@ -15,7 +15,7 @@ export function undoCommand() {
     }
 
     trackUndoExecuted();
-    spinner.succeed('Setup reverted successfully.\n');
+    spinner.succeed('Config reverted successfully.\n');
 
     if (restored.length > 0) {
       console.log(chalk.cyan('  Restored from backup:'));

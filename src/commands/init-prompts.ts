@@ -143,11 +143,11 @@ export async function refineLoop(
     if (!isValid) {
       console.log(chalk.dim('  This doesn\'t look like a config change request.'));
       console.log(chalk.dim('  Describe what to add, remove, or modify in your configs.'));
-      console.log(chalk.dim('  Type "done" to accept the current setup.\n'));
+      console.log(chalk.dim('  Type "done" to accept the current config.\n'));
       continue;
     }
 
-    const refineSpinner = ora('Refining setup...').start();
+    const refineSpinner = ora('Refining config...').start();
     const refineMessages = new SpinnerMessages(refineSpinner, REFINE_MESSAGES);
     refineMessages.start();
 
@@ -162,12 +162,12 @@ export async function refineLoop(
         role: 'assistant',
         content: summarizeSetup('Applied changes', refined),
       });
-      refineSpinner.succeed('Setup updated');
+      refineSpinner.succeed('Config updated');
       printSummary(refined);
       console.log(chalk.dim('Type "done" to accept, or describe more changes.'));
     } else {
       refineSpinner.fail('Refinement failed — could not parse AI response.');
-      console.log(chalk.dim('Try rephrasing your request, or type "done" to keep the current setup.'));
+      console.log(chalk.dim('Try rephrasing your request, or type "done" to keep the current config.'));
     }
   }
 }

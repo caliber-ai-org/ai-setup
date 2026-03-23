@@ -9,6 +9,7 @@ import {
   areCursorLearningHooksInstalled,
 } from '../lib/learning-hooks.js';
 import { MIN_SESSIONS_FOR_COMPARISON } from '../constants.js';
+import { readScoreHistory, getScoreTrend } from '../scoring/history.js';
 
 interface InsightsOptions {
   json?: boolean;
@@ -71,11 +72,14 @@ function displayColdStart(score: ScoreResult) {
   console.log(chalk.bold('\n  Agent Insights\n'));
   const hooksInstalled = areLearningHooksInstalled() || areCursorLearningHooksInstalled();
   if (!hooksInstalled) {
-    console.log(chalk.yellow('  No learning hooks installed.'));
-    console.log(chalk.dim('  Run ') + chalk.cyan('caliber learn install') + chalk.dim(' to start tracking agent performance.'));
+    console.log(chalk.yellow('  Learning hooks not installed.'));
+    console.log(chalk.dim('  Session learning captures patterns from your AI coding sessions — what'));
+    console.log(chalk.dim('  fails, what works, corrections you make — so your agents improve over time.\n'));
+    console.log(chalk.dim('  Run ') + chalk.cyan('caliber learn install') + chalk.dim(' to enable.'));
   } else {
-    console.log(chalk.dim('  No session data yet. Use your AI agent and insights will appear here.'));
-    console.log(chalk.dim('  Learnings are extracted automatically at the end of each session.'));
+    console.log(chalk.dim('  Learning hooks are active. Use your AI agent and insights'));
+    console.log(chalk.dim('  will appear automatically after each session.\n'));
+    console.log(chalk.dim(`  Progress: 0/${MIN_SESSIONS_FULL} sessions — full insights unlock at ${MIN_SESSIONS_FULL}`));
   }
 
   console.log(chalk.dim(`\n  Config score: ${score.score}/100 (${score.grade})`));
@@ -84,7 +88,8 @@ function displayColdStart(score: ScoreResult) {
 
 function displayEarlyData(data: ReturnType<typeof buildInsightsData>, score: ScoreResult) {
   console.log(chalk.bold('\n  Agent Insights') + chalk.yellow(' (early data)\n'));
-  console.log(chalk.dim('  Still collecting data. Insights become more reliable after 20+ sessions.\n'));
+  const remaining = MIN_SESSIONS_FULL - data.totalSessions;
+  console.log(chalk.dim(`  ${data.totalSessions}/${MIN_SESSIONS_FULL} sessions tracked — ${remaining} more for full insights.\n`));
   console.log(`  Sessions tracked:       ${chalk.cyan(String(data.totalSessions))}`);
   console.log(`  Learnings accumulated:  ${chalk.cyan(String(data.learningCount))}`);
 
@@ -146,6 +151,15 @@ function displayFullInsights(data: ReturnType<typeof buildInsightsData>, score: 
 
   console.log(chalk.bold('\n  Config Quality'));
   console.log(`    Score:                ${chalk.cyan(`${score.score}/100`)} (${score.grade})`);
+
+  const history = readScoreHistory();
+  const trend = getScoreTrend(history);
+  if (trend) {
+    const trendColor = trend.direction === 'up' ? chalk.green : trend.direction === 'down' ? chalk.red : chalk.gray;
+    const arrow = trend.direction === 'up' ? '\u2191' : trend.direction === 'down' ? '\u2193' : '\u2192';
+    const sign = trend.delta > 0 ? '+' : '';
+    console.log(`    Trend:                ${trendColor(`${arrow} ${sign}${trend.delta} pts`)} ${chalk.dim(`over ${trend.entries} checks`)}`);
+  }
   console.log('');
 }
 
