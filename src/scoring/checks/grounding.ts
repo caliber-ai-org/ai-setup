@@ -8,6 +8,7 @@ import {
   collectAllConfigContent,
   collectProjectStructure,
   isEntryMentioned,
+  getEntryWeight,
   extractReferences,
   analyzeMarkdownStructure,
   calculateDensityPoints,
@@ -30,18 +31,25 @@ export function checkGrounding(dir: string): Check[] {
 
   const mentioned: string[] = [];
   const notMentioned: string[] = [];
+  let weightedMentioned = 0;
+  let weightedTotal = 0;
 
   for (const entry of meaningfulEntries) {
+    const w = getEntryWeight(entry);
+    weightedTotal += w;
     if (isEntryMentioned(entry, configLower)) {
       mentioned.push(entry);
+      weightedMentioned += w;
     } else {
       notMentioned.push(entry);
     }
   }
 
-  const groundingRatio = meaningfulEntries.length > 0
-    ? mentioned.length / meaningfulEntries.length
-    : 0;
+  const groundingRatio = weightedTotal > 0
+    ? weightedMentioned / weightedTotal
+    : meaningfulEntries.length > 0
+      ? mentioned.length / meaningfulEntries.length
+      : 0;
 
   const groundingThreshold = GROUNDING_THRESHOLDS.find(t => groundingRatio >= t.minRatio);
   const groundingPoints = meaningfulEntries.length === 0
