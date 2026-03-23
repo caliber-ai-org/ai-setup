@@ -3,10 +3,8 @@
 Accumulated patterns and anti-patterns from development sessions.
 Auto-managed by [caliber](https://github.com/rely-ai-org/caliber) — do not edit manually.
 
-- **[pattern]** VHS tape recordings for caliber demos should use `Set Shell "bash"` (not `zsh`) for reproducibility, and hide the env var setup (`CALIBER_SKIP_UPDATE_CHECK=1`, `cd` to demo repo) in a `Hide`/`Show` block so the recording starts clean.
-- **[gotcha]** VHS `new` requires a file path argument (`vhs new /tmp/foo.tape`); calling it without args errors with "accepts 1 arg(s), received 0".
 - **[pattern]** For demo GIF recordings of `caliber score`, use `Set FontSize 14`, `Set Width 1200`, `Set Height 900` to ensure the full score table (all 6 categories + summary) fits without clipping. Smaller terminals (1000x850 at font 16) cut off the bottom.
-- **[pattern]** If merging to `next` fails from the main checkout, use the project's `next` worktree (`/Users/alonpe/conductor/workspaces/caliber/bandung`) to pull/merge/push.
+- **[pattern]** If merging to `next` fails from the main checkout, use the project's `next` worktree to pull/merge/push.
 - **[correction]** Reproduce `caliber init` issues in the user's actual target repo (`~/Development/infra-core`), not in the `caliber` source repo.
 - **[gotcha]** With `agent --print --output-format stream-json`, stdout is an event stream (`system`, `thinking`, `assistant`, `result`), and the structured payload is in the `result` event's `result` field (JSON string). Do not parse the full mixed stream as one JSON document.
 - **[gotcha]** Do NOT use `Set FontFamily` in VHS tape files — VHS runs a headless browser and custom fonts (e.g. "Menlo") may not be available, causing the recording to hang indefinitely or fall back to a wide monospace font that wraps text.
@@ -33,3 +31,5 @@ Auto-managed by [caliber](https://github.com/rely-ai-org/caliber) — do not edi
 - **[gotcha]** GitHub `<video>` tags in README.md do NOT render in the main repo view — GitHub strips `<video>` from rendered markdown. Use `<img src="...gif">` for animated content in README, or link to the MP4 separately. The `<video>` tag only works in GitHub Issues, PRs, and Discussions.
 - **[gotcha]** `WebFetch` from `raw.githubusercontent.com` can silently return empty responses for some SVG files (e.g., `openai.svg`). Use `cdn.jsdelivr.net/npm/simple-icons@latest/icons/<name>.svg` via `curl` as a reliable fallback for fetching simple-icons SVGs.
 - **[gotcha]** Next.js RSC pages return serialized component data via `WebFetch`, not rendered HTML — you cannot extract Tailwind classes or DOM structure. To get design tokens, fetch the CSS file directly from the `/_next/static/chunks/*.css` URL found in the page source.
+- **[gotcha]** Running `pnpm test` or `npx vitest` produces empty/silent failures when `pnpm install` hasn't been run after a fresh checkout or branch switch. Always run `pnpm install` before running tests if dependencies might be stale.
+- **[pattern]** Scoring checks use `git check-ignore` (not `git ls-files`) to detect gitignored directories — it's a targeted check on specific paths rather than listing all tracked files, which scales better on large repos.
