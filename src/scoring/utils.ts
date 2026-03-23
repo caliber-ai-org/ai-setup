@@ -392,6 +392,33 @@ export function calculateDensityPoints(density: number, maxPoints: number): numb
 }
 
 /**
+ * Heuristic weight for project entries — high-signal architectural files count more.
+ * Tier 1 (3.0): Core dependency/architectural boundaries.
+ * Tier 2 (2.0): Framework entry points and routing.
+ * Tier 3 (1.0): Standard source files and utilities.
+ */
+export function getEntryWeight(entry: string): number {
+  const base = entry.split('/').pop()?.toLowerCase() ?? entry.toLowerCase();
+  const tier1 = [
+    'package.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb',
+    'requirements.txt', 'pyproject.toml', 'Pipfile', 'go.mod', 'Cargo.toml',
+    'schema.prisma', 'docker-compose.yml', 'docker-compose.yaml', 'Dockerfile',
+    'openapi.yaml', 'openapi.json', 'swagger.yaml', 'tsconfig.json',
+  ];
+  const tier2 = [
+    'main.py', 'app.py', 'index.ts', 'index.js', 'main.ts', 'main.go',
+    'next.config.js', 'next.config.mjs', 'next.config.ts',
+    'App.tsx', 'App.jsx', 'app.tsx', 'app.jsx', 'main.tsx', 'main.jsx',
+    'vite.config.ts', 'vite.config.js', 'config.ts', 'config.js',
+  ];
+  if (tier1.includes(base)) return 3.0;
+  if (tier2.includes(base)) return 2.0;
+  if (/^(schema|migrations?)\//i.test(entry) || entry.endsWith('.prisma')) return 3.0;
+  if (/^(src|app)\//i.test(entry) && /\.(tsx?|jsx?|py|go)$/i.test(entry)) return 2.0;
+  return 1.0;
+}
+
+/**
  * Check if a project entry (directory or file) is mentioned in content.
  * Uses word-boundary matching with variants to avoid false positives.
  */

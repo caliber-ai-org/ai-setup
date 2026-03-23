@@ -73,3 +73,25 @@ export function appendLearningsBlock(content: string): string {
 export function getCursorLearningsRule(): { filename: string; content: string } {
   return { filename: CURSOR_LEARNINGS_FILENAME, content: CURSOR_LEARNINGS_CONTENT };
 }
+
+// ── Model configuration block ────────────────────────────────────────
+
+const MODEL_BLOCK_START = '<!-- caliber:managed:model-config -->';
+const MODEL_BLOCK_END = '<!-- /caliber:managed:model-config -->';
+
+const MODEL_BLOCK = `${MODEL_BLOCK_START}
+## Model Configuration
+
+Recommended: \`claude-sonnet-4-6\` with high effort.
+Set via: \`/model\` in Claude Code, or \`CALIBER_MODEL\` env var.
+${MODEL_BLOCK_END}`;
+
+export function hasModelBlock(content: string): boolean {
+  return content.includes(MODEL_BLOCK_START);
+}
+
+export function appendModelBlock(content: string): string {
+  if (hasModelBlock(content)) return content;
+  const trimmed = content.trimEnd();
+  return trimmed + '\n\n' + MODEL_BLOCK + '\n';
+}
