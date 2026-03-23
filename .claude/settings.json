@@ -10,14 +10,16 @@
             "description": "Caliber: finalizing session learnings"
           }
         ]
-      },
+      }
+    ],
+    "UserPromptSubmit": [
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/alonpe/.nvm/versions/node/v20.19.4/bin/caliber learn finalize --auto",
-            "description": "Caliber: finalizing session learnings"
+            "command": "caliber learn observe --prompt",
+            "description": "Caliber: recording user prompt for correction detection"
           }
         ]
       }
@@ -42,18 +44,6 @@
             "type": "command",
             "command": "caliber learn observe --failure",
             "description": "Caliber: recording tool failure for session learning"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/Users/alonpe/.nvm/versions/node/v20.19.4/bin/caliber learn observe --prompt",
-            "description": "Caliber: recording user prompt for correction detection"
           }
         ]
       }
