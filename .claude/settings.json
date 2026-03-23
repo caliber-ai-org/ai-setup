@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "caliber learn finalize",
+            "command": "caliber learn finalize --auto",
             "description": "Caliber: finalizing session learnings"
           }
         ]

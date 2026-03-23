@@ -20,17 +20,15 @@ export function resolveCaliber(): string {
     return _resolved;
   }
 
-  // 1. Try to find caliber on PATH
+  // 1. Try to find caliber on PATH — use bare command to stay portable
   try {
     const whichCmd = process.platform === 'win32' ? 'where caliber' : 'which caliber';
-    const found = execSync(whichCmd, {
+    execSync(whichCmd, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
-    if (found) {
-      _resolved = found;
-      return _resolved;
-    }
+    });
+    _resolved = 'caliber';
+    return _resolved;
   } catch {
     // not on PATH — fall through
   }
