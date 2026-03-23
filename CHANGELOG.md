@@ -1,3 +1,9 @@
+## v1.29.6 (2026-03-23)
+
+### Bug Fixes
+
+- use bare caliber command in hooks instead of absolute path
+
 ## v1.29.5 (2026-03-23)
 
 ### Bug Fixes
