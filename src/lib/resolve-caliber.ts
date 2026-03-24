@@ -34,8 +34,10 @@ export function resolveCaliber(): string {
   }
 
   // 2. Derive from our own process.argv[1] (the script being executed)
+  //    Only accept paths that look like a caliber binary — avoids picking up
+  //    test runner scripts (vitest, jest) in CI/test environments.
   const binPath = process.argv[1];
-  if (binPath && fs.existsSync(binPath)) {
+  if (binPath && /caliber/.test(binPath) && fs.existsSync(binPath)) {
     _resolved = binPath;
     return _resolved;
   }
