@@ -34,6 +34,7 @@ import { recordSession, formatROISummary, readROIStats, writeROIStats } from '..
 import type { LearningCostEntry, SessionROISummary } from '../learner/roi.js';
 import { matchLearningsToFailures, semanticMatchFallback, updateActivations, findStaleLearnings } from '../learner/attribution.js';
 import { PERSONAL_LEARNINGS_FILE, getLearningDir, LEARNING_FINALIZE_LOG, LEARNING_LAST_ERROR_FILE } from '../constants.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 import {
   trackLearnSessionAnalyzed,
   trackLearnROISnapshot,
@@ -165,7 +166,7 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     const config = loadConfig();
     if (!config) {
       if (isAuto) return; // Graceful degradation: preserve events for later
-      console.log(chalk.yellow('caliber: no LLM provider configured — run `caliber config` first'));
+      console.log(chalk.yellow(`caliber: no LLM provider configured — run \`${resolveCaliber()} config\` first`));
       clearSession();
       resetState();
       return;
@@ -351,7 +352,7 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     if (!isIncremental) {
       const staleLearnings = findStaleLearnings(roiStats);
       if (staleLearnings.length > 0 && !isAuto) {
-        console.log(chalk.yellow(`caliber: ${staleLearnings.length} learning${staleLearnings.length === 1 ? '' : 's'} never activated — run \`caliber learn list --verbose\` to review`));
+        console.log(chalk.yellow(`caliber: ${staleLearnings.length} learning${staleLearnings.length === 1 ? '' : 's'} never activated — run \`${resolveCaliber()} learn list --verbose\` to review`));
       }
     }
 
@@ -408,7 +409,7 @@ export async function learnInstallCommand() {
 
   if (!fs.existsSync('.claude') && !fs.existsSync('.cursor')) {
     console.log(chalk.yellow('No .claude/ or .cursor/ directory found.'));
-    console.log(chalk.dim('  Run `caliber init` first, or create the directory manually.'));
+    console.log(chalk.dim(`  Run \`${resolveCaliber()} init\` first, or create the directory manually.`));
     return;
   }
 
@@ -460,7 +461,7 @@ export async function learnStatusCommand() {
   }
 
   if (!claudeInstalled && !cursorInstalled) {
-    console.log(chalk.dim('  Run `caliber learn install` to enable session learning.'));
+    console.log(chalk.dim(`  Run \`${resolveCaliber()} learn install\` to enable session learning.`));
   }
 
   console.log();
@@ -531,7 +532,7 @@ export async function learnListCommand(options?: { verbose?: boolean }) {
   const items = getAllLearnings();
 
   if (items.length === 0) {
-    console.log(chalk.dim('No learnings yet. Run `caliber learn install` to start.'));
+    console.log(chalk.dim(`No learnings yet. Run \`${resolveCaliber()} learn install\` to start.`));
     return;
   }
 
@@ -565,7 +566,7 @@ export async function learnListCommand(options?: { verbose?: boolean }) {
 export async function learnDeleteCommand(indexStr: string) {
   const index = parseInt(indexStr, 10);
   if (isNaN(index) || index < 1) {
-    console.log(chalk.red(`Invalid index: "${indexStr}". Use a number from \`caliber learn list\`.`));
+    console.log(chalk.red(`Invalid index: "${indexStr}". Use a number from \`${resolveCaliber()} learn list\`.`));
     return;
   }
 

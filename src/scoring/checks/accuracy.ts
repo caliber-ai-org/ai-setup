@@ -6,6 +6,7 @@ import {
   POINTS_REFERENCES_VALID,
   POINTS_CONFIG_DRIFT,
 } from '../constants.js';
+import { resolveCaliber } from '../../lib/resolve-caliber.js';
 import {
   collectPrimaryConfigContent,
   validateFileReferences,
@@ -185,7 +186,7 @@ export function checkAccuracy(dir: string): Check[] {
           ? 'Config is up to date with latest commits'
           : `${drift.commitsSinceConfigUpdate} commit${drift.commitsSinceConfigUpdate === 1 ? '' : 's'} since last config update`,
     suggestion: drift.commitsSinceConfigUpdate > 15
-      ? `Code has had ${drift.commitsSinceConfigUpdate} commits since last config update — run \`caliber refresh\` to sync`
+      ? `Code has had ${drift.commitsSinceConfigUpdate} commits since last config update — run \`${resolveCaliber()} refresh\` to sync`
       : undefined,
     fix: drift.commitsSinceConfigUpdate > 15
       ? {

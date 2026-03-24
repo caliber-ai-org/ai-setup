@@ -8,6 +8,7 @@ import {
   detectSourceType,
   type SourceConfig,
 } from '../fingerprint/sources.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { promptInput } from '../utils/prompt.js';
 
@@ -18,7 +19,7 @@ export async function sourcesListCommand() {
 
   if (configSources.length === 0 && workspaces.length === 0) {
     console.log(chalk.dim('\n  No sources configured.\n'));
-    console.log(chalk.dim('  Add a source: ') + chalk.hex('#83D1EB')('caliber sources add <path>'));
+    console.log(chalk.dim('  Add a source: ') + chalk.hex('#83D1EB')(`${resolveCaliber()} sources add <path>`));
     console.log(chalk.dim('  Or add to .caliber/sources.json manually.\n'));
     return;
   }

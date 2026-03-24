@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import select from '@inquirer/select';
 import { writeConfigFile } from './config.js';
 import type { LLMConfig, LLMProvider, ProviderType } from './types.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 /**
  * Curated list of models per provider that caliber is known to work with.
@@ -89,7 +90,7 @@ export async function handleModelNotAvailable(
   // Can't prompt in non-interactive mode
   if (!process.stdin.isTTY) {
     console.error(
-      chalk.red(`Model "${failedModel}" is not available. Run \`caliber config\` to select a different model.`)
+      chalk.red(`Model "${failedModel}" is not available. Run \`${resolveCaliber()} config\` to select a different model.`)
     );
     return null;
   }
@@ -116,7 +117,7 @@ export async function handleModelNotAvailable(
   models = models.filter(m => m !== failedModel);
 
   if (models.length === 0) {
-    console.log(chalk.red('  No alternative models found. Run `caliber config` to configure manually.'));
+    console.log(chalk.red(`  No alternative models found. Run \`${resolveCaliber()} config\` to configure manually.`));
     return null;
   }
 

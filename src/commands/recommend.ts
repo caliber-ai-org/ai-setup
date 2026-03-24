@@ -9,6 +9,7 @@ import { llmJsonCall } from '../llm/index.js';
 import { loadConfig, getFastModel } from '../llm/config.js';
 import { trackSkillsInstalled } from '../telemetry/events.js';
 import { readState } from '../lib/state.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 type Platform = 'claude' | 'cursor' | 'codex' | 'github-copilot';
 
@@ -457,7 +458,7 @@ export async function querySkills(query: string): Promise<void> {
     console.log(`     ${r.reason || r.name}`);
   }
   console.log('');
-  console.log(chalk.dim(`  Install with: caliber skills --install ${available.map(r => r.slug).join(',')}`));
+  console.log(chalk.dim(`  Install with: ${resolveCaliber()} skills --install ${available.map(r => r.slug).join(',')}`));
   console.log('');
 }
 

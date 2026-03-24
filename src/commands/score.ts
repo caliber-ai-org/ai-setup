@@ -8,6 +8,7 @@ import type { TargetAgent } from '../scoring/index.js';
 import { displayScore } from '../scoring/display.js';
 import { readState } from '../lib/state.js';
 import { trackScoreComputed } from '../telemetry/events.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { recordScore } from '../scoring/history.js';
 
 interface ScoreOptions {
@@ -106,12 +107,13 @@ export async function scoreCommand(options: ScoreOptions) {
   const separator = chalk.gray('  ' + '─'.repeat(53));
   console.log(separator);
 
+  const bin = resolveCaliber();
   if (result.score < 40) {
-    console.log(chalk.gray('  Run ') + chalk.hex('#83D1EB')('caliber init') + chalk.gray(' to generate a complete, optimized config.'));
+    console.log(chalk.gray('  Run ') + chalk.hex('#83D1EB')(`${bin} init`) + chalk.gray(' to generate a complete, optimized config.'));
   } else if (result.score < 70) {
-    console.log(chalk.gray('  Run ') + chalk.hex('#83D1EB')('caliber init') + chalk.gray(' to improve your config.'));
+    console.log(chalk.gray('  Run ') + chalk.hex('#83D1EB')(`${bin} init`) + chalk.gray(' to improve your config.'));
   } else {
-    console.log(chalk.green('  Looking good!') + chalk.gray(' Run ') + chalk.hex('#83D1EB')('caliber regenerate') + chalk.gray(' to rebuild from scratch.'));
+    console.log(chalk.green('  Looking good!') + chalk.gray(' Run ') + chalk.hex('#83D1EB')(`${bin} regenerate`) + chalk.gray(' to rebuild from scratch.'));
   }
   console.log('');
 }
