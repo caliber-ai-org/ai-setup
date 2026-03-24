@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { execSync } from 'child_process';
 
 vi.mock('child_process', () => ({
@@ -7,6 +9,10 @@ vi.mock('child_process', () => ({
 }));
 
 const mockedExecSync = vi.mocked(execSync);
+
+function makeTmpDir(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'hooks-test-'));
+}
 
 describe('pre-commit hook generation', () => {
   let originalArgv: string[];
@@ -35,9 +41,9 @@ describe('pre-commit hook generation', () => {
     it('uses command -v npx as the guard condition', async () => {
       const { installPreCommitHook } = await import('../hooks.js');
 
-      const tmpDir = fs.mkdtempSync('/tmp/hooks-test-');
-      const gitDir = `${tmpDir}/.git`;
-      const hooksDir = `${gitDir}/hooks`;
+      const tmpDir = makeTmpDir();
+      const gitDir = path.join(tmpDir, '.git');
+      const hooksDir = path.join(gitDir, 'hooks');
       fs.mkdirSync(hooksDir, { recursive: true });
 
       mockedExecSync.mockReturnValue(`${gitDir}\n`);
@@ -46,7 +52,7 @@ describe('pre-commit hook generation', () => {
       process.chdir(tmpDir);
       try {
         installPreCommitHook();
-        const hookContent = fs.readFileSync(`${hooksDir}/pre-commit`, 'utf-8');
+        const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
 
         expect(hookContent).toContain('command -v npx >/dev/null 2>&1');
         expect(hookContent).not.toContain('[ -x "npx');
@@ -60,9 +66,9 @@ describe('pre-commit hook generation', () => {
     it('invokes npx without quotes so shell word-splits correctly', async () => {
       const { installPreCommitHook } = await import('../hooks.js');
 
-      const tmpDir = fs.mkdtempSync('/tmp/hooks-test-');
-      const gitDir = `${tmpDir}/.git`;
-      const hooksDir = `${gitDir}/hooks`;
+      const tmpDir = makeTmpDir();
+      const gitDir = path.join(tmpDir, '.git');
+      const hooksDir = path.join(gitDir, 'hooks');
       fs.mkdirSync(hooksDir, { recursive: true });
 
       mockedExecSync.mockReturnValue(`${gitDir}\n`);
@@ -71,11 +77,9 @@ describe('pre-commit hook generation', () => {
       process.chdir(tmpDir);
       try {
         installPreCommitHook();
-        const hookContent = fs.readFileSync(`${hooksDir}/pre-commit`, 'utf-8');
+        const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
 
-        // Must NOT have the npx command wrapped in quotes
         expect(hookContent).not.toContain('"npx --yes @rely-ai/caliber"');
-        // Must have the npx command unquoted for proper word splitting
         expect(hookContent).toContain('npx --yes @rely-ai/caliber refresh');
         expect(hookContent).toContain('npx --yes @rely-ai/caliber learn finalize');
       } finally {
@@ -105,9 +109,9 @@ describe('pre-commit hook generation', () => {
       resetResolvedCaliber();
       const { installPreCommitHook } = await import('../hooks.js');
 
-      const tmpDir = fs.mkdtempSync('/tmp/hooks-test-');
-      const gitDir = `${tmpDir}/.git`;
-      const hooksDir = `${gitDir}/hooks`;
+      const tmpDir = makeTmpDir();
+      const gitDir = path.join(tmpDir, '.git');
+      const hooksDir = path.join(gitDir, 'hooks');
       fs.mkdirSync(hooksDir, { recursive: true });
 
       mockedExecSync.mockImplementation((cmd: string) => {
@@ -124,7 +128,7 @@ describe('pre-commit hook generation', () => {
       process.chdir(tmpDir);
       try {
         installPreCommitHook();
-        const hookContent = fs.readFileSync(`${hooksDir}/pre-commit`, 'utf-8');
+        const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
 
         expect(hookContent).toContain('[ -x "caliber" ] || command -v "caliber"');
         expect(hookContent).toContain('"caliber" refresh');
@@ -159,12 +163,12 @@ describe('SessionEnd hook command', () => {
 
     const { installHook } = await import('../hooks.js');
 
-    const tmpDir = fs.mkdtempSync('/tmp/hooks-test-');
+    const tmpDir = makeTmpDir();
     const origCwd = process.cwd();
     process.chdir(tmpDir);
     try {
       installHook();
-      const settingsPath = `${tmpDir}/.claude/settings.json`;
+      const settingsPath = path.join(tmpDir, '.claude', 'settings.json');
       const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
 
       const sessionEndHook = settings.hooks.SessionEnd[0].hooks[0];
