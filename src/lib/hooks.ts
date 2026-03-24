@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { resolveCaliber, isCaliberCommand } from './resolve-caliber.js';
+import { resolveCaliber, isCaliberCommand, isNpxResolution } from './resolve-caliber.js';
 
 const SETTINGS_PATH = path.join('.claude', 'settings.json');
 const REFRESH_TAIL = 'refresh --quiet';
@@ -109,11 +109,20 @@ const PRECOMMIT_END = '# caliber:pre-commit:end';
 
 function getPrecommitBlock(): string {
   const bin = resolveCaliber();
+  const npx = isNpxResolution();
+
+  // npx is multi-word — cannot be quoted as a single token in shell.
+  // Use `command -v npx` as guard and leave unquoted so the shell word-splits correctly.
+  const guard = npx
+    ? 'command -v npx >/dev/null 2>&1'
+    : `[ -x "${bin}" ] || command -v "${bin}" >/dev/null 2>&1`;
+  const invoke = npx ? bin : `"${bin}"`;
+
   return `${PRECOMMIT_START}
-if [ -x "${bin}" ] || command -v "${bin}" >/dev/null 2>&1; then
+if ${guard}; then
   echo "\\033[2mcaliber: refreshing docs...\\033[0m"
-  "${bin}" refresh 2>/dev/null || true
-  "${bin}" learn finalize 2>/dev/null || true
+  ${invoke} refresh 2>/dev/null || true
+  ${invoke} learn finalize 2>/dev/null || true
   git diff --name-only -- CLAUDE.md .claude/ .cursor/ AGENTS.md CALIBER_LEARNINGS.md 2>/dev/null | xargs git add 2>/dev/null || true
 fi
 ${PRECOMMIT_END}`;

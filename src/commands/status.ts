@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import fs from 'fs';
 import { readManifest } from '../writers/manifest.js';
 import { loadConfig } from '../llm/config.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 export async function statusCommand(options: { json?: boolean }) {
   const config = loadConfig();
@@ -22,12 +23,13 @@ export async function statusCommand(options: { json?: boolean }) {
   if (config) {
     console.log(`  LLM: ${chalk.green(config.provider)} (${config.model})`);
   } else {
-    console.log(`  LLM: ${chalk.yellow('Not configured')} — run ${chalk.hex('#83D1EB')('caliber config')}`);
+    const bin = resolveCaliber();
+    console.log(`  LLM: ${chalk.yellow('Not configured')} — run ${chalk.hex('#83D1EB')(`${bin} config`)}`);
   }
 
   if (!manifest) {
     console.log(`  Config: ${chalk.dim('No config applied')}`);
-    console.log(chalk.dim('\n  Run ') + chalk.hex('#83D1EB')('caliber init') + chalk.dim(' to get started.\n'));
+    console.log(chalk.dim('\n  Run ') + chalk.hex('#83D1EB')(`${resolveCaliber()} init`) + chalk.dim(' to get started.\n'));
     return;
   }
 

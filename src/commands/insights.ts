@@ -8,6 +8,7 @@ import {
   areLearningHooksInstalled,
   areCursorLearningHooksInstalled,
 } from '../lib/learning-hooks.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { MIN_SESSIONS_FOR_COMPARISON } from '../constants.js';
 import { readScoreHistory, getScoreTrend } from '../scoring/history.js';
 
@@ -75,7 +76,7 @@ function displayColdStart(score: ScoreResult) {
     console.log(chalk.yellow('  Learning hooks not installed.'));
     console.log(chalk.dim('  Session learning captures patterns from your AI coding sessions — what'));
     console.log(chalk.dim('  fails, what works, corrections you make — so your agents improve over time.\n'));
-    console.log(chalk.dim('  Run ') + chalk.cyan('caliber learn install') + chalk.dim(' to enable.'));
+    console.log(chalk.dim('  Run ') + chalk.cyan(`${resolveCaliber()} learn install`) + chalk.dim(' to enable.'));
   } else {
     console.log(chalk.dim('  Learning hooks are active. Use your AI agent and insights'));
     console.log(chalk.dim('  will appear automatically after each session.\n'));

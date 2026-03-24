@@ -45,6 +45,16 @@ export function resolveCaliber(): string {
   return _resolved;
 }
 
+/** True when the resolved binary is a multi-word npx invocation. */
+export function isNpxResolution(): boolean {
+  return resolveCaliber().startsWith('npx ');
+}
+
+/** Reset cached resolution — only for tests. */
+export function resetResolvedCaliber(): void {
+  _resolved = null;
+}
+
 /**
  * Check whether a hook command refers to caliber, regardless of whether
  * it uses a bare `caliber` or an absolute path ending in `caliber`.
