@@ -1,5 +1,7 @@
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const https = require('https');
+
+const VALID_AGENTS = new Set(['claude', 'cursor', 'codex', 'github-copilot']);
 
 // --- GitHub Actions helpers (no @actions/core dependency) ---
 
@@ -109,6 +111,10 @@ function buildComment(result, baseResult, agent) {
 
 async function run() {
   const agent = getInput('agent') || 'claude';
+  if (!VALID_AGENTS.has(agent)) {
+    setFailed(`Invalid agent "${agent}". Must be one of: ${[...VALID_AGENTS].join(', ')}`);
+    return;
+  }
   const failBelow = parseInt(getInput('fail-below') || '0', 10);
   const shouldComment = getInput('comment') !== 'false';
   const autoRefresh = getInput('auto-refresh') === 'true';
@@ -117,7 +123,7 @@ async function run() {
   // Run caliber score
   let resultJson;
   try {
-    const output = execSync(`npx --yes @rely-ai/caliber@latest score --json --quiet --agent ${agent}`, {
+    const output = execFileSync('npx', ['--yes', '@rely-ai/caliber@latest', 'score', '--json', '--quiet', '--agent', agent], {
       encoding: 'utf-8',
       timeout: 120000,
       env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
@@ -151,8 +157,9 @@ async function run() {
         const baseBranch = event.pull_request?.base?.ref;
         if (baseBranch) {
           try {
-            const baseOutput = execSync(
-              `npx --yes @rely-ai/caliber@latest score --json --quiet --agent ${agent} --compare origin/${baseBranch}`,
+            if (!/^[\w\.\-\/]+$/.test(baseBranch)) throw new Error('Invalid base branch name');
+            const baseOutput = execFileSync(
+              'npx', ['--yes', '@rely-ai/caliber@latest', 'score', '--json', '--quiet', '--agent', agent, '--compare', `origin/${baseBranch}`],
               { encoding: 'utf-8', timeout: 120000, env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' } },
             );
             const parsed = JSON.parse(baseOutput.trim());
@@ -199,19 +206,21 @@ async function run() {
   // Auto-refresh
   if (autoRefresh) {
     try {
-      execSync('npx --yes @rely-ai/caliber@latest refresh --quiet', {
+      execFileSync('npx', ['--yes', '@rely-ai/caliber@latest', 'refresh', '--quiet'], {
         encoding: 'utf-8',
         timeout: 300000,
         env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
       });
 
-      const changes = execSync('git diff --name-only', { encoding: 'utf-8' }).trim();
+      const changes = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf-8' }).trim();
       if (changes) {
-        execSync('git config user.name "caliber[bot]"');
-        execSync('git config user.email "caliber-bot@users.noreply.github.com"');
-        execSync('git add CLAUDE.md AGENTS.md .cursorrules .cursor/ .claude/ CALIBER_LEARNINGS.md 2>/dev/null || true');
-        execSync('git commit -m "[caliber] auto-refresh agent configs"');
-        execSync('git push');
+        execFileSync('git', ['config', 'user.name', 'caliber[bot]']);
+        execFileSync('git', ['config', 'user.email', 'caliber-bot@users.noreply.github.com']);
+        try {
+          execFileSync('git', ['add', 'CLAUDE.md', 'AGENTS.md', '.cursorrules', '.cursor/', '.claude/', 'CALIBER_LEARNINGS.md'], { stdio: 'pipe' });
+        } catch { /* some files may not exist */ }
+        execFileSync('git', ['commit', '-m', '[caliber] auto-refresh agent configs']);
+        execFileSync('git', ['push']);
         console.log('Auto-refreshed and committed config changes.');
       } else {
         console.log('No config changes to commit.');

@@ -11,11 +11,14 @@ import { collectFingerprint } from '../fingerprint/index.js';
 import { refreshDocs } from '../ai/refresh.js';
 import { readLearnedSection } from '../learner/writer.js';
 import { loadConfig } from '../llm/config.js';
-import { validateModel } from '../llm/index.js';
+import { validateModel, TRANSIENT_ERRORS } from '../llm/index.js';
 import { trackRefreshCompleted } from '../telemetry/events.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
+import { computeLocalScore, detectTargetAgent } from '../scoring/index.js';
+import { recordScore } from '../scoring/history.js';
 
 interface RefreshOptions {
   quiet?: boolean;
@@ -43,12 +46,23 @@ function discoverGitRepos(parentDir: string): string[] {
   return repos.sort();
 }
 
+const REFRESH_COOLDOWN_MS = 30_000;
+
 async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { label?: string }): Promise<void> {
   const quiet = !!options.quiet;
   const prefix = options.label ? `${chalk.bold(options.label)} ` : '';
 
   const state = readState();
   const lastSha = state?.lastRefreshSha ?? null;
+
+  // Rate-limit: skip if last refresh was within cooldown period
+  if (state?.lastRefreshTimestamp) {
+    const elapsed = Date.now() - new Date(state.lastRefreshTimestamp).getTime();
+    if (elapsed < REFRESH_COOLDOWN_MS && elapsed > 0) {
+      log(quiet, chalk.dim(`${prefix}Skipped — last refresh was ${Math.round(elapsed / 1000)}s ago.`));
+      return;
+    }
+  }
 
   const diff = collectDiff(lastSha);
   const currentSha = getCurrentHeadSha();
@@ -70,25 +84,37 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
     languages: fingerprint.languages,
     frameworks: fingerprint.frameworks,
     packageName: fingerprint.packageName,
+    fileTree: fingerprint.fileTree,
   };
 
   // Resolve sources for context
   const workspaces = getDetectedWorkspaces(repoDir);
   const sources = resolveAllSources(repoDir, [], workspaces);
 
-  const response = await refreshDocs(
-    {
-      committed: diff.committedDiff,
-      staged: diff.stagedDiff,
-      unstaged: diff.unstagedDiff,
-      changedFiles: diff.changedFiles,
-      summary: diff.summary,
-    },
-    existingDocs,
-    projectContext,
-    learnedSection,
-    sources.length > 0 ? sources : undefined,
-  );
+  const diffPayload = {
+    committed: diff.committedDiff,
+    staged: diff.stagedDiff,
+    unstaged: diff.unstagedDiff,
+    changedFiles: diff.changedFiles,
+    summary: diff.summary,
+  };
+  const sourcesPayload = sources.length > 0 ? sources : undefined;
+
+  let response;
+  try {
+    response = await refreshDocs(diffPayload, existingDocs, projectContext, learnedSection, sourcesPayload);
+  } catch (firstErr) {
+    const isTransient = firstErr instanceof Error &&
+      TRANSIENT_ERRORS.some(e => firstErr.message.toLowerCase().includes(e.toLowerCase()));
+    if (!isTransient) throw firstErr;
+    // Retry once on transient LLM failure — refresh runs from hooks, silent failure means stale docs
+    try {
+      response = await refreshDocs(diffPayload, existingDocs, projectContext, learnedSection, sourcesPayload);
+    } catch {
+      spinner?.fail(`${prefix}Refresh failed after retry`);
+      throw firstErr;
+    }
+  }
 
   if (!response.docsUpdated || response.docsUpdated.length === 0) {
     spinner?.succeed(`${prefix}No doc updates needed`);
@@ -109,8 +135,44 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
     return;
   }
 
+  // Quality gate: snapshot pre-refresh score and file contents
+  const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
+  const preScore = computeLocalScore(repoDir, targetAgent);
+  const filesToWrite = response.docsUpdated || [];
+  const preRefreshContents = new Map<string, string | null>();
+  for (const filePath of filesToWrite) {
+    const fullPath = path.resolve(repoDir, filePath);
+    try {
+      preRefreshContents.set(filePath, fs.readFileSync(fullPath, 'utf-8'));
+    } catch {
+      preRefreshContents.set(filePath, null);
+    }
+  }
+
   const written = writeRefreshDocs(response.updatedDocs);
   trackRefreshCompleted(written.length, Date.now());
+
+  // Quality gate: check for score regression
+  const postScore = computeLocalScore(repoDir, targetAgent);
+  if (postScore.score < preScore.score) {
+    // Revert: restore pre-refresh file contents
+    for (const [filePath, content] of preRefreshContents) {
+      const fullPath = path.resolve(repoDir, filePath);
+      if (content === null) {
+        try { fs.unlinkSync(fullPath); } catch { /* file may not exist */ }
+      } else {
+        fs.writeFileSync(fullPath, content);
+      }
+    }
+    spinner?.warn(`${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`);
+    log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
+    if (currentSha) {
+      writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
+    }
+    return;
+  }
+
+  recordScore(postScore, 'refresh');
   spinner?.succeed(`${prefix}Updated ${written.length} doc${written.length === 1 ? '' : 's'}`);
 
   for (const file of written) {
@@ -144,7 +206,7 @@ export async function refreshCommand(options: RefreshOptions) {
     const config = loadConfig();
     if (!config) {
       if (quiet) return;
-      console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')('caliber config') + chalk.red(' (e.g. choose Cursor) or set an API key.'));
+      console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')(`${resolveCaliber()} config`) + chalk.red(' (e.g. choose Cursor) or set an API key.'));
       throw new Error('__exit__');
     }
 

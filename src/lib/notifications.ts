@@ -1,10 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
-import { LEARNING_DIR } from '../constants.js';
+import { getLearningDir } from '../constants.js';
 import { ensureLearningDir } from '../learner/storage.js';
 
-const NOTIFICATION_FILE = path.join(LEARNING_DIR, 'last-finalize-summary.json');
+function notificationFilePath(): string {
+  return path.join(getLearningDir(), 'last-finalize-summary.json');
+}
 
 export interface FinalizeSummary {
   timestamp: string;
@@ -16,7 +18,7 @@ export interface FinalizeSummary {
 export function writeFinalizeSummary(summary: FinalizeSummary): void {
   try {
     ensureLearningDir();
-    fs.writeFileSync(NOTIFICATION_FILE, JSON.stringify(summary, null, 2));
+    fs.writeFileSync(notificationFilePath(), JSON.stringify(summary, null, 2));
   } catch {
     // Best effort — never crash the finalize flow
   }
@@ -24,10 +26,10 @@ export function writeFinalizeSummary(summary: FinalizeSummary): void {
 
 export function checkPendingNotifications(): void {
   try {
-    if (!fs.existsSync(NOTIFICATION_FILE)) return;
+    if (!fs.existsSync(notificationFilePath())) return;
 
-    const raw = fs.readFileSync(NOTIFICATION_FILE, 'utf-8');
-    fs.unlinkSync(NOTIFICATION_FILE);
+    const raw = fs.readFileSync(notificationFilePath(), 'utf-8');
+    fs.unlinkSync(notificationFilePath());
 
     const summary: FinalizeSummary = JSON.parse(raw);
     if (!summary.newItemCount || summary.newItemCount === 0) return;
@@ -47,6 +49,6 @@ export function checkPendingNotifications(): void {
     console.log('');
   } catch {
     // Corrupt file — delete and move on
-    try { fs.unlinkSync(NOTIFICATION_FILE); } catch { /* best effort */ }
+    try { fs.unlinkSync(notificationFilePath()); } catch { /* best effort */ }
   }
 }

@@ -260,7 +260,7 @@ describe('displayScore', () => {
     displayScore(result);
 
     const output = logs.join('\n');
-    expect(output).toContain('FILES & SETUP');
+    expect(output).toContain('FILES & CONFIG');
     expect(output).toContain('QUALITY');
     expect(output).toContain('GROUNDING');
     expect(output).toContain('ACCURACY');

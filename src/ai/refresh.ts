@@ -25,6 +25,7 @@ interface ProjectContext {
   languages?: string[];
   frameworks?: string[];
   packageName?: string;
+  fileTree?: string[];
 }
 
 interface RefreshResponse {
@@ -73,6 +74,11 @@ function buildRefreshPrompt(
   if (projectContext.packageName) parts.push(`Project: ${projectContext.packageName}`);
   if (projectContext.languages?.length) parts.push(`Languages: ${projectContext.languages.join(', ')}`);
   if (projectContext.frameworks?.length) parts.push(`Frameworks: ${projectContext.frameworks.join(', ')}`);
+
+  if (projectContext.fileTree?.length) {
+    const tree = projectContext.fileTree.slice(0, 200);
+    parts.push(`\nFile tree (${tree.length}/${projectContext.fileTree.length} — only reference paths from this list):\n${tree.join('\n')}`);
+  }
 
   parts.push(`\nChanged files: ${diff.changedFiles.join(', ')}`);
   parts.push(`Summary: ${diff.summary}`);

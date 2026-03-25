@@ -1,13 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+
+const tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-storage-test-'));
+
+vi.mock('../../constants.js', async () => {
+  const actual = await vi.importActual<typeof import('../../constants.js')>('../../constants.js');
+  return {
+    ...actual,
+    getLearningDir: () => tmpBase,
+  };
+});
+
 import {
   acquireFinalizeLock,
   releaseFinalizeLock,
 } from '../storage.js';
 
-const LEARNING_DIR = '.caliber/learning';
-const LOCK_FILE = path.join(LEARNING_DIR, 'finalize.lock');
+const LOCK_FILE = path.join(tmpBase, 'finalize.lock');
 
 describe('acquireFinalizeLock', () => {
   beforeEach(() => {
@@ -31,10 +42,7 @@ describe('acquireFinalizeLock', () => {
   });
 
   it('overrides stale lock from a dead process', () => {
-    if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
-    // Write a lock with a PID that doesn't exist (use a very high PID)
     fs.writeFileSync(LOCK_FILE, '999999999');
-    // Set mtime to 1 minute ago (within the 5-minute window, but process is dead)
     const oneMinuteAgo = new Date(Date.now() - 60_000);
     fs.utimesSync(LOCK_FILE, oneMinuteAgo, oneMinuteAgo);
 
@@ -44,9 +52,7 @@ describe('acquireFinalizeLock', () => {
   });
 
   it('overrides stale lock that exceeded staleness timeout', () => {
-    if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
     fs.writeFileSync(LOCK_FILE, '999999999');
-    // Set mtime to 10 minutes ago (past the 5-minute staleness threshold)
     const tenMinutesAgo = new Date(Date.now() - 10 * 60_000);
     fs.utimesSync(LOCK_FILE, tenMinutesAgo, tenMinutesAgo);
 
@@ -54,18 +60,14 @@ describe('acquireFinalizeLock', () => {
   });
 
   it('does not override lock held by a live process within timeout', () => {
-    if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
-    // Use our own PID — we are definitely alive
     fs.writeFileSync(LOCK_FILE, String(process.pid));
 
-    // Cannot acquire because we (a live process) hold it and it's fresh
     expect(acquireFinalizeLock()).toBe(false);
   });
 });
 
 describe('releaseFinalizeLock', () => {
   it('removes lock file', () => {
-    if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
     fs.writeFileSync(LOCK_FILE, String(process.pid));
 
     releaseFinalizeLock();

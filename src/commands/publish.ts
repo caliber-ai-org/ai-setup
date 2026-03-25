@@ -5,13 +5,14 @@ import ora from 'ora';
 import { collectFingerprint } from '../fingerprint/index.js';
 import { loadConfig } from '../llm/config.js';
 import { readFileOrNull } from '../scoring/utils.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 export async function publishCommand() {
   const dir = process.cwd();
 
   const config = loadConfig();
   if (!config) {
-    console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')('caliber config') + chalk.red(' first.'));
+    console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')(`${resolveCaliber()} config`) + chalk.red(' first.'));
     throw new Error('__exit__');
   }
 

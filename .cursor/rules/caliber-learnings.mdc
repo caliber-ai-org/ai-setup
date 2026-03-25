@@ -1,0 +1,6 @@
+---
+description: Reference session-learned patterns from CALIBER_LEARNINGS.md
+alwaysApply: true
+---
+Read `CALIBER_LEARNINGS.md` for patterns and anti-patterns learned from previous sessions.
+These are auto-extracted from real tool usage — treat them as project-specific rules.

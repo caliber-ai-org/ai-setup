@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import type { ScoreResult, Check, CheckCategory } from './index.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 const AGENT_DISPLAY_NAMES: Record<string, string> = {
   claude: 'Claude Code',
@@ -8,7 +9,7 @@ const AGENT_DISPLAY_NAMES: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<CheckCategory, { icon: string; label: string }> = {
-  existence: { icon: '📁', label: 'FILES & SETUP' },
+  existence: { icon: '📁', label: 'FILES & CONFIG' },
   quality: { icon: '⚡', label: 'QUALITY' },
   grounding: { icon: '🎯', label: 'GROUNDING' },
   accuracy: { icon: '🔍', label: 'ACCURACY' },
@@ -190,7 +191,7 @@ export function displayScoreSummary(result: ScoreResult): void {
     }
     const remaining = failing.length - shown.length;
     const moreText = remaining > 0 ? ` (+${remaining} more)` : '';
-    console.log(chalk.dim(`\n  Run ${chalk.hex('#83D1EB')('caliber score')} for details.${moreText}`));
+    console.log(chalk.dim(`\n  Run ${chalk.hex('#83D1EB')(`${resolveCaliber()} score`)} for details.${moreText}`));
   }
   console.log('');
 }

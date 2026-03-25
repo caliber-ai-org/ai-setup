@@ -39,7 +39,7 @@ const displayVersion = process.env.CALIBER_LOCAL ? `${pkg.version}-local` : pkg.
 
 program
   .name(process.env.CALIBER_LOCAL ? 'caloc' : 'caliber')
-  .description('Configure your coding agent environment')
+  .description('AI context infrastructure for coding agents')
   .version(displayVersion)
   .option('--no-traces', 'Disable anonymous telemetry for this run');
 
@@ -111,7 +111,7 @@ program
   .option('--agent <type>', 'Target agents (comma-separated): claude, cursor, codex, github-copilot', parseAgentOption)
   .option('--source <paths...>', 'Related source paths to include as context')
   .option('--dry-run', 'Preview changes without writing files')
-  .option('--force', 'Overwrite existing setup without prompting')
+  .option('--force', 'Overwrite existing config without prompting')
   .option('--debug-report', undefined, false)
   .option('--show-tokens', 'Show token usage summary at the end')
   .option('--auto-approve', 'Run without interactive prompts (auto-accept all)')
@@ -125,7 +125,7 @@ program
 
 program
   .command('status')
-  .description('Show current Caliber setup status')
+  .description('Show current Caliber config status')
   .option('--json', 'Output as JSON')
   .action(tracked('status', statusCommand));
 
@@ -133,7 +133,7 @@ program
   .command('regenerate')
   .alias('regen')
   .alias('re')
-  .description('Re-analyze project and regenerate setup')
+  .description('Re-analyze project and regenerate config')
   .option('--dry-run', 'Preview changes without writing files')
   .action(tracked('regenerate', regenerateCommand));
 
@@ -151,7 +151,7 @@ program
 
 program
   .command('score')
-  .description('Score your current agent config setup (deterministic, no network)')
+  .description('Score your AI context configuration (deterministic, no network)')
   .option('--json', 'Output as JSON')
   .option('--quiet', 'One-line output for scripts/hooks')
   .option('--agent <type>', 'Target agents (comma-separated): claude, cursor, codex, github-copilot', parseAgentOption)
@@ -204,11 +204,9 @@ program
   .description('Generate a machine-readable summary for other repos to consume')
   .action(tracked('publish', publishCommand));
 
-// [In Development] Session learning — not yet ready for public use.
-// The command is functional but hidden from help output.
 const learn = program
-  .command('learn', { hidden: true })
-  .description('[dev] Session learning — observe tool usage and extract reusable instructions');
+  .command('learn')
+  .description('Manage session learning — extract patterns from your AI coding sessions');
 
 learn
   .command('observe')

@@ -305,7 +305,7 @@ describe('ParallelTaskDisplay', () => {
       display.add('Generating configs', { depth: 1, pipelineLabel: 'Generate' });
       display.add('Generating skills', { depth: 2, pipelineLabel: 'Skills' });
       display.add('Searching community skills', { depth: 1, pipelineLabel: 'Search', pipelineRow: 1 });
-      display.add('Validating & refining setup', { pipelineLabel: 'Validate' });
+      display.add('Validating & refining config', { pipelineLabel: 'Validate' });
 
       const getOutput = captureOutput(display);
       display.start();

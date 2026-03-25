@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { LEARNING_DIR, LEARNING_ROI_FILE, MIN_SESSIONS_FOR_COMPARISON } from '../constants.js';
+import { getLearningDir, LEARNING_ROI_FILE, MIN_SESSIONS_FOR_COMPARISON } from '../constants.js';
 import { ensureLearningDir } from './storage.js';
 import { isSimilarLearning } from './utils.js';
 
@@ -65,7 +65,7 @@ const DEFAULT_TOTALS: ROITotals = {
 };
 
 function roiFilePath(): string {
-  return path.join(LEARNING_DIR, LEARNING_ROI_FILE);
+  return path.join(getLearningDir(), LEARNING_ROI_FILE);
 }
 
 export function readROIStats(): ROIStats {

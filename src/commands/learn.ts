@@ -33,7 +33,8 @@ import { validateModel } from '../llm/index.js';
 import { recordSession, formatROISummary, readROIStats, writeROIStats } from '../learner/roi.js';
 import type { LearningCostEntry, SessionROISummary } from '../learner/roi.js';
 import { matchLearningsToFailures, semanticMatchFallback, updateActivations, findStaleLearnings } from '../learner/attribution.js';
-import { PERSONAL_LEARNINGS_FILE, LEARNING_DIR, LEARNING_FINALIZE_LOG, LEARNING_LAST_ERROR_FILE } from '../constants.js';
+import { PERSONAL_LEARNINGS_FILE, getLearningDir, LEARNING_FINALIZE_LOG, LEARNING_LAST_ERROR_FILE } from '../constants.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 import {
   trackLearnSessionAnalyzed,
   trackLearnROISnapshot,
@@ -48,8 +49,8 @@ const INCREMENTAL_INTERVAL = 50;
 
 function writeFinalizeError(message: string): void {
   try {
-    const errorPath = path.join(LEARNING_DIR, LEARNING_LAST_ERROR_FILE);
-    if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
+    const errorPath = path.join(getLearningDir(), LEARNING_LAST_ERROR_FILE);
+    if (!fs.existsSync(getLearningDir())) fs.mkdirSync(getLearningDir(), { recursive: true });
     fs.writeFileSync(errorPath, JSON.stringify({
       timestamp: new Date().toISOString(),
       error: message,
@@ -62,7 +63,7 @@ function writeFinalizeError(message: string): void {
 
 function readFinalizeError(): { timestamp: string; error: string } | null {
   try {
-    const errorPath = path.join(LEARNING_DIR, LEARNING_LAST_ERROR_FILE);
+    const errorPath = path.join(getLearningDir(), LEARNING_LAST_ERROR_FILE);
     if (!fs.existsSync(errorPath)) return null;
     return JSON.parse(fs.readFileSync(errorPath, 'utf-8'));
   } catch {
@@ -120,8 +121,8 @@ export async function learnObserveCommand(options: { failure?: boolean; prompt?:
         const { resolveCaliber } = await import('../lib/resolve-caliber.js');
         const bin = resolveCaliber();
         const { spawn } = await import('child_process');
-        const logPath = path.join(LEARNING_DIR, LEARNING_FINALIZE_LOG);
-        if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
+        const logPath = path.join(getLearningDir(), LEARNING_FINALIZE_LOG);
+        if (!fs.existsSync(getLearningDir())) fs.mkdirSync(getLearningDir(), { recursive: true });
         const logFd = fs.openSync(logPath, 'a');
         spawn(bin, ['learn', 'finalize', '--auto', '--incremental'], {
           detached: true,
@@ -165,7 +166,7 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     const config = loadConfig();
     if (!config) {
       if (isAuto) return; // Graceful degradation: preserve events for later
-      console.log(chalk.yellow('caliber: no LLM provider configured — run `caliber config` first'));
+      console.log(chalk.yellow(`caliber: no LLM provider configured — run \`${resolveCaliber()} config\` first`));
       clearSession();
       resetState();
       return;
@@ -351,7 +352,7 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     if (!isIncremental) {
       const staleLearnings = findStaleLearnings(roiStats);
       if (staleLearnings.length > 0 && !isAuto) {
-        console.log(chalk.yellow(`caliber: ${staleLearnings.length} learning${staleLearnings.length === 1 ? '' : 's'} never activated — run \`caliber learn list --verbose\` to review`));
+        console.log(chalk.yellow(`caliber: ${staleLearnings.length} learning${staleLearnings.length === 1 ? '' : 's'} never activated — run \`${resolveCaliber()} learn list --verbose\` to review`));
       }
     }
 
@@ -408,7 +409,7 @@ export async function learnInstallCommand() {
 
   if (!fs.existsSync('.claude') && !fs.existsSync('.cursor')) {
     console.log(chalk.yellow('No .claude/ or .cursor/ directory found.'));
-    console.log(chalk.dim('  Run `caliber init` first, or create the directory manually.'));
+    console.log(chalk.dim(`  Run \`${resolveCaliber()} init\` first, or create the directory manually.`));
     return;
   }
 
@@ -460,7 +461,7 @@ export async function learnStatusCommand() {
   }
 
   if (!claudeInstalled && !cursorInstalled) {
-    console.log(chalk.dim('  Run `caliber learn install` to enable session learning.'));
+    console.log(chalk.dim(`  Run \`${resolveCaliber()} learn install\` to enable session learning.`));
   }
 
   console.log();
@@ -477,7 +478,7 @@ export async function learnStatusCommand() {
   if (lastError) {
     console.log(`Last error: ${chalk.red(lastError.error)}`);
     console.log(chalk.dim(`  at ${lastError.timestamp}`));
-    const logPath = path.join(LEARNING_DIR, LEARNING_FINALIZE_LOG);
+    const logPath = path.join(getLearningDir(), LEARNING_FINALIZE_LOG);
     if (fs.existsSync(logPath)) {
       console.log(chalk.dim(`  Full log: ${logPath}`));
     }
@@ -531,7 +532,7 @@ export async function learnListCommand(options?: { verbose?: boolean }) {
   const items = getAllLearnings();
 
   if (items.length === 0) {
-    console.log(chalk.dim('No learnings yet. Run `caliber learn install` to start.'));
+    console.log(chalk.dim(`No learnings yet. Run \`${resolveCaliber()} learn install\` to start.`));
     return;
   }
 
@@ -565,7 +566,7 @@ export async function learnListCommand(options?: { verbose?: boolean }) {
 export async function learnDeleteCommand(indexStr: string) {
   const index = parseInt(indexStr, 10);
   if (isNaN(index) || index < 1) {
-    console.log(chalk.red(`Invalid index: "${indexStr}". Use a number from \`caliber learn list\`.`));
+    console.log(chalk.red(`Invalid index: "${indexStr}". Use a number from \`${resolveCaliber()} learn list\`.`));
     return;
   }
 

@@ -16,17 +16,19 @@ import { SpinnerMessages, GENERATION_MESSAGES } from '../utils/spinner-messages.
 import { collectSetupFiles } from './setup-files.js';
 import { trackRegenerateCompleted } from '../telemetry/events.js';
 import { runScoreRefineWithSpinner } from '../ai/score-refine.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 export async function regenerateCommand(options: { dryRun?: boolean }) {
+  const bin = resolveCaliber();
   const config = loadConfig();
   if (!config) {
-    console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')('caliber config') + chalk.red(' first.'));
+    console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')(`${bin} config`) + chalk.red(' first.'));
     throw new Error('__exit__');
   }
 
   const manifest = readManifest();
   if (!manifest) {
-    console.log(chalk.yellow('No existing setup found. Run ') + chalk.hex('#83D1EB')('caliber init') + chalk.yellow(' first.'));
+    console.log(chalk.yellow('No existing config found. Run ') + chalk.hex('#83D1EB')(`${bin} init`) + chalk.yellow(' first.'));
     throw new Error('__exit__');
   }
 
@@ -45,12 +47,12 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   displayScoreSummary(baselineScore);
 
   if (baselineScore.score === 100) {
-    console.log(chalk.green('  Your setup is already at 100/100 — nothing to regenerate.\n'));
+    console.log(chalk.green('  Your config is already at 100/100 — nothing to regenerate.\n'));
     return;
   }
 
   // 3. Generate
-  const genSpinner = ora('Regenerating setup...').start();
+  const genSpinner = ora('Regenerating config...').start();
   const genMessages = new SpinnerMessages(genSpinner, GENERATION_MESSAGES, { showElapsedTime: true });
   genMessages.start();
 
@@ -82,11 +84,11 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   genMessages.stop();
 
   if (!generatedSetup) {
-    genSpinner.fail('Failed to regenerate setup.');
+    genSpinner.fail('Failed to regenerate config.');
     throw new Error('__exit__');
   }
 
-  genSpinner.succeed('Setup regenerated');
+  genSpinner.succeed('Config regenerated');
 
   // 3b. Score-based auto-refinement
   generatedSetup = await runScoreRefineWithSpinner(generatedSetup, process.cwd(), []);
@@ -120,7 +122,7 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   }
 
   const action = await select({
-    message: 'Apply regenerated setup?',
+    message: 'Apply regenerated config?',
     choices: [
       { name: 'Accept and apply', value: 'accept' as const },
       { name: 'Decline', value: 'decline' as const },
@@ -177,7 +179,7 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
         console.log(chalk.dim(`  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`));
       }
     } catch { /* best effort */ }
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber init --force') + chalk.dim(' to override.\n'));
+    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to override.\n'));
     return;
   }
 
@@ -185,5 +187,5 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
 
   trackRegenerateCompleted(action, Date.now());
   console.log(chalk.bold.green('  Regeneration complete!'));
-  console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber undo') + chalk.dim(' to revert changes.\n'));
+  console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} undo`) + chalk.dim(' to revert changes.\n'));
 }

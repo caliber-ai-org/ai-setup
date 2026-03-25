@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import {
-  LEARNING_DIR,
+  getLearningDir,
   LEARNING_SESSION_FILE,
   LEARNING_STATE_FILE,
   LEARNING_MAX_EVENTS,
@@ -45,17 +45,17 @@ const DEFAULT_STATE: LearningState = {
 };
 
 export function ensureLearningDir(): void {
-  if (!fs.existsSync(LEARNING_DIR)) {
-    fs.mkdirSync(LEARNING_DIR, { recursive: true });
+  if (!fs.existsSync(getLearningDir())) {
+    fs.mkdirSync(getLearningDir(), { recursive: true });
   }
 }
 
 function sessionFilePath(): string {
-  return path.join(LEARNING_DIR, LEARNING_SESSION_FILE);
+  return path.join(getLearningDir(), LEARNING_SESSION_FILE);
 }
 
 function stateFilePath(): string {
-  return path.join(LEARNING_DIR, LEARNING_STATE_FILE);
+  return path.join(getLearningDir(), LEARNING_STATE_FILE);
 }
 
 function truncateResponse(response: Record<string, unknown>): Record<string, unknown> {
@@ -144,7 +144,7 @@ const LOCK_FILE = 'finalize.lock';
 const LOCK_STALE_MS = 5 * 60 * 1000; // 5 minutes
 
 function lockFilePath(): string {
-  return path.join(LEARNING_DIR, LOCK_FILE);
+  return path.join(getLearningDir(), LOCK_FILE);
 }
 
 /** Attempt to acquire the finalize lock. Returns true if acquired. */

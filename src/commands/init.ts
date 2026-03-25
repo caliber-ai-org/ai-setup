@@ -10,6 +10,7 @@ import { writeSetup, undoSetup } from '../writers/index.js';
 import { stageFiles, cleanupStaging } from '../writers/staging.js';
 import { collectSetupFiles } from './setup-files.js';
 import { installLearningHooks, installCursorLearningHooks } from '../lib/learning-hooks.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { writeState, getCurrentHeadSha } from '../lib/state.js';
 import { promptInput } from '../utils/prompt.js';
 import { loadConfig, getFastModel, getDisplayModel } from '../llm/config.js';
@@ -45,6 +46,7 @@ import { detectAgents, promptAgent, promptLearnInstall, promptReviewAction, refi
 import type { TargetAgent } from './init-prompts.js';
 import { formatProjectPreview, formatWhatChanged, printSetupSummary, displayTokenUsage } from './init-display.js';
 import { isFirstRun, summarizeSetup, ensurePermissions, writeErrorLog, evaluateDismissals } from './init-helpers.js';
+import { recordScore } from '../scoring/history.js';
 
 export type { TargetAgent };
 
@@ -66,6 +68,7 @@ function log(verbose: boolean | undefined, ...args: unknown[]): void {
 export async function initCommand(options: InitOptions) {
   const brand = chalk.hex('#EB9D83');
   const title = chalk.hex('#83D1EB');
+  const bin = resolveCaliber();
   const firstRun = isFirstRun(process.cwd());
 
   if (firstRun) {
@@ -81,7 +84,7 @@ export async function initCommand(options: InitOptions) {
     console.log(chalk.dim('  Claude Code, Cursor, Codex, and GitHub Copilot.\n'));
 
     console.log(title.bold('  How it works:\n'));
-    console.log(chalk.dim('  1. Setup      Connect your LLM provider and select your agents'));
+    console.log(chalk.dim('  1. Connect    Link your LLM provider and select your agents'));
     console.log(chalk.dim('  2. Engine     Detect stack, generate configs & skills in parallel'));
     console.log(chalk.dim('  3. Review     See all changes — accept, refine, or decline'));
     console.log(chalk.dim('  4. Finalize   Score check and auto-sync hooks\n'));
@@ -98,9 +101,9 @@ export async function initCommand(options: InitOptions) {
   const report = options.debugReport ? new DebugReport() : null;
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Step 1 — Setup
+  // Step 1 — Connect
   // ───────────────────────────────────────────────────────────────────────────
-  console.log(title.bold('  Step 1/4 — Setup\n'));
+  console.log(title.bold('  Step 1/4 — Connect\n'));
 
   // 1a. LLM provider
   let config = loadConfig();
@@ -111,7 +114,7 @@ export async function initCommand(options: InitOptions) {
     });
     config = loadConfig();
     if (!config) {
-      console.log(chalk.red('  Setup was cancelled or failed.\n'));
+      console.log(chalk.red('  Configuration cancelled or failed.\n'));
       throw new Error('__exit__');
     }
     console.log(chalk.green('  ✓ Provider saved\n'));
@@ -125,7 +128,7 @@ export async function initCommand(options: InitOptions) {
   console.log(chalk.dim(modelLine + '\n'));
 
   if (report) {
-    report.markStep('Provider setup');
+    report.markStep('Provider connection');
     report.addSection('LLM Provider', `- **Provider**: ${config.provider}\n- **Model**: ${displayModel}\n- **Fast model**: ${fastModel || 'none'}`);
   }
 
@@ -148,7 +151,7 @@ export async function initCommand(options: InitOptions) {
 
   // 1c. Compute & show initial score
   let baselineScore = computeLocalScore(process.cwd(), targetAgent);
-  console.log(chalk.dim('\n  Current setup score:'));
+  console.log(chalk.dim('\n  Current config score:'));
   displayScoreSummary(baselineScore);
   if (options.verbose) {
     for (const c of baselineScore.checks) {
@@ -183,8 +186,8 @@ export async function initCommand(options: InitOptions) {
   // Score gating
   if (hasExistingConfig && baselineScore.score === 100) {
     trackInitScoreComputed(baselineScore.score, passingCount, failingCount, true);
-    console.log(chalk.bold.green('  Your setup is already optimal — nothing to change.\n'));
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber init --force') + chalk.dim(' to regenerate anyway.\n'));
+    console.log(chalk.bold.green('  Your config is already optimal — nothing to change.\n'));
+    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to regenerate anyway.\n'));
     if (!options.force) return;
   }
 
@@ -202,7 +205,7 @@ export async function initCommand(options: InitOptions) {
       }
     }
     console.log('');
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber init --force') + chalk.dim(' to regenerate anyway.\n'));
+    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to regenerate anyway.\n'));
     return;
   }
 
@@ -233,7 +236,7 @@ export async function initCommand(options: InitOptions) {
   const TASK_CONFIG = display.add('Generating configs', { depth: 1, pipelineLabel: 'Generate' });
   const TASK_SKILLS_GEN = display.add('Generating skills', { depth: 2, pipelineLabel: 'Skills' });
   const TASK_SKILLS_SEARCH = display.add('Searching community skills', { depth: 1, pipelineLabel: 'Search', pipelineRow: 1 });
-  const TASK_SCORE_REFINE = display.add('Validating & refining setup', { pipelineLabel: 'Validate' });
+  const TASK_SCORE_REFINE = display.add('Validating & refining config', { pipelineLabel: 'Validate' });
   display.start();
   display.enableWaitingContent();
 
@@ -410,7 +413,7 @@ export async function initCommand(options: InitOptions) {
         display.update(TASK_SCORE_REFINE, 'done', 'Skipped');
       }
     } else {
-      display.update(TASK_SCORE_REFINE, 'failed', 'No setup to validate');
+      display.update(TASK_SCORE_REFINE, 'failed', 'No config to validate');
     }
 
   } catch (err) {
@@ -431,7 +434,7 @@ export async function initCommand(options: InitOptions) {
   console.log(chalk.dim(`\n  Done in ${timeStr}\n`));
 
   if (!generatedSetup) {
-    console.log(chalk.red('  Failed to generate setup.'));
+    console.log(chalk.red('  Failed to generate config.'));
     writeErrorLog(config, rawOutput, undefined, genStopReason);
     if (rawOutput) {
       console.log(chalk.dim('\nRaw LLM output (JSON parse failed):'));
@@ -442,7 +445,7 @@ export async function initCommand(options: InitOptions) {
 
   if (report) {
     if (rawOutput) report.addCodeBlock('Generation: Raw LLM Response', rawOutput);
-    report.addJson('Generation: Parsed Setup', generatedSetup);
+    report.addJson('Generation: Parsed Config', generatedSetup);
   }
 
   log(options.verbose, `Generation completed: ${elapsedMs}ms, stopReason: ${genStopReason || 'end_turn'}`);
@@ -521,7 +524,7 @@ export async function initCommand(options: InitOptions) {
   cleanupStaging();
 
   if (action === 'decline') {
-    console.log(chalk.dim('Setup declined. No files were modified.'));
+    console.log(chalk.dim('Declined. No files were modified.'));
     return;
   }
 
@@ -601,7 +604,7 @@ export async function initCommand(options: InitOptions) {
         console.log(chalk.dim(`  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`));
       }
     } catch { /* best effort */ }
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('caliber init --force') + chalk.dim(' to override.\n'));
+    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to override.\n'));
     return;
   }
 
@@ -611,6 +614,7 @@ export async function initCommand(options: InitOptions) {
       afterScore.checks.map(c => `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`).join('\n'));
   }
 
+  recordScore(afterScore, 'init');
   displayScoreDelta(baselineScore, afterScore);
   if (options.verbose) {
     log(options.verbose, `Final score: ${afterScore.score}/100`);
@@ -633,7 +637,7 @@ export async function initCommand(options: InitOptions) {
 
   // Docs auto-refresh is now handled via instructions in generated config files
   console.log('');
-  console.log(`  ${chalk.green('✓')} Docs auto-refresh          ${chalk.dim('agents run caliber refresh before commits')}`);
+  console.log(`  ${chalk.green('✓')} Docs auto-refresh          ${chalk.dim(`agents run ${resolveCaliber()} refresh before commits`)}`);
   trackInitHookSelected('config-instructions');
 
   // Session Learning prompt
@@ -654,9 +658,9 @@ export async function initCommand(options: InitOptions) {
           if (r.installed) console.log(`  ${chalk.green('✓')} Learning hooks installed for Cursor`);
           else if (r.alreadyInstalled) console.log(chalk.dim('  Cursor learning hooks already installed'));
         }
-        console.log(chalk.dim('    Run ') + chalk.hex('#83D1EB')('caliber learn status') + chalk.dim(' to see insights'));
+        console.log(chalk.dim('    Run ') + chalk.hex('#83D1EB')(`${bin} learn status`) + chalk.dim(' to see insights'));
       } else {
-        console.log(chalk.dim('  Skipped. Run ') + chalk.hex('#83D1EB')('caliber learn install') + chalk.dim(' later to enable.'));
+        console.log(chalk.dim('  Skipped. Run ') + chalk.hex('#83D1EB')(`${bin} learn install`) + chalk.dim(' later to enable.'));
       }
     } else {
       enableLearn = true;
@@ -666,23 +670,23 @@ export async function initCommand(options: InitOptions) {
   }
 
   // Done!
-  console.log(chalk.bold.green('\n  Setup complete!'));
+  console.log(chalk.bold.green('\n  Configuration complete!'));
   console.log(chalk.dim('  Your AI agents now understand your project\'s architecture, build commands,'));
   console.log(chalk.dim('  testing patterns, and conventions. All changes are backed up automatically.\n'));
 
   const done = chalk.green('✓');
   const skip = chalk.dim('–');
 
-  console.log(chalk.bold('  What was set up:\n'));
+  console.log(chalk.bold('  What was configured:\n'));
 
-  console.log(`    ${done}  Config generated          ${title('caliber score')} ${chalk.dim('for full breakdown')}`);
-  console.log(`    ${done}  Docs auto-refresh        ${chalk.dim('agents run caliber refresh before commits')}`);
+  console.log(`    ${done}  Config generated          ${title(`${bin} score`)} ${chalk.dim('for full breakdown')}`);
+  console.log(`    ${done}  Docs auto-refresh        ${chalk.dim(`agents run ${bin} refresh before commits`)}`);
 
   if (hasLearnableAgent) {
     if (enableLearn) {
       console.log(`    ${done}  Session learning          ${chalk.dim('agent learns from your feedback')}`);
     } else {
-      console.log(`    ${skip}  Session learning          ${title('caliber learn install')} to enable later`);
+      console.log(`    ${skip}  Session learning          ${title(`${bin} learn install`)} to enable later`);
     }
   }
 
@@ -693,9 +697,9 @@ export async function initCommand(options: InitOptions) {
   }
 
   console.log(chalk.bold('\n  Explore next:\n'));
-  console.log(`    ${title('caliber skills')}       Find more community skills as your codebase evolves`);
-  console.log(`    ${title('caliber score')}        See the full scoring breakdown with improvement tips`);
-  console.log(`    ${title('caliber undo')}         Revert all changes from this run`);
+  console.log(`    ${title(`${bin} skills`)}       Find more community skills as your codebase evolves`);
+  console.log(`    ${title(`${bin} score`)}        See the full scoring breakdown with improvement tips`);
+  console.log(`    ${title(`${bin} undo`)}         Revert all changes from this run`);
   console.log('');
 
   if (options.showTokens) {

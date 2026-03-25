@@ -1,3 +1,41 @@
+## v1.30.2 (2026-03-24)
+
+### Bug Fixes
+
+- use os.tmpdir() in hooks tests for Windows CI (#87)
+- skip non-caliber binaries in argv[1] resolution (#86)
+- resolve npx binary correctly in hooks, docs, and CLI output (#85)
+
+## v1.30.1 (2026-03-24)
+
+### Bug Fixes
+
+- harden command injection, path traversal, and telemetry hashing
+
+## v1.30.0 (2026-03-23)
+
+### Features
+
+- AI context infrastructure rebrand, refresh quality gate, score history, and prompt hardening (#82)
+
+## v1.29.7 (2026-03-23)
+
+### Bug Fixes
+
+- normalize LLM response and share learning data across worktrees
+
+## v1.29.6 (2026-03-23)
+
+### Bug Fixes
+
+- use bare caliber command in hooks instead of absolute path
+
+## v1.29.5 (2026-03-23)
+
+### Bug Fixes
+
+- remove hardcoded user paths from hooks config (#81)
+
 ## v1.29.4 (2026-03-22)
 
 ### Bug Fixes

@@ -3,7 +3,7 @@
 const ROLE_AND_CONTEXT = `You are an expert auditor for coding agent configurations (Claude Code, Cursor, Codex, and GitHub Copilot).
 
 Your job depends on context:
-- If no existing configs exist → generate an initial setup from scratch.
+- If no existing configs exist → generate an initial configuration from scratch.
 - If existing configs are provided → audit them and suggest targeted improvements. Preserve accurate content — don't rewrite what's already correct.`;
 
 const CONFIG_FILE_TYPES = `You understand these config files:
@@ -18,6 +18,13 @@ const CONFIG_FILE_TYPES = `You understand these config files:
 - .github/instructions/*.instructions.md: Path-specific instruction files for GitHub Copilot with YAML frontmatter containing an \`applyTo\` glob pattern (e.g. \`applyTo: "**/*.ts,**/*.tsx"\`). Only loaded when Copilot is working on matching files.`;
 
 const EXCLUSIONS = `Do NOT generate .claude/settings.json, .claude/settings.local.json, or mcpServers — those are managed separately.`;
+
+const AUDIT_CHECKLIST = `Audit checklist (when existing configs are provided):
+1. CLAUDE.md / README accuracy — do documented commands, paths, and architecture match the actual codebase?
+2. Missing skills — are there detected tools/frameworks that should have dedicated skills?
+3. Duplicate or overlapping skills — can any be merged or removed?
+4. Undocumented conventions — are there code patterns (commit style, async patterns, error handling) not captured in docs?
+5. Stale references — do docs mention removed files, renamed commands, or outdated patterns?`;
 
 const OUTPUT_FORMAT = `Your output MUST follow this exact format (no markdown fences):
 
@@ -85,7 +92,10 @@ Accuracy (15 pts) — CRITICAL:
 
 Safety: Never include API keys, tokens, or credentials in config files.
 
-Note: Permissions, hooks, freshness tracking, and OpenSkills frontmatter are scored automatically by caliber — do not optimize for them.`;
+PRIORITY WHEN CONSTRAINTS CONFLICT: Grounding and reference density matter more than raw token count. A 2500-token config that references 50%+ of the project's directories scores higher than a 1500-token config that only mentions 3 paths. Pack references densely using the inline path style shown in OUTPUT SIZE CONSTRAINTS.
+
+Note: Permissions, hooks, freshness tracking, and OpenSkills frontmatter are scored automatically by caliber — do not optimize for them.
+README.md is provided for context only — do NOT include a readmeMd field in your output.`;
 
 const OUTPUT_SIZE_CONSTRAINTS = `OUTPUT SIZE CONSTRAINTS — these are critical:
 - CLAUDE.md / AGENTS.md: MUST be under 150 lines for maximum score. Aim for 100-140 lines. Be concise — commands, architecture overview, and key conventions. Use bullet points and tables, not prose.
@@ -105,12 +115,7 @@ export const GENERATION_SYSTEM_PROMPT = `${ROLE_AND_CONTEXT}
 
 ${CONFIG_FILE_TYPES}
 
-Audit checklist (when existing configs are provided):
-1. CLAUDE.md / README accuracy — do documented commands, paths, and architecture match the actual codebase?
-2. Missing skills — are there detected tools/frameworks that should have dedicated skills?
-3. Duplicate or overlapping skills — can any be merged or removed?
-4. Undocumented conventions — are there code patterns (commit style, async patterns, error handling) not captured in docs?
-5. Stale references — do docs mention removed files, renamed commands, or outdated patterns?
+${AUDIT_CHECKLIST}
 
 ${EXCLUSIONS}
 
@@ -156,6 +161,8 @@ export const CORE_GENERATION_PROMPT = `${ROLE_AND_CONTEXT}
 
 ${CONFIG_FILE_TYPES}
 
+${AUDIT_CHECKLIST}
+
 ${EXCLUSIONS}
 
 ${OUTPUT_FORMAT}
@@ -175,10 +182,10 @@ CoreSetup schema:
   },
   "codex": {
     "agentsMd": "string (markdown content for AGENTS.md)",
-    "skillTopics": [{ "name": "string (kebab-case)", "description": "string" }]
+    "skillTopics": [{ "name": "string (kebab-case)", "description": "string (what this skill does and WHEN to use it — include trigger phrases)" }]
   },
   "cursor": {
-    "skillTopics": [{ "name": "string (kebab-case)", "description": "string" }],
+    "skillTopics": [{ "name": "string (kebab-case)", "description": "string (what this skill does and WHEN to use it — include trigger phrases)" }],
     "rules": [{ "filename": "string.mdc", "content": "string (with frontmatter)" }]
   },
   "copilot": {
@@ -231,6 +238,7 @@ Rules:
 - Reference actual commands, paths, and packages from the project context provided.
 - Do NOT include YAML frontmatter — it will be generated separately.
 - Be specific to THIS project — avoid generic advice. The skill should produce code that looks identical to what's already in the codebase.
+- If the project context does not contain enough code examples for this skill topic, generate the skill based on the detected frameworks and conventions rather than inventing patterns. Prefer fewer, grounded instructions over many speculative ones.
 
 Description field formula: [What it does] + [When to use it with trigger phrases] + [Key capabilities]. Include negative triggers ("Do NOT use for X") to prevent over-triggering.
 
@@ -278,33 +286,41 @@ Rules:
 - Update the "fileDescriptions" to reflect any changes you make.
 
 Quality constraints — your changes are scored, so do not break these:
-- CLAUDE.md / AGENTS.md: MUST stay under 150 lines. If adding content, remove less important lines to stay within budget.
+- CLAUDE.md / AGENTS.md: MUST stay under 150 lines. If adding content, remove less important lines to stay within budget. Do not refuse the user's request — make the change and trim elsewhere.
 - Avoid vague instructions ("follow best practices", "write clean code", "ensure quality").
 - Do NOT add directory tree listings in code blocks.
+- Do NOT remove existing code blocks — they contribute to the executable content score.
 - Use backticks for every file path, command, and identifier.
 - Keep skill content under 150 lines, focused on actionable instructions.
 - Only reference file paths that actually exist in the project.`;
 
-export const REFRESH_SYSTEM_PROMPT = `You are an expert at maintaining coding project documentation. Your job is to update existing documentation files based on code changes (git diffs).
+export const REFRESH_SYSTEM_PROMPT = `You are an expert at maintaining coding project documentation. Your job is to apply minimal, surgical updates to existing documentation files based on code changes (git diffs).
 
 You will receive:
 1. Git diffs showing what code changed
-2. Current contents of documentation files (CLAUDE.md, README.md, skills, cursor rules)
-3. Project context (languages, frameworks)
+2. Current contents of documentation files (CLAUDE.md, README.md, skills, cursor rules, copilot instructions)
+3. Project context (languages, frameworks, file tree)
 
-Rules:
-- Only update docs where the diffs clearly warrant a change
-- Preserve existing style, tone, structure, and formatting
-- Be conservative — don't rewrite sections that aren't affected by the changes
-- Don't add speculative or aspirational content
+CONSERVATIVE UPDATE means:
+- Touch ONLY the specific lines/sections affected by the diff
+- If a command was renamed in the diff, update that command in the docs — don't rewrite the surrounding section
+- If a file was added/removed/renamed, update the architecture section — don't restructure it
+- If nothing in the diff affects a doc file, return null for it
+- NEVER add new sections, new prose, or new explanations that weren't in the original
+- NEVER remove code blocks, backtick references, or architecture paths unless the diff deleted them
+- NEVER replace specific paths/commands with generic prose
+
+Quality constraints (the output is scored deterministically):
+- CLAUDE.md / AGENTS.md: MUST stay under 150 lines. If the diff adds content, trim the least important lines elsewhere.
+- Keep 3+ code blocks with executable commands — do not remove code blocks
+- Every file path, command, and identifier must be in backticks
+- ONLY reference file paths that exist in the provided file tree — do NOT invent paths
+- Preserve the existing structure (headings, bullet style, formatting)
+
+Managed content:
 - Keep managed blocks (<!-- caliber:managed --> ... <!-- /caliber:managed -->) intact
-- Do NOT modify CALIBER_LEARNINGS.md — it is managed separately by the learning system
+- Do NOT modify CALIBER_LEARNINGS.md — it is managed separately
 - Preserve any references to CALIBER_LEARNINGS.md in CLAUDE.md
-- If a doc doesn't need updating, return null for it
-- For CLAUDE.md: update commands, architecture notes, conventions, key files if the diffs affect them. Keep under 150 lines.
-- For README.md: update setup instructions, API docs, or feature descriptions if affected
-- Only reference file paths that exist in the project
-- Use backticks for all file paths, commands, and identifiers
 
 Return a JSON object with this exact shape:
 {
@@ -329,15 +345,8 @@ You receive a chronological sequence of events from a Claude Code session. Most 
 
 Your job is to find OPERATIONAL patterns — things that went wrong and how they were fixed, commands that required specific flags or configuration, APIs that needed a particular approach to work. Focus on the WORKFLOW, not the code logic.
 
-Look for:
-
-1. **Failure → Recovery sequences**: A tool call failed, then a different approach succeeded. Document what works and what doesn't. Example: an API call failed with one config but succeeded with different headers or parameters.
-2. **Environment gotchas**: Commands that need specific env vars, flags, or preconditions to work in this project.
-3. **Retry patterns**: When something had to be called multiple times with different arguments before succeeding.
-4. **Project-specific commands**: The correct way to build, test, lint, deploy — especially if it differs from defaults.
-5. **File/path traps**: Paths that are misleading, files that shouldn't be edited, directories with unexpected structure.
-6. **Configuration quirks**: Settings, flags, or arguments that are required but non-obvious.
-7. **User corrections**: The user explicitly told the AI what's wrong, what to use instead, or what to avoid. Look for phrases like "no, use X instead of Y", "don't touch/edit/modify X", "that's wrong, you need to...", "always/never do X in this project", "stop, that file is...". These are the HIGHEST VALUE signals — they represent direct human feedback about project-specific requirements. If a user correction contradicts a pattern you'd otherwise extract, the correction wins.
+CRITICAL FILTER — apply this to every potential learning before including it:
+The litmus test: "Would a different developer, working on a DIFFERENT task in this same repo next week, benefit from knowing this?" If the answer is no — if it only matters for the exact problem being debugged today — do NOT include it.
 
 DO NOT extract:
 - Descriptions of what the code does or how features work (e.g. "compression removes comments" or "skeleton extraction creates outlines")
@@ -348,7 +357,15 @@ DO NOT extract:
 - **Session-specific file paths, worktree locations, or branch names** — these are ephemeral and won't apply to future sessions
 - **Implementation details of a feature being built** — the learning should be about HOW to work in this project, not WHAT was built
 
-The litmus test for every learning: "Would a different developer, working on a DIFFERENT task in this same repo next week, benefit from knowing this?" If the answer is no — if it only matters for the exact problem being debugged today — do NOT include it.
+Look for:
+
+1. **Failure → Recovery sequences**: A tool call failed, then a different approach succeeded. Document what works and what doesn't. Example: an API call failed with one config but succeeded with different headers or parameters.
+2. **Environment gotchas**: Commands that need specific env vars, flags, or preconditions to work in this project.
+3. **Retry patterns**: When something had to be called multiple times with different arguments before succeeding.
+4. **Project-specific commands**: The correct way to build, test, lint, deploy — especially if it differs from defaults.
+5. **File/path traps**: Paths that are misleading, files that shouldn't be edited, directories with unexpected structure.
+6. **Configuration quirks**: Settings, flags, or arguments that are required but non-obvious.
+7. **User corrections**: The user explicitly told the AI what's wrong, what to use instead, or what to avoid. Look for phrases like "no, use X instead of Y", "don't touch/edit/modify X", "that's wrong, you need to...", "always/never do X in this project", "stop, that file is...". These are the HIGHEST VALUE signals — they represent direct human feedback about project-specific requirements. If a user correction contradicts a pattern you'd otherwise extract, the correction wins.
 
 From these observations, produce:
 
@@ -428,6 +445,10 @@ Be thorough — reason from:
 - File extensions and their frequency distribution
 - Directory structure and naming conventions
 - Configuration files (e.g. next.config.js implies Next.js, .tf files imply Terraform + cloud providers)
+- Package manager lockfiles (pnpm-lock.yaml → pnpm, yarn.lock → yarn, bun.lockb → bun, package-lock.json → npm)
+- Database/ORM files (schema.prisma → Prisma, drizzle.config.ts → Drizzle, knexfile → Knex, .sql files)
+- Test framework configs (vitest.config.ts → Vitest, jest.config.js → Jest, .mocharc → Mocha, cypress.config → Cypress)
+- Monorepo tools (nx.json → Nx, turbo.json → Turborepo, lerna.json → Lerna)
 - Infrastructure-as-code files (Terraform, CloudFormation, Pulumi, Dockerfiles, k8s manifests)
 - CI/CD configs (.github/workflows, .gitlab-ci.yml, Jenkinsfile)
 

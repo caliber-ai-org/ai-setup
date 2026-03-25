@@ -1,6 +1,19 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+
+const tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-roi-test-'));
+
+vi.mock('../../constants.js', async () => {
+  const actual = await vi.importActual<typeof import('../../constants.js')>('../../constants.js');
+  return {
+    ...actual,
+    getLearningDir: () => tmpBase,
+    LEARNING_ROI_FILE: actual.LEARNING_ROI_FILE,
+  };
+});
+
 import {
   readROIStats,
   writeROIStats,
@@ -9,8 +22,7 @@ import {
 } from '../roi.js';
 import type { ROIStats, SessionROISummary, LearningCostEntry } from '../roi.js';
 
-const LEARNING_DIR = '.caliber/learning';
-const ROI_FILE = path.join(LEARNING_DIR, 'roi-stats.json');
+const ROI_FILE = path.join(tmpBase, 'roi-stats.json');
 
 function makeSession(overrides: Partial<SessionROISummary> = {}): SessionROISummary {
   return {
@@ -136,12 +148,10 @@ describe('ROI stats', () => {
     recordSession(makeSession({ sessionId: 's2', hadLearningsAvailable: true, failureCount: 0 }));
 
     const stats = readROIStats();
-    // Only 1 session in each cohort — below minimum of 3
     expect(stats.totals.estimatedSavingsTokens).toBe(0);
   });
 
   it('returns zero savings when failure rates are equal', () => {
-    // 3 without, 3 with — all same failure count
     for (let i = 0; i < 3; i++) {
       recordSession(makeSession({ sessionId: `wo-${i}`, hadLearningsAvailable: false, failureCount: 3 }));
     }
@@ -166,7 +176,6 @@ describe('ROI stats', () => {
   });
 
   it('recovers from corrupt roi-stats.json by renaming', () => {
-    if (!fs.existsSync(LEARNING_DIR)) fs.mkdirSync(LEARNING_DIR, { recursive: true });
     fs.writeFileSync(ROI_FILE, '{corrupt json data');
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -177,7 +186,6 @@ describe('ROI stats', () => {
     expect(stats.sessions).toEqual([]);
     expect(fs.existsSync(ROI_FILE + '.corrupt')).toBe(true);
 
-    // Clean up corrupt file
     fs.unlinkSync(ROI_FILE + '.corrupt');
   });
 
@@ -192,6 +200,14 @@ describe('ROI stats', () => {
 });
 
 describe('formatROISummary', () => {
+  beforeEach(() => {
+    if (fs.existsSync(ROI_FILE)) fs.unlinkSync(ROI_FILE);
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(ROI_FILE)) fs.unlinkSync(ROI_FILE);
+  });
+
   it('returns empty string when no sessions', () => {
     const stats = readROIStats();
     expect(formatROISummary(stats)).toBe('');
