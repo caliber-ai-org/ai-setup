@@ -19,6 +19,7 @@ describe('writeCodexConfig', () => {
     const content = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
     expect(content).toContain('# Project\n\nInstructions here.');
     expect(content).toContain('caliber:managed:pre-commit');
+    expect(content).toContain('caliber:managed:model-config');
   });
 
   it('writes skills to .agents/skills/{name}/SKILL.md with frontmatter', () => {

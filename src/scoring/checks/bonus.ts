@@ -12,6 +12,7 @@ import {
 import { resolveCaliber } from '../../lib/resolve-caliber.js';
 import { readFileOrNull } from '../utils.js';
 import { hasPreCommitBlock as checkPreCommitBlock } from '../../writers/pre-commit-block.js';
+import { configContentSuggestsPinnedModel } from '../model-pinning.js';
 
 function hasPreCommitHook(dir: string): boolean {
   try {
@@ -177,9 +178,10 @@ export function checkBonus(dir: string): Check[] {
   // 5. Model and effort level pinned
   const configContent = (() => {
     const parts: string[] = [];
-    const p = join(dir, 'CLAUDE.md');
-    const c = readFileOrNull(p);
-    if (c) parts.push(c);
+    for (const rel of ['CLAUDE.md', 'AGENTS.md'] as const) {
+      const c = readFileOrNull(join(dir, rel));
+      if (c) parts.push(c);
+    }
     try {
       const rulesDir = join(dir, '.cursor', 'rules');
       for (const f of readdirSync(rulesDir).filter((x) => x.endsWith('.mdc'))) {
@@ -190,13 +192,7 @@ export function checkBonus(dir: string): Check[] {
     return parts.join('\n').toLowerCase();
   })();
 
-  const hasModelRef =
-    /\bcaliber_model\b/.test(configContent) ||
-    /\/(model|set model)\b/.test(configContent) ||
-    /\b(model|effort)\s*[:=]/.test(configContent) ||
-    /claude-(sonnet|opus|haiku)[-\d.]+/i.test(configContent) ||
-    /gpt-4[o.-]?\d*|gpt-5/i.test(configContent) ||
-    /\bhigh\s+effort|\bmedium\s+effort|\blow\s+effort/.test(configContent);
+  const hasModelRef = configContentSuggestsPinnedModel(configContent);
 
   checks.push({
     id: 'model_pinned',
@@ -211,14 +207,6 @@ export function checkBonus(dir: string): Check[] {
     suggestion: hasModelRef
       ? undefined
       : 'Add model/effort to config: CALIBER_MODEL env var, or /model in Claude Code, or a Model Configuration section in CLAUDE.md',
-    fix: hasModelRef
-      ? undefined
-      : {
-          action: 'pin_model',
-          data: {},
-          instruction:
-            'Add a Model Configuration section to CLAUDE.md with recommended model and effort. Set via CALIBER_MODEL env var or /model in Claude Code.',
-        },
   });
 
   return checks;
