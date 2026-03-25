@@ -53,7 +53,10 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
 
   if (docs.copilotInstructions) {
     fs.mkdirSync('.github', { recursive: true });
-    fs.writeFileSync(path.join('.github', 'copilot-instructions.md'), appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions)));
+    fs.writeFileSync(
+      path.join('.github', 'copilot-instructions.md'),
+      appendLearningsBlock(appendModelBlock(appendPreCommitBlock(docs.copilotInstructions)))
+    );
     written.push('.github/copilot-instructions.md');
   }
 

@@ -20,6 +20,7 @@ describe('writeRefreshDocs', () => {
     const content = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
     expect(content).toContain('# Project\n\nUpdated content.');
     expect(content).toContain('caliber:managed:pre-commit');
+    expect(content).toContain('caliber:managed:model-config');
   });
 
   it('writes other doc types normally', () => {
@@ -49,6 +50,10 @@ describe('writeRefreshDocs', () => {
 
     expect(written).toContain('.github/copilot-instructions.md');
     expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith('.github', { recursive: true });
+    const copilotContent = vi.mocked(fs.writeFileSync).mock.calls.find(
+      (c) => String(c[0]).endsWith('copilot-instructions.md')
+    )?.[1] as string;
+    expect(copilotContent).toContain('caliber:managed:model-config');
   });
 
   it('writes copilot instruction files when provided', () => {
