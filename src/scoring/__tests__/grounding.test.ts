@@ -70,6 +70,24 @@ describe('checkGrounding', () => {
     expect(densityCheck?.earnedPoints).toBeGreaterThan(0);
   });
 
+  it('weights tier-1 path refs higher than generic paths for reference density', () => {
+    const filler = Array.from({ length: 18 }, (_, i) => `Narrative line ${i + 1} with no code.`).join('\n');
+    const genericMd = `# Project\n\n${filler}\n\nSee \`src/lib/helpers.ts\`.\n`;
+    const tier1Md = `# Project\n\n${filler}\n\nSee \`package.json\`.\n`;
+
+    writeFileSync(join(dir, 'package.json'), '{}');
+    mkdirSync(join(dir, 'src', 'lib'), { recursive: true });
+    writeFileSync(join(dir, 'src', 'lib', 'helpers.ts'), 'export {}');
+
+    writeFileSync(join(dir, 'CLAUDE.md'), genericMd);
+    const genericScore = checkGrounding(dir).find(c => c.id === 'reference_density')?.earnedPoints ?? 0;
+
+    writeFileSync(join(dir, 'CLAUDE.md'), tier1Md);
+    const tier1Score = checkGrounding(dir).find(c => c.id === 'reference_density')?.earnedPoints ?? 0;
+
+    expect(tier1Score).toBeGreaterThan(genericScore);
+  });
+
   it('handles empty project gracefully', () => {
     const checks = checkGrounding(dir);
     const groundingCheck = checks.find(c => c.id === 'project_grounding');

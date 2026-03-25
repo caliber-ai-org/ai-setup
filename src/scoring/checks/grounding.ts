@@ -12,6 +12,7 @@ import {
   analyzeMarkdownStructure,
   calculateDensityPoints,
 } from '../utils.js';
+import { sumReferenceWeights } from '../reference-weight.js';
 
 export function checkGrounding(dir: string): Check[] {
   const checks: Check[] = [];
@@ -82,10 +83,11 @@ export function checkGrounding(dir: string): Check[] {
       : undefined,
   });
 
-  // 2. Reference density — how many specific references (backticks, paths) does the config have?
+  // 2. Reference density — weighted path refs (tiered by architectural importance) + inline code density
   const refs = extractReferences(configContent);
   const mdStructure = analyzeMarkdownStructure(configContent);
-  const totalSpecificRefs = refs.length + mdStructure.inlineCodeCount;
+  const weightedPathRefs = sumReferenceWeights(refs);
+  const totalSpecificRefs = weightedPathRefs + mdStructure.inlineCodeCount;
 
   const density = mdStructure.nonEmptyLines > 0
     ? (totalSpecificRefs / mdStructure.nonEmptyLines) * 100
@@ -104,7 +106,7 @@ export function checkGrounding(dir: string): Check[] {
     passed: densityPoints >= Math.round(POINTS_REFERENCE_DENSITY * 0.5),
     detail: configContent.length === 0
       ? 'No config content'
-      : `${totalSpecificRefs} specific references across ${mdStructure.nonEmptyLines} lines (${Math.round(density)}%)`,
+      : `${totalSpecificRefs} weighted specific references across ${mdStructure.nonEmptyLines} lines (${Math.round(density)}%; ${refs.length} path-like)`,
     suggestion: densityPoints < Math.round(POINTS_REFERENCE_DENSITY * 0.5) && configContent.length > 0
       ? 'Use backticks and paths to reference specific files, commands, and identifiers'
       : undefined,
