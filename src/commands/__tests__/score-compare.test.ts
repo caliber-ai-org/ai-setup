@@ -17,6 +17,9 @@ vi.mock('../../lib/state.js', () => ({
 vi.mock('../../telemetry/events.js', () => ({
   trackScoreComputed: vi.fn(),
 }));
+vi.mock('../../scoring/history.js', () => ({
+  recordScore: vi.fn(),
+}));
 
 import { scoreCommand } from '../score.js';
 import { computeLocalScore } from '../../scoring/index.js';

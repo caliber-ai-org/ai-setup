@@ -2,179 +2,178 @@
 name: caliber-testing
 description: Writes Vitest tests for caliber modules following project patterns. LLM calls are globally mocked via src/test/setup.ts; override per-test with vi.spyOn. Use temp dirs (os.tmpdir()) for learner/storage tests, mock fs via memfs for fingerprint tests. Use when user says 'write test', 'add test', 'test coverage', or creates files in src/**/__tests__/. Do NOT re-mock llmCall globally — it's already stubbed.
 ---
-# Caliber Testing
+# caliber-testing
 
 ## Critical
 
-- **Global LLM mock already active**: `src/test/setup.ts` stubs `llmCall` and `llmJsonCall`. Do NOT re-mock globally. Override per-test only with `vi.spyOn(llmModule, 'llmCall').mockResolvedValue(...)`.
-- **Test file location**: Place in `src/<module>/__tests__/<filename>.test.ts` matching the source structure (e.g., `src/learner/storage.ts` → `src/learner/__tests__/storage.test.ts`).
-- **Import setup**: Always import `import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'` and ensure `src/test/setup.ts` is loaded (happens automatically via Vitest config).
-- **No process.exit in tests**: Wrap command execution in try/catch to avoid premature termination. Use `expect(() => { ... }).toThrow()` for error assertions.
+1. **LLMCall is pre-mocked globally** in `src/test/setup.ts`. Do NOT add `vi.mock('src/llm')` or duplicate mocks at the top level. Override only when you need different behavior per test via `vi.spyOn()`.
+2. **File paths must match src structure**: Tests live in `src/{module}/__tests__/{filename}.test.ts` (e.g., `src/learner/__tests__/storage.test.ts`).
+3. **Verify the setup.ts is loaded** before writing tests: Check that vitest.config.ts has `setupFiles: ['src/test/setup.ts']` in its config.
 
 ## Instructions
 
-1. **Determine test type and set up context**
-   - For **learner/storage tests**: Import `os`, `path`, `fs/promises`. Create temp dir with `const tmpDir = path.join(os.tmpdir(), 'caliber-test-' + Date.now())` in `beforeEach`. Clean up in `afterEach` with `await fs.rm(tmpDir, { recursive: true, force: true })`.
-   - For **fingerprint tests**: Import `memfs`, create virtual fs with `const { vol } = memfs()`. Inject via `vi.stubGlobal('fs', vol)` in setup.
-   - For **AI module tests** (generate.ts, refine.ts): Mock `llmJsonCall` at the test level using `vi.spyOn(llmModule, 'llmJsonCall').mockResolvedValue({ ... })`.
-   - For **command tests**: Import the command function from `src/commands/<name>.ts`. Mock `writeSetup`, telemetry, and fingerprint calls as needed.
-   - **Verify**: Confirm the module under test has a clear interface and dependencies are mockable.
+1. **Identify the module being tested** (e.g., `src/learner/storage.ts`) and create the test file at `src/{module}/__tests__/{name}.test.ts`.
+   - Verify the source file exists and exports named or default functions.
 
-2. **Write describe block with meaningful suite name**
-   - Use `describe('<module name> — <functionality>', () => { ... })`.
-   - Example: `describe('learner storage — persist and load', () => { ... })`.
-   - **Verify**: Block name reflects what is being tested, not generic "tests".
+2. **Import test utilities and the module**:
+   ```typescript
+   import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+   import { readFileSync, writeFileSync, existsSync } from 'fs';
+   import path from 'path';
+   import os from 'os';
+   // Import the module under test
+   import { myFunction } from '../myFunction';
+   ```
+   - Verify imports match exact export names from the source.
 
-3. **Set up fixtures and mocks in beforeEach**
-   - For **learner**: Initialize temp directory, create sample `.learner/` structure if needed.
-   - For **fingerprint**: Set up virtual fs with realistic file tree using `vol.fromJSON({ '/path/file': 'content' })`.
-   - For **AI**: Call `vi.spyOn(llmModule, 'llmJsonCall')` with a `.mockResolvedValue(mockResponse)` or `.mockRejectedValue(error)` for each test.
-   - Mock common dependencies: `vi.mock('src/telemetry', () => ({ trackEvent: vi.fn() }))`.
-   - **Verify**: All mocks and fixtures are isolated; no state leaks between tests.
+3. **For file I/O tests (learner, storage, writers)**:
+   - Use `os.tmpdir()` to create a temporary directory per test.
+   - Always clean up after tests via `afterEach`.
+   - Example pattern from `src/learner/__tests__/`:
+   ```typescript
+   let tmpDir: string;
+   beforeEach(() => {
+     tmpDir = path.join(os.tmpdir(), `caliber-test-${Date.now()}`);
+   });
+   afterEach(() => {
+     if (existsSync(tmpDir)) {
+       // clean up tmpDir
+     }
+   });
+   ```
 
-4. **Write test cases using it() with descriptive names**
-   - Test **happy path**: `it('should persist and load configuration', async () => { ... })`.
-   - Test **error cases**: `it('should throw on corrupt JSON', async () => { ... })`.
-   - Test **edge cases**: `it('should handle missing files gracefully', async () => { ... })`.
-   - **Pattern**: `const result = await functionUnderTest(args); expect(result).toEqual(expected);`.
-   - For **async operations**, always `await` and use `async () => { ... }` in it().
-   - **Verify**: Each test is independent; passing or failing one does not affect others.
+4. **For filesystem mocking (fingerprint, file-tree tests)**:
+   - Use `memfs` instead of temp dirs for isolated, fast fs mocks.
+   - Import: `import { vol } from 'memfs'; import fs from 'memfs'` and restore after.
+   - Example:
+   ```typescript
+   beforeEach(() => {
+     vol.reset();
+     vol.mkdirpSync('/project');
+   });
+   afterEach(() => vol.reset());
+   ```
 
-5. **Assert using expect() with clear matchers**
-   - Use `expect(actual).toEqual(expected)` for objects, arrays.
-   - Use `expect(fn).toHaveBeenCalledWith(args)` for function calls (on mocks).
-   - Use `expect(() => { throwingCode() }).toThrow(ErrorClass)` for synchronous errors.
-   - Use `expect(asyncFn()).rejects.toThrow(ErrorClass)` for async errors.
-   - Use `expect(fs.existsSync(path)).toBe(true)` for file existence.
-   - **Verify**: Assertions are specific (e.g., check both shape and values, not just truthiness).
+5. **For LLM-dependent tests** (ai, refine, generate):
+   - Do NOT mock llmCall again—it's already stubbed globally.
+   - If you need a specific return value, use `vi.spyOn(llmModule, 'llmCall').mockResolvedValueOnce({...})`.
+   - Verify llmCall returns the expected shape: `{ content: string, usage: UsageInfo }`.
 
-6. **Clean up resources in afterEach**
-   - For **temp dirs**: `await fs.rm(tmpDir, { recursive: true, force: true })`.
-   - For **mocks**: `vi.restoreAllMocks()` (clears per-test overrides; global mocks persist).
-   - For **virtual fs**: `vol.reset()` if using memfs.
-   - **Verify**: No hanging processes, open files, or lingering state before next test.
+6. **Structure each test** with Arrange → Act → Assert:
+   ```typescript
+   it('should validate input and return error', () => {
+     // Arrange
+     const input = { invalid: true };
+     // Act
+     const result = myFunction(input);
+     // Assert
+     expect(result).toEqual({ error: 'Invalid input' });
+   });
+   ```
+   - Verify the expected shape matches the actual return type.
+
+7. **Run tests** to confirm they pass:
+   - Single file: `npm run test -- src/learner/__tests__/storage.test.ts`
+   - Watch mode: `npm run test:watch`
+   - Coverage: `npm run test:coverage`
+   - Verify no global mocks are redefined and all assertions pass.
 
 ## Examples
 
-### Example 1: Learner Storage Test
+### Example 1: Testing a learner storage function
 
-**User says**: "Add test for learner storage persist method"
+**User says**: "Add tests for src/learner/storage.ts"
 
-**File**: `src/learner/__tests__/storage.test.ts`
-
+**Actions**:
+1. Create `src/learner/__tests__/storage.test.ts`.
+2. Import storage functions and fs utilities.
+3. Use tmpDir pattern:
 ```typescript
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { persistLearnings, loadLearnings } from '../storage';
+import { existsSync, readFileSync } from 'fs';
+import { saveEntry, loadEntries } from '../storage';
 
-describe('learner storage — persist and load', () => {
+describe('storage', () => {
   let tmpDir: string;
-
   beforeEach(() => {
-    tmpDir = path.join(os.tmpdir(), 'caliber-test-' + Date.now());
+    tmpDir = path.join(os.tmpdir(), `caliber-test-${Date.now()}`);
+  });
+  afterEach(() => {
+    if (existsSync(tmpDir)) {
+      // cleanup
+    }
   });
 
-  afterEach(async () => {
-    await fs.rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('should persist and load configuration', async () => {
-    const data = { insights: 'test', metadata: { version: 1 } };
-    await persistLearnings(tmpDir, data);
-    const loaded = await loadLearnings(tmpDir);
-    expect(loaded).toEqual(data);
-  });
-
-  it('should throw on corrupt JSON', async () => {
-    const filePath = path.join(tmpDir, '.learner', 'data.json');
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, 'not valid json');
-    await expect(loadLearnings(tmpDir)).rejects.toThrow(SyntaxError);
+  it('should save and load entries', () => {
+    const entry = { id: '1', text: 'test' };
+    saveEntry(tmpDir, entry);
+    const loaded = loadEntries(tmpDir);
+    expect(loaded).toContainEqual(entry);
   });
 });
 ```
 
-### Example 2: Fingerprint Code Analysis Test (with memfs)
+**Result**: Test file runs with `npm run test`, no file I/O pollution between tests.
 
-**User says**: "Write test for fingerprint code analysis"
+### Example 2: Testing fingerprint with memfs
 
-**File**: `src/fingerprint/__tests__/code-analysis.test.ts`
+**User says**: "Write tests for file-tree fingerprinting"
 
+**Actions**:
+1. Create `src/fingerprint/__tests__/file-tree.test.ts`.
+2. Use memfs to mock the filesystem:
 ```typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { memfs } from 'memfs';
-import { analyzeCode } from '../code-analysis';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vol } from 'memfs';
+import { analyzeFileTree } from '../file-tree';
 
-describe('fingerprint code analysis — parse imports and patterns', () => {
-  let vol: memfs.IVolume;
-
+describe('file-tree', () => {
   beforeEach(() => {
-    const { vol: volumeInstance } = memfs();
-    vol = volumeInstance;
-    vi.stubGlobal('fs', vol);
+    vol.reset();
+    vol.mkdirpSync('/project/src');
+    vol.writeFileSync('/project/src/index.ts', 'export function x() {}');
   });
+  afterEach(() => vol.reset());
 
-  it('should detect TypeScript imports', async () => {
-    vol.fromJSON({
-      '/src/index.ts': 'import { foo } from "./bar";'
-    });
-    const result = await analyzeCode('/src/index.ts');
-    expect(result.imports).toContain('./bar');
+  it('should scan TypeScript files', () => {
+    const tree = analyzeFileTree('/project');
+    expect(tree.files).toContainEqual(expect.objectContaining({ path: 'src/index.ts' }));
   });
 });
 ```
 
-### Example 3: AI Generate Module Test (with LLM mock)
+**Result**: Isolated filesystem, no disk writes.
 
-**User says**: "Test the generate module AI prompt flow"
+## Anti-patterns
 
-**File**: `src/ai/__tests__/generate.test.ts`
+1. **DO NOT re-mock llmCall at the top level** — it's already globally stubbed in `src/test/setup.ts`. Instead, use `vi.spyOn()` per-test to override for specific cases:
+   - WRONG: `vi.mock('src/llm', () => ({ llmCall: vi.fn() }))`
+   - RIGHT: `vi.spyOn(llm, 'llmCall').mockResolvedValueOnce({ content: '...', usage: {...} })`
 
-```typescript
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import * as llmModule from '../../llm';
-import { generateConfig } from '../generate';
+2. **DO NOT use real fs.mkdirSync or fs.rmSync in tests**—use tmpdir with explicit cleanup or memfs for isolation. Leaving temp files pollutes the system:
+   - WRONG: Tests create files in `/tmp` but never delete them → disk fills up over CI runs.
+   - RIGHT: Use `afterEach` with rmSync or vol.reset() to guarantee cleanup.
 
-describe('ai generate — CLAUDE.md creation', () => {
-  beforeEach(() => {
-    vi.spyOn(llmModule, 'llmJsonCall').mockResolvedValue({
-      claudeMd: '# My Config',
-      metadata: { model: 'claude-sonnet-4-6' }
-    });
-  });
-
-  it('should call LLM with fingerprint and return config', async () => {
-    const fingerprint = { framework: 'Node.js', language: 'TypeScript' };
-    const result = await generateConfig(fingerprint);
-    expect(llmModule.llmJsonCall).toHaveBeenCalledWith(
-      expect.objectContaining({ model: expect.any(String) }),
-      expect.any(String)
-    );
-    expect(result).toHaveProperty('claudeMd');
-  });
-});
-```
+3. **DO NOT assume llmCall return type without checking UsageInfo shape**. Always verify the mock returns `{ content: string, usage: { ... } }`:
+   - WRONG: Stubbing with `{ response: 'text' }` breaks tests expecting `.content`.
+   - RIGHT: Return `{ content: 'text', usage: { inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0 } }`.
 
 ## Common Issues
 
-**Issue**: "TypeError: llmCall is not a function" or "llmJsonCall is not mocked"
-- **Cause**: Test is trying to mock at import time, but global setup already applied.
-- **Fix**: Use `vi.spyOn(llmModule, 'llmCall').mockResolvedValue(...)` in `beforeEach`, not in a top-level `vi.mock()` call. Ensure `import * as llmModule from 'src/llm'` is present.
+**Error: "llmCall is not a function" or "Cannot spy on undefined"**
+- Cause: `src/test/setup.ts` not loaded by vitest.
+- Fix: Verify `vitest.config.ts` includes `setupFiles: ['src/test/setup.ts']`. Run `npm run test -- --inspect-brk` to check if setup runs.
 
-**Issue**: "ENOENT: no such file or directory" in learner storage test
-- **Cause**: Temp directory was not created, or path is incorrect.
-- **Fix**: Call `await fs.mkdir(path.dirname(filePath), { recursive: true })` before writing. Verify tmpDir is created in `beforeEach`.
+**Error: "ENOENT: no such file or directory, rmdir /tmp/caliber-test-..."**
+- Cause: afterEach cleanup didn't wait for async operations or directory not empty.
+- Fix: Check that all file writes in the test are synchronous or awaited. Use `rimraf(tmpDir, { force: true })` in afterEach or use memfs instead of tmpdir.
 
-**Issue**: "Cannot find module 'memfs'" in fingerprint test
-- **Cause**: memfs is listed in dependencies but virtual fs is not set up.
-- **Fix**: Import `import { memfs } from 'memfs'` and call `const { vol } = memfs()` in `beforeEach`. Do NOT call `vi.stubGlobal('fs', vol)` until after vol is created.
+**Error: "vol is not defined" or memfs tests fail**
+- Cause: memfs not imported or vol not reset between tests.
+- Fix: Add `import { vol } from 'memfs'` and ensure `beforeEach(() => vol.reset())` + `afterEach(() => vol.reset())`.
 
-**Issue**: "process.exit called during test, exiting with code 1"
-- **Cause**: Command function calls `process.exit()` on error.
-- **Fix**: Wrap command in try/catch and return error object. Or mock `process.exit` with `vi.spyOn(process, 'exit').mockImplementation(() => {})`. Always assert error state instead of relying on exit.
-
-**Issue**: "Test timeout exceeded"
-- **Cause**: Async operation hanging (e.g., fs.rm not completing, mock not resolving).
-- **Fix**: Add explicit `await` before all async calls. Use `vi.useFakeTimers()` if testing timers. Increase timeout with `it('name', async () => {...}, 10000)` only after confirming no true hangs.
+**Error: "Expected mock to have been called" but it was**
+- Cause: Test isolation—previous test's spy not cleared.
+- Fix: Add `vi.clearAllMocks()` in `beforeEach` if testing call counts, or use `vi.restoreAllMocks()` in `afterEach`.

@@ -1,160 +1,108 @@
 ---
 name: fingerprint-pipeline
-description: Extends or modifies the project fingerprinting pipeline in src/fingerprint/. Covers collectFingerprint() in index.ts, file-tree.ts (getFileTree), code-analysis.ts, existing-config.ts (readExistingConfigs), and cache.ts (loadFingerprintCache/saveFingerprintCache). Use when user says 'add fingerprint data', 'detect X in projects', 'read existing config', or modifies src/fingerprint/. Do NOT use for LLM-based stack detection — that lives in src/ai/detect.ts.
+description: Extends or modifies the project fingerprinting pipeline in src/fingerprint/. Covers collectFingerprint() orchestration, file-tree scanning, code-analysis extraction, existing-config reading, and cache persistence. Use when user says 'add fingerprint data', 'detect X in projects', 'read existing config', 'scan files', or modifies src/fingerprint/. Do NOT use for LLM-based stack detection (src/ai/detect.ts), dependency graph analysis (npm ls), or git history (src/fingerprint/git.ts baseline — only extend if asked).
 ---
 # Fingerprint Pipeline
 
 ## Critical
 
-- **All fingerprint functions must be pure or side-effect-free** — cache is handled separately in `cache.ts`. Don't write to disk inside fingerprint functions.
-- **Hash must be recomputed deterministically** — `computeFingerprintHash()` in `src/fingerprint/index.ts` uses `JSON.stringify()` on the fingerprint object. Any new field must appear in the hash calculation.
-- **Cache invalidation**: If you add a new fingerprint field, bump the `FINGERPRINT_VERSION` constant in `src/fingerprint/cache.ts` to force recalculation.
-- **Type definitions in `src/fingerprint/types.ts`** — all fingerprint shapes must be typed. Export the type and use it in function signatures.
+1. **collectFingerprint() is the orchestrator** — lives in `src/fingerprint/index.ts`. All new fingerprint modules MUST export a named function that takes `(projectRoot: string, options?: {})` and returns `Promise<FingerprintData | null>`. Register in the `const collectors = [...]` array inside `collectFingerprint()` before calling `Promise.all()`.
+
+2. **Cache layer is mandatory** — `src/fingerprint/cache.ts` exports `loadFingerprintCache()` and `saveFingerprintCache()`. ALWAYS call `loadFingerprintCache(projectRoot)` at the start of `collectFingerprint()` and return cached data if hash matches. ALWAYS call `saveFingerprintCache(projectRoot, fingerprint)` before returning. Verify `src/fingerprint/cache.ts` exports these functions.
+
+3. **Type safety via FingerprintData** — defined in `src/fingerprint/index.ts`. All new detection modules MUST conform to existing shape: `{ [key: string]: unknown }`. Add new keys as separate modules, not inline mutations.
+
+4. **No side effects** — fingerprint modules MUST be read-only. Never write files, delete directories, or modify state. Return `null` on error, never throw (caller handles gracefully).
 
 ## Instructions
 
-### 1. Define or extend the Fingerprint type in `src/fingerprint/types.ts`
+**Step 1: Define the fingerprint module interface**
+- Create new file in `src/fingerprint/<module-name>.ts`
+- Export one async function: `export async function detect<ModuleName>(projectRoot: string, options?: {}): Promise<ModuleData | null>`
+- Return type MUST extend or be compatible with `Record<string, unknown>`
+- Return `null` if detection fails (e.g., file not found) — do NOT throw
+- Verify function signature matches `(projectRoot: string) => Promise<Record<string, unknown> | null>`
 
-```typescript
-export interface Fingerprint {
-  // existing fields...
-  myNewField?: string[];
-}
-```
+**Step 2: Implement detection logic**
+- Use existing helpers: `glob()` from `glob` package (e.g., `await glob('**/*.json', { cwd: projectRoot, ignore: ['node_modules'] })`)
+- Read files synchronously: `fs.readFileSync(path.join(projectRoot, file), 'utf-8')`
+- Parse JSON: wrap in try/catch, return `null` on error
+- For code analysis, use patterns from `src/fingerprint/code-analysis.ts`: regex parsing or AST (if needed, check existing imports)
+- Verify file I/O doesn't throw — wrap in try/catch, log via `console.debug()` if needed
 
-**Verify**: Type compiles and is imported in `src/fingerprint/index.ts`.
+**Step 3: Register in collectFingerprint()**
+- Open `src/fingerprint/index.ts`
+- Import new detector: `import { detect<ModuleName> } from './<module-name>'`
+- Add to `const collectors = [...]` array: `{ key: '<snake_case_key>', fn: detect<ModuleName> }`
+- Verify array is passed to `Promise.all()` and merged into final `fingerprint` object
 
-### 2. Implement collection logic in the appropriate module
+**Step 4: Add type definition to FingerprintData**
+- Open `src/fingerprint/index.ts` → find `interface FingerprintData`
+- Add new property: `<snake_case_key>?: ModuleData` (mark optional if detection may fail)
+- Verify TypeScript compiles: `npx tsc --noEmit`
 
-Choose the right file based on data source:
-- **`file-tree.ts`**: File/directory structure → `getFileTree(root: string): Promise<FileTree>`
-- **`code-analysis.ts`**: Static code patterns → implement as `async analyzeCode(paths: string[]): Promise<CodeMetrics>`
-- **`existing-config.ts`**: Read CLAUDE.md/.cursor/rules/ → `readExistingConfigs(root: string): Promise<ExistingConfig>`
-- **`git.ts`**: Git metadata → add to `collectGitInfo(root: string): Promise<GitInfo>`
-
-Follow the existing async pattern. Use `glob()` from `glob` package for file matching (already imported).
-
-**Example** (in `code-analysis.ts`):
-```typescript
-export async function analyzeCode(root: string): Promise<CodeMetrics> {
-  const files = await glob('**/*.ts', { cwd: root, ignore: ['node_modules', 'dist'] });
-  return { tsFileCount: files.length };
-}
-```
-
-**Verify**: Function signature matches its import site in `src/fingerprint/index.ts`.
-
-### 3. Integrate into `collectFingerprint()` in `src/fingerprint/index.ts`
-
-Add your function call to the main pipeline:
-```typescript
-export async function collectFingerprint(root: string): Promise<Fingerprint> {
-  const [gitInfo, fileTree, codeMetrics, existingConfigs] = await Promise.all([
-    collectGitInfo(root),
-    getFileTree(root),
-    analyzeCode(root),  // ← new call
-    readExistingConfigs(root),
-  ]);
-  
-  return {
-    gitInfo,
-    fileTree,
-    codeMetrics,
-    existingConfigs,
-    // myNewField: ...derived data
-  };
-}
-```
-
-**Verify**: All Promise.all() calls resolve and type-check.
-
-### 4. Update `computeFingerprintHash()` to include the new field
-
-In `src/fingerprint/index.ts`:
-```typescript
-export function computeFingerprintHash(fp: Fingerprint): string {
-  // Ensure all fields that affect behavior are included
-  const canonical = {
-    gitSha: fp.gitInfo.sha,
-    files: Object.keys(fp.fileTree).sort(),
-    myNewField: fp.myNewField,  // ← add here
-  };
-  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
-}
-```
-
-**Verify**: Hash changes when the new field changes.
-
-### 5. Bump `FINGERPRINT_VERSION` in `src/fingerprint/cache.ts`
-
-```typescript
-const FINGERPRINT_VERSION = 2; // was 1, now 2
-```
-
-This forces `loadFingerprintCache()` to treat old caches as stale.
-
-**Verify**: Test that cached fingerprints are invalidated: `npm run test -- src/fingerprint/__tests__/cache.test.ts`.
-
-### 6. Write tests in `src/fingerprint/__tests__/`
-
-Create or extend a test file matching your module:
-- `code-analysis.test.ts` for code-analysis logic
-- `existing-config.test.ts` for config detection
-- etc.
-
-Use `describe()`, `it()`, and mock `glob()` with `vi.mock('glob')`.
-
-**Example**:
-```typescript
-it('should count TypeScript files', async () => {
-  const metrics = await analyzeCode(testRoot);
-  expect(metrics.tsFileCount).toBe(3);
-});
-```
-
-**Verify**: `npm run test -- src/fingerprint/__tests__/my-module.test.ts` passes.
+**Step 5: Test and cache validation**
+- Write test in `src/fingerprint/__tests__/<module-name>.test.ts` (mirror style from `file-tree.test.ts`)
+- Test mock: create fixture in temp directory, call detector, assert shape matches FingerprintData
+- Run: `npm run test -- src/fingerprint/__tests__/<module-name>.test.ts`
+- Verify: `npm run test:coverage` includes new module in coverage
+- Cache is automatic — verify `loadFingerprintCache()` returns cached result on second call with same projectRoot and hash
 
 ## Examples
 
-**User says**: "Detect the Node version from .nvmrc or package.json"
+**User:** "Add detection for Playwright test config"
 
-**Actions**:
-1. Add `nodeVersion?: string` to `Fingerprint` interface in `types.ts`.
-2. Implement `detectNodeVersion(root: string)` in `code-analysis.ts`:
-   ```typescript
-   export async function detectNodeVersion(root: string): Promise<string | undefined> {
-     const nvmrc = await readFile(join(root, '.nvmrc'), 'utf8').catch(() => null);
-     if (nvmrc) return nvmrc.trim().split('\n')[0];
-     const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
-     return pkg.engines?.node;
-   }
-   ```
-3. Add to `collectFingerprint()`: `codeMetrics.nodeVersion = await detectNodeVersion(root);`
-4. Add to `computeFingerprintHash()` canonical object: `nodeVersion: fp.codeMetrics?.nodeVersion`.
-5. Bump `FINGERPRINT_VERSION` in `cache.ts`.
-6. Write test in `code-analysis.test.ts`.
+**Actions:**
+1. Create `src/fingerprint/playwright.ts`:
+```typescript
+export async function detectPlaywright(
+  projectRoot: string
+): Promise<{ configFiles: string[]; hasTests: boolean } | null> {
+  try {
+    const configFiles = await glob('**/playwright.config.{ts,js}', { cwd: projectRoot, ignore: ['node_modules'] });
+    const testFiles = await glob('**/*.spec.ts', { cwd: projectRoot, ignore: ['node_modules', 'dist'] });
+    return { configFiles, hasTests: testFiles.length > 0 };
+  } catch {
+    return null;
+  }
+}
+```
+2. Update `src/fingerprint/index.ts`:
+```typescript
+import { detectPlaywright } from './playwright';
 
-**Result**: Fingerprint now includes Node version, cached appropriately, and hash updates when version changes.
+interface FingerprintData {
+  // ...
+  playwright?: { configFiles: string[]; hasTests: boolean };
+}
+
+const collectors = [
+  // ...
+  { key: 'playwright', fn: detectPlaywright },
+];
+```
+3. Test: `npm run test -- src/fingerprint/__tests__/playwright.test.ts` (new test file mirrors existing patterns)
+
+**Result:** Next `caliber init` call includes `playwright` key in fingerprint, cached for 24h.
+
+## Anti-patterns
+
+1. **Do NOT throw errors in detector functions.** Instead, wrap file I/O in try/catch and return `null`. Caller in `collectFingerprint()` handles gracefully via `Promise.allSettled()` fallback. Bad: `throw new Error('file not found')`. Good: `return null; // File not found, skip detection`.
+
+2. **Do NOT mutate the fingerprint object directly in a detector.** Instead, return a shape that merges cleanly. Bad: `fingerprint.myKey = value;`. Good: `return { myKey: value };` then let `collectFingerprint()` merge via spread operator.
+
+3. **Do NOT call collectFingerprint() recursively or call other detectors inside a detector.** Each detector is independent. Bad: `const fileTree = await collectFileTree(projectRoot);`. Good: `const files = await glob(...); const tree = buildTree(files);` (inline, no cross-detector calls).
 
 ## Common Issues
 
-**"Cannot find module 'src/fingerprint/types'"**
-- Ensure `types.ts` exists and exports the type. Check the import path in `index.ts` matches your file location.
+**"TypeError: Cannot read property of undefined in collectFingerprint()"**
+- Cause: Detector returned `undefined` instead of `null` on error.
+- Fix: Verify detector returns `null` explicitly: `return null;` not `return;`. Update detector function.
 
-**"Hash mismatch: cached fingerprint is stale"**
-- You likely added a new field but forgot to bump `FINGERPRINT_VERSION` in `cache.ts`. Increment it by 1.
-- Or, the field is missing from `computeFingerprintHash()` canonical object. Add it and re-bump the version.
+**"Cache hit but fingerprint is stale"**
+- Cause: `computeFingerprintHash()` in `src/fingerprint/index.ts` changed, but cache key didn't invalidate.
+- Fix: Run `caliber refresh` to force recomputation. Verify hash is computed from git state and file structure (see `computeFingerprintHash()` in index.ts).
 
-**"Fingerprint collection times out"**
-- Check `glob()` patterns — they may be too broad (e.g., globbing `**/*` without ignoring `node_modules`). Use `{ ignore: ['node_modules', 'dist', '.git'] }` in all glob calls.
-- Use `Promise.all()` for independent operations; avoid nested awaits.
-
-**"Type 'Fingerprint' does not have property 'myNewField'"**
-- Update `src/fingerprint/types.ts` to include the field in the interface. Mark optional fields with `?:`.
-
-**Tests fail with "glob is not a function"**
-- Mock is not set up. In test file, add:
-  ```typescript
-  vi.mock('glob');
-  ```
-  Then use `vi.mocked(glob).mockResolvedValue([...])` to set return values.
+**"Glob pattern matches too many files, performance slow"**
+- Cause: Detector glob pattern is too broad (e.g., `**/*.ts` without `ignore: ['node_modules']`).
+- Fix: Add `ignore: ['node_modules', 'dist', 'build', '.next']` to glob options. Verify: `npm run test:coverage` includes new detector in coverage, profile time is < 100ms per detector.

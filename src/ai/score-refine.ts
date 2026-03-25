@@ -341,7 +341,7 @@ export async function scoreAndRefine(
     }
 
     if (lostPoints === 0) {
-      if (callbacks?.onStatus) callbacks.onStatus('Setup passes all scoring checks');
+      if (callbacks?.onStatus) callbacks.onStatus('Config passes all scoring checks');
       return bestSetup;
     }
 
@@ -355,7 +355,7 @@ export async function scoreAndRefine(
     const refined = await applyTargetedFixes(currentSetup, issues);
 
     if (!refined) {
-      if (callbacks?.onStatus) callbacks.onStatus('Refinement failed, keeping current setup');
+      if (callbacks?.onStatus) callbacks.onStatus('Refinement failed, keeping current config');
       return bestSetup;
     }
 
@@ -472,15 +472,15 @@ export async function runScoreRefineWithSpinner(
   dir: string,
   sessionHistory: Array<{ role: 'user' | 'assistant'; content: string }>,
 ): Promise<Record<string, unknown>> {
-  const spinner = ora('Validating setup against scoring criteria...').start();
+  const spinner = ora('Validating config against scoring criteria...').start();
   try {
     const refined = await scoreAndRefine(setup, dir, sessionHistory, {
       onStatus: (msg) => { spinner.text = msg; },
     });
     if (refined !== setup) {
-      spinner.succeed('Setup refined based on scoring feedback');
+      spinner.succeed('Config refined based on scoring feedback');
     } else {
-      spinner.succeed('Setup passes scoring validation');
+      spinner.succeed('Config passes scoring validation');
     }
     return refined;
   } catch (err) {

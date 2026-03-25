@@ -1,11 +1,22 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+
+const tmpBase = fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-notif-test-'));
+
+vi.mock('../../constants.js', async () => {
+  const actual = await vi.importActual<typeof import('../../constants.js')>('../../constants.js');
+  return {
+    ...actual,
+    getLearningDir: () => tmpBase,
+  };
+});
+
 import { writeFinalizeSummary, checkPendingNotifications } from '../notifications.js';
 import type { FinalizeSummary } from '../notifications.js';
 
-const LEARNING_DIR = '.caliber/learning';
-const NOTIFICATION_FILE = path.join(LEARNING_DIR, 'last-finalize-summary.json');
+const NOTIFICATION_FILE = path.join(tmpBase, 'last-finalize-summary.json');
 
 describe('writeFinalizeSummary', () => {
   beforeEach(() => {
@@ -32,9 +43,6 @@ describe('writeFinalizeSummary', () => {
   });
 
   it('creates directory if missing', () => {
-    const tempDir = path.join('.caliber', 'learning-test-' + Date.now());
-    // writeFinalizeSummary handles dir creation internally via the LEARNING_DIR constant
-    // Just verify it doesn't throw
     expect(() => writeFinalizeSummary({
       timestamp: '2026-01-01T00:00:00Z',
       newItemCount: 0,
@@ -69,7 +77,6 @@ describe('checkPendingNotifications', () => {
       newItems: ['- **[Pattern]** use strict mode', '- **[Fix]** check types'],
       wasteTokens: 500,
     };
-    fs.mkdirSync(LEARNING_DIR, { recursive: true });
     fs.writeFileSync(NOTIFICATION_FILE, JSON.stringify(summary));
 
     checkPendingNotifications();
@@ -81,7 +88,6 @@ describe('checkPendingNotifications', () => {
   });
 
   it('handles corrupt JSON without crashing', () => {
-    fs.mkdirSync(LEARNING_DIR, { recursive: true });
     fs.writeFileSync(NOTIFICATION_FILE, '{invalid json!!!');
 
     expect(() => checkPendingNotifications()).not.toThrow();
@@ -89,7 +95,6 @@ describe('checkPendingNotifications', () => {
   });
 
   it('skips display when newItemCount is 0', () => {
-    fs.mkdirSync(LEARNING_DIR, { recursive: true });
     fs.writeFileSync(NOTIFICATION_FILE, JSON.stringify({
       timestamp: '2026-01-01T00:00:00Z',
       newItemCount: 0,

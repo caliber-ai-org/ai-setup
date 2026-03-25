@@ -20,24 +20,24 @@ export function resolveCaliber(): string {
     return _resolved;
   }
 
-  // 1. Try to find caliber on PATH
+  // 1. Try to find caliber on PATH — use bare command to stay portable
   try {
     const whichCmd = process.platform === 'win32' ? 'where caliber' : 'which caliber';
-    const found = execSync(whichCmd, {
+    execSync(whichCmd, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
-    }).trim();
-    if (found) {
-      _resolved = found;
-      return _resolved;
-    }
+    });
+    _resolved = 'caliber';
+    return _resolved;
   } catch {
     // not on PATH — fall through
   }
 
   // 2. Derive from our own process.argv[1] (the script being executed)
+  //    Only accept paths that look like a caliber binary — avoids picking up
+  //    test runner scripts (vitest, jest) in CI/test environments.
   const binPath = process.argv[1];
-  if (binPath && fs.existsSync(binPath)) {
+  if (binPath && /caliber/.test(binPath) && fs.existsSync(binPath)) {
     _resolved = binPath;
     return _resolved;
   }
@@ -45,6 +45,16 @@ export function resolveCaliber(): string {
   // 3. Last resort: bare command (may still fail in /bin/sh)
   _resolved = 'caliber';
   return _resolved;
+}
+
+/** True when the resolved binary is a multi-word npx invocation. */
+export function isNpxResolution(): boolean {
+  return resolveCaliber().startsWith('npx ');
+}
+
+/** Reset cached resolution — only for tests. */
+export function resetResolvedCaliber(): void {
+  _resolved = null;
 }
 
 /**

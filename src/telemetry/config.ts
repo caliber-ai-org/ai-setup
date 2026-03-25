@@ -40,11 +40,13 @@ export function getMachineId(): string {
   return machineId;
 }
 
+const EMAIL_HASH_KEY = 'caliber-telemetry-v1';
+
 export function getGitEmailHash(): string | undefined {
   try {
     const email = execSync('git config user.email', { encoding: 'utf-8' }).trim();
     if (!email) return undefined;
-    return crypto.createHash('sha256').update(email).digest('hex');
+    return crypto.createHmac('sha256', EMAIL_HASH_KEY).update(email).digest('hex');
   } catch {
     return undefined;
   }

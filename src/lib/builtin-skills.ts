@@ -1,19 +1,15 @@
 import fs from 'fs';
 import path from 'path';
+import { resolveCaliber } from './resolve-caliber.js';
 
 export function buildSkillContent(skill: { name: string; description: string; content: string }): string {
   const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n`;
   return frontmatter + skill.content;
 }
 
-export const FIND_SKILLS_SKILL = {
-  name: 'find-skills',
-  description:
-    "Discovers and installs community skills from the public registry. " +
-    "Use when the user mentions a technology, framework, or task that could benefit from specialized skills not yet installed, " +
-    "asks 'how do I do X', 'find a skill for X', or starts work in a new technology area. " +
-    "Proactively suggest when the user's task involves tools or frameworks without existing skills.",
-  content: `# Find Skills
+function getFindSkillsContent(): string {
+  const bin = resolveCaliber();
+  return `# Find Skills
 
 Search the public skill registry for community-contributed skills
 relevant to the user's current task and install them into this project.
@@ -26,13 +22,13 @@ relevant to the user's current task and install them into this project.
    for [identified technologies]?"
 3. If the user agrees, run:
    \`\`\`bash
-   caliber skills --query "<relevant terms>"
+   ${bin} skills --query "<relevant terms>"
    \`\`\`
    This outputs the top 5 matching skills with scores and descriptions.
 4. Present the results to the user and ask which ones to install
 5. Install the selected skills:
    \`\`\`bash
-   caliber skills --install <slug1>,<slug2>
+   ${bin} skills --install <slug1>,<slug2>
    \`\`\`
 6. Read the installed SKILL.md files to load them into your current
    context so you can use them immediately in this session
@@ -43,18 +39,18 @@ relevant to the user's current task and install them into this project.
 User: "let's build a web app using React"
 -> "I notice you want to work with React. Would you like me to search
    for community skills that could help with React development?"
--> If yes: run \`caliber skills --query "react frontend"\`
+-> If yes: run \`${bin} skills --query "react frontend"\`
 -> Show the user the results, ask which to install
--> Run \`caliber skills --install <selected-slugs>\`
+-> Run \`${bin} skills --install <selected-slugs>\`
 -> Read the installed files and continue
 
 User: "help me set up Docker for this project"
 -> "Would you like me to search for Docker-related skills?"
--> If yes: run \`caliber skills --query "docker deployment"\`
+-> If yes: run \`${bin} skills --query "docker deployment"\`
 
 User: "I need to write tests for this Python ML pipeline"
 -> "Would you like me to find skills for Python ML testing?"
--> If yes: run \`caliber skills --query "python machine-learning testing"\`
+-> If yes: run \`${bin} skills --query "python machine-learning testing"\`
 
 ## When NOT to trigger
 
@@ -62,17 +58,12 @@ User: "I need to write tests for this Python ML pipeline"
 - You already suggested skills for this technology in this session
 - The user is in the middle of urgent debugging or time-sensitive work
 - The technology is too generic (e.g. just "code" or "programming")
-`,
-};
+`;
+}
 
-export const SAVE_LEARNING_SKILL = {
-  name: 'save-learning',
-  description:
-    "Saves user instructions as persistent learnings for future sessions. " +
-    "Use when the user says 'remember this', 'always do X', 'from now on', 'never do Y', " +
-    "or gives any instruction they want persisted across sessions. " +
-    "Proactively suggest when the user states a preference, convention, or rule they clearly want followed in the future.",
-  content: `# Save Learning
+function getSaveLearningContent(): string {
+  const bin = resolveCaliber();
+  return `# Save Learning
 
 Save a user's instruction or preference as a persistent learning that
 will be applied in all future sessions on this project.
@@ -93,11 +84,11 @@ will be applied in all future sessions on this project.
 3. Show the refined learning to the user and ask for confirmation
 4. If confirmed, run:
    \`\`\`bash
-   caliber learn add "<refined learning>"
+   ${bin} learn add "<refined learning>"
    \`\`\`
    For personal preferences (not project-level), add \`--personal\`:
    \`\`\`bash
-   caliber learn add --personal "<refined learning>"
+   ${bin} learn add --personal "<refined learning>"
    \`\`\`
 5. Stage the learnings file for the next commit:
    \`\`\`bash
@@ -111,7 +102,7 @@ User: "when developing features, push to next branch not master, remember it"
 -> "I'll save this as a project learning:
     **[convention]** Push feature commits to the \\\`next\\\` branch, not \\\`master\\\`
     Save for future sessions?"
--> If yes: run \`caliber learn add "**[convention]** Push feature commits to the next branch, not master"\`
+-> If yes: run \`${bin} learn add "**[convention]** Push feature commits to the next branch, not master"\`
 -> Run \`git add CALIBER_LEARNINGS.md\`
 
 User: "always use bun instead of npm"
@@ -127,7 +118,27 @@ User: "never use any in TypeScript, use unknown instead"
 - The user is giving a one-time instruction for the current task only
 - The instruction is too vague to be actionable
 - The user explicitly says "just for now" or "only this time"
-`,
+`;
+}
+
+export const FIND_SKILLS_SKILL = {
+  name: 'find-skills',
+  description:
+    "Discovers and installs community skills from the public registry. " +
+    "Use when the user mentions a technology, framework, or task that could benefit from specialized skills not yet installed, " +
+    "asks 'how do I do X', 'find a skill for X', or starts work in a new technology area. " +
+    "Proactively suggest when the user's task involves tools or frameworks without existing skills.",
+  get content() { return getFindSkillsContent(); },
+};
+
+export const SAVE_LEARNING_SKILL = {
+  name: 'save-learning',
+  description:
+    "Saves user instructions as persistent learnings for future sessions. " +
+    "Use when the user says 'remember this', 'always do X', 'from now on', 'never do Y', " +
+    "or gives any instruction they want persisted across sessions. " +
+    "Proactively suggest when the user states a preference, convention, or rule they clearly want followed in the future.",
+  get content() { return getSaveLearningContent(); },
 };
 
 export const BUILTIN_SKILLS = [FIND_SKILLS_SKILL, SAVE_LEARNING_SKILL];

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import chalk from 'chalk';
 import ora from 'ora';
 import confirm from '@inquirer/confirm';
@@ -89,9 +89,10 @@ export async function checkForUpdates(): Promise<void> {
     }
 
     const tag = channel === 'latest' ? latest : channel;
+    if (!/^[\w.\-]+$/.test(tag)) return;
     const spinner = ora('Updating caliber...').start();
     try {
-      execSync(`npm install -g @rely-ai/caliber@${tag}`, {
+      execFileSync('npm', ['install', '-g', `@rely-ai/caliber@${tag}`], {
         stdio: 'pipe',
         timeout: 120_000,
         env: { ...process.env, npm_config_fund: 'false', npm_config_audit: 'false' },
@@ -108,7 +109,7 @@ export async function checkForUpdates(): Promise<void> {
 
       const args = process.argv.slice(2);
       console.log(chalk.dim(`\nRestarting: caliber ${args.join(' ')}\n`));
-      execSync(`caliber ${args.map((a) => JSON.stringify(a)).join(' ')}`, {
+      execFileSync('caliber', args, {
         stdio: 'inherit',
         env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
       });

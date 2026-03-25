@@ -2,6 +2,7 @@ import { existsSync, statSync } from 'fs';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import type { Check } from '../index.js';
+import { resolveCaliber } from '../../lib/resolve-caliber.js';
 import {
   POINTS_FRESHNESS,
   POINTS_NO_SECRETS,
@@ -89,7 +90,7 @@ export function checkFreshness(dir: string): Check[] {
     passed: freshnessPoints >= 3,
     detail: freshnessDetail,
     suggestion: commitsSince !== null && freshnessPoints < 3
-      ? `Config is ${commitsSince} commits behind — run \`caliber refresh\` to update it`
+      ? `Config is ${commitsSince} commits behind — run \`${resolveCaliber()} refresh\` to update it`
       : undefined,
     fix: commitsSince !== null && freshnessPoints < 3
       ? {

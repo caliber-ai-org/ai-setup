@@ -2,13 +2,14 @@ import chalk from 'chalk';
 import ora from 'ora';
 import select from '@inquirer/select';
 import { mkdirSync, readFileSync, readdirSync, existsSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 import { collectFingerprint, Fingerprint } from '../fingerprint/index.js';
 import { scanLocalState } from '../scanner/index.js';
 import { llmJsonCall } from '../llm/index.js';
 import { loadConfig, getFastModel } from '../llm/config.js';
 import { trackSkillsInstalled } from '../telemetry/events.js';
 import { readState } from '../lib/state.js';
+import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 type Platform = 'claude' | 'cursor' | 'codex' | 'github-copilot';
 
@@ -37,14 +38,25 @@ function detectLocalPlatforms(): Platform[] {
   return platforms.size > 0 ? Array.from(platforms) : ['claude'];
 }
 
+function sanitizeSlug(slug: string): string {
+  return slug.replace(/[^a-zA-Z0-9_\-]/g, '-').replace(/^-+|-+$/g, '');
+}
+
 function getSkillPath(platform: Platform, slug: string): string {
-  if (platform === 'cursor') {
-    return join('.cursor', 'skills', slug, 'SKILL.md');
+  const safe = sanitizeSlug(slug);
+  if (!safe) throw new Error(`Invalid skill slug: "${slug}"`);
+
+  const baseDir = platform === 'cursor' ? join('.cursor', 'skills')
+    : platform === 'codex' ? join('.agents', 'skills')
+    : join('.claude', 'skills');
+
+  const cwd = process.cwd();
+  const fullPath = resolve(cwd, baseDir, safe, 'SKILL.md');
+  if (!fullPath.startsWith(resolve(cwd, baseDir) + '/')) {
+    throw new Error(`Skill path escapes base directory: "${slug}"`);
   }
-  if (platform === 'codex') {
-    return join('.agents', 'skills', slug, 'SKILL.md');
-  }
-  return join('.claude', 'skills', slug, 'SKILL.md');
+
+  return join(baseDir, safe, 'SKILL.md');
 }
 
 function getSkillDir(platform: Platform): string {
@@ -446,7 +458,7 @@ export async function querySkills(query: string): Promise<void> {
     console.log(`     ${r.reason || r.name}`);
   }
   console.log('');
-  console.log(chalk.dim(`  Install with: caliber skills --install ${available.map(r => r.slug).join(',')}`));
+  console.log(chalk.dim(`  Install with: ${resolveCaliber()} skills --install ${available.map(r => r.slug).join(',')}`));
   console.log('');
 }
 

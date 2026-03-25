@@ -20,6 +20,10 @@ vi.mock('../../lib/learning-hooks.js', () => ({
   areLearningHooksInstalled: vi.fn(() => false),
   areCursorLearningHooksInstalled: vi.fn(() => false),
 }));
+vi.mock('../../scoring/history.js', () => ({
+  readScoreHistory: vi.fn(() => []),
+  getScoreTrend: vi.fn(() => null),
+}));
 
 import { insightsCommand } from '../insights.js';
 import { readROIStats } from '../../learner/roi.js';
@@ -112,7 +116,7 @@ describe('insights command', () => {
     await insightsCommand({});
 
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
-    expect(output).toContain('No learning hooks installed');
+    expect(output).toContain('Learning hooks not installed');
     expect(output).toContain('caliber learn install');
   });
 
@@ -123,7 +127,7 @@ describe('insights command', () => {
     await insightsCommand({});
 
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
-    expect(output).toContain('No session data yet');
+    expect(output).toContain('Learning hooks are active');
   });
 
   it('shows early data caveat for <20 sessions', async () => {

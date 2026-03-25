@@ -74,7 +74,7 @@ export function printSetupSummary(setup: Record<string, unknown>) {
   const deletions = setup.deletions as Array<{ filePath: string; reason: string }> | undefined;
 
   console.log('');
-  console.log(chalk.bold('  Your tailored setup:\n'));
+  console.log(chalk.bold('  Your tailored config:\n'));
 
   const getDescription = (filePath: string): string | undefined => {
     return fileDescriptions?.[filePath];

@@ -20,7 +20,7 @@ export const REFINE_MESSAGES = [
   'Rebalancing permissions and tool settings...',
   'Refining skills and workflows...',
   'Updating rules to match your preferences...',
-  'Finalizing the revised setup...',
+  'Finalizing the revised config...',
 ];
 
 export class SpinnerMessages {

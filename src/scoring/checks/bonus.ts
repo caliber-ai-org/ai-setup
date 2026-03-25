@@ -9,6 +9,7 @@ import {
   POINTS_LEARNED_CONTENT,
   POINTS_MODEL_PINNED,
 } from '../constants.js';
+import { resolveCaliber } from '../../lib/resolve-caliber.js';
 import { readFileOrNull } from '../utils.js';
 import { hasPreCommitBlock as checkPreCommitBlock } from '../../writers/pre-commit-block.js';
 
@@ -65,11 +66,11 @@ export function checkBonus(dir: string): Check[] {
     detail: hasHooks
       ? hookSources.join(', ')
       : 'No hooks configured',
-    suggestion: hasHooks ? undefined : 'Run `caliber init` to add pre-commit instructions',
+    suggestion: hasHooks ? undefined : `Run \`${resolveCaliber()} init\` to add pre-commit instructions`,
     fix: hasHooks ? undefined : {
       action: 'install_hooks',
       data: {},
-      instruction: 'Run caliber init to add pre-commit refresh instructions to config files.',
+      instruction: `Run ${resolveCaliber()} init to add pre-commit refresh instructions to config files.`,
     },
   });
 
@@ -152,7 +153,7 @@ export function checkBonus(dir: string): Check[] {
     earnedPoints: hasLearned ? POINTS_LEARNED_CONTENT : 0,
     passed: hasLearned,
     detail: hasLearned ? 'Session learnings found in CALIBER_LEARNINGS.md' : 'No learned content',
-    suggestion: hasLearned ? undefined : 'Install learning hooks: `caliber learn install`',
+    suggestion: hasLearned ? undefined : `Install learning hooks: \`${resolveCaliber()} learn install\``,
   });
 
   // 5. Model and effort level pinned

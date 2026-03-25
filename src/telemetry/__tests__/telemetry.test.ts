@@ -60,10 +60,10 @@ describe('telemetry', () => {
       expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
     });
 
-    it('getGitEmailHash returns SHA-256 hash', async () => {
+    it('getGitEmailHash returns HMAC-SHA256 hash', async () => {
       const { getGitEmailHash } = await import('../config.js');
       const hash = getGitEmailHash();
-      const expected = crypto.createHash('sha256').update('test@example.com').digest('hex');
+      const expected = crypto.createHmac('sha256', 'caliber-telemetry-v1').update('test@example.com').digest('hex');
       expect(hash).toBe(expected);
     });
 
