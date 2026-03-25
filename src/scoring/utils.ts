@@ -300,6 +300,89 @@ export function extractReferences(content: string): string[] {
 }
 
 /**
+ * Normalize a path-like reference for comparison with scanned project paths.
+ */
+function normalizePathLikeRef(ref: string): string {
+  return ref.replace(/\\/g, '/').trim().replace(/^\.\//, '').replace(/[,;:!?)]+$/, '');
+}
+
+/**
+ * True when a path-like reference matches a file or directory from the project scan
+ * or resolves under `dir` on disk. Stack-agnostic (no hardcoded “important” filenames).
+ */
+export function pathReferenceResolvesInProject(
+  ref: string,
+  dir: string,
+  projectFiles: ReadonlySet<string>,
+  projectDirs: ReadonlySet<string>,
+  checkExists: (path: string) => boolean = existsSync,
+): boolean {
+  const normalized = normalizePathLikeRef(ref);
+  if (!normalized || normalized.includes('..') || normalized.includes('*')) return false;
+  if (/^https?:\/\//.test(normalized)) return false;
+  if (/^\d+\.\d+/.test(normalized)) return false;
+  if (normalized.startsWith('#')) return false;
+  if (normalized.startsWith('@') && (normalized.match(/\//g) || []).length === 1) return false;
+
+  if (projectFiles.has(normalized) || projectDirs.has(normalized)) return true;
+
+  for (const f of projectFiles) {
+    if (f === normalized || f.endsWith(`/${normalized}`)) return true;
+  }
+  for (const d of projectDirs) {
+    if (d === normalized || d.endsWith(`/${normalized}`)) return true;
+  }
+
+  const fullPath = join(dir, normalized);
+  if (checkExists(fullPath)) {
+    try {
+      const st = statSync(fullPath);
+      return st.isFile() || st.isDirectory();
+    } catch {
+      return false;
+    }
+  }
+
+  const withoutTrailing = normalized.replace(/\/+$/, '');
+  if (withoutTrailing !== normalized) {
+    const p = join(dir, withoutTrailing);
+    if (checkExists(p)) {
+      try {
+        const st = statSync(p);
+        return st.isFile() || st.isDirectory();
+      } catch {
+        return false;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Weight path-like references for reference-density: resolved refs count double (grounded in this repo).
+ */
+export function sumPathReferenceDensityWeights(
+  refs: readonly string[],
+  dir: string,
+  projectFiles: ReadonlySet<string>,
+  projectDirs: ReadonlySet<string>,
+  checkExists: (path: string) => boolean = existsSync,
+): { weightedSum: number; resolvedCount: number } {
+  let weightedSum = 0;
+  let resolvedCount = 0;
+  for (const r of refs) {
+    if (pathReferenceResolvesInProject(r, dir, projectFiles, projectDirs, checkExists)) {
+      weightedSum += 2;
+      resolvedCount++;
+    } else {
+      weightedSum += 1;
+    }
+  }
+  return { weightedSum, resolvedCount };
+}
+
+/**
  * Validate extracted references against the filesystem.
  * Shared by both the scoring accuracy check and the score-refine loop.
  */
