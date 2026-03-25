@@ -24,16 +24,31 @@ describe('pathReferenceResolvesInProject', () => {
     expect(pathReferenceResolvesInProject('nope.ts', '/root', files, dirs)).toBe(false);
   });
 
-  it('resolves via filesystem when file exists under dir', () => {
+  it('resolves via filesystem when file exists under dir (fixes dead entries bug for ignored lockfiles)', () => {
     const dir = mkdtempSync(join(tmpdir(), 'caliber-ref-resolve-'));
     try {
-      writeFileSync(join(dir, 'local-only.txt'), 'x');
+      writeFileSync(join(dir, 'package-lock.json'), 'x');
       const emptyFiles = new Set<string>();
       const emptyDirs = new Set<string>();
-      expect(pathReferenceResolvesInProject('local-only.txt', dir, emptyFiles, emptyDirs)).toBe(true);
+      
+      // Even if 'package-lock.json' is filtered out of `files` (because it's in IGNORED_FILES),
+      // it should still resolve because we correctly detect it on disk.
+      expect(pathReferenceResolvesInProject('package-lock.json', dir, emptyFiles, emptyDirs)).toBe(true);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it('preserves case sensitivity correctly (fixes case-sensitivity bug)', () => {
+    const files = new Set(['Dockerfile', 'Cargo.toml']);
+    const dirs = new Set<string>();
+    
+    // We shouldn't blindly lower-case things; they should match exactly or correctly
+    expect(pathReferenceResolvesInProject('Dockerfile', '/root', files, dirs)).toBe(true);
+    expect(pathReferenceResolvesInProject('dockerfile', '/root', files, dirs)).toBe(false);
+    
+    expect(pathReferenceResolvesInProject('Cargo.toml', '/root', files, dirs)).toBe(true);
+    expect(pathReferenceResolvesInProject('cargo.toml', '/root', files, dirs)).toBe(false);
   });
 });
 
