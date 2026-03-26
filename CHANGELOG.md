@@ -1,3 +1,9 @@
+## v1.30.3 (2026-03-26)
+
+### Other
+
+- slack notifications
+
 ## v1.30.2 (2026-03-24)
 
 ### Bug Fixes
