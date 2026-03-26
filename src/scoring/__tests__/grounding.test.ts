@@ -78,6 +78,21 @@ describe('checkGrounding', () => {
   });
 });
 
+it('fails grounding when directories exist but contain no relevant files', () => {
+    mkdirSync(join(dir, 'src'));
+    mkdirSync(join(dir, 'lib'));
+    
+    writeFileSync(
+      join(dir, 'CLAUDE.md'),
+      '# Project\n\nCode is in `src/` and `lib/`. Please look there.',
+    );
+
+    const checks = checkGrounding(dir);
+    const groundingCheck = checks.find(c => c.id === 'project_grounding');
+
+    expect(groundingCheck?.earnedPoints).toBeLessThan(2);
+  });
+
 describe('collectProjectStructure respects .gitignore', () => {
   let dir: string;
 
