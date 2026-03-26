@@ -6,7 +6,7 @@
   <a href="https://www.npmjs.com/package/@rely-ai/caliber"><img src="https://img.shields.io/npm/v/@rely-ai/caliber" alt="npm version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/@rely-ai/caliber" alt="license"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/@rely-ai/caliber" alt="node"></a>
-  <img src="https://img.shields.io/badge/caliber-89%2F100-green" alt="Caliber Score">
+  <img src="https://img.shields.io/badge/caliber-94%2F100-brightgreen" alt="Caliber Score">
   <img src="https://img.shields.io/badge/Claude_Code-supported-blue" alt="Claude Code">
   <img src="https://img.shields.io/badge/Cursor-supported-blue" alt="Cursor">
   <img src="https://img.shields.io/badge/Codex-supported-blue" alt="Codex">
@@ -343,8 +343,8 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
 ```bash
-git clone https://github.com/rely-ai-org/caliber.git
-cd caliber
+git clone https://github.com/pangerlkr/ai-setup.git
+cd ai-setup
 npm install
 npm run dev      # Watch mode
 npm run test     # Run tests
@@ -356,5 +356,3 @@ Uses [conventional commits](https://www.conventionalcommits.org/) — `feat:` fo
 ## License
 
 MIT
-
-This Project is awesome !
