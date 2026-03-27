@@ -1,6 +1,6 @@
 {
   "name": "@rely-ai/caliber",
-  "version": "1.30.4",
+  "version": "1.30.5",
   "description": "AI context infrastructure for coding agents — keeps CLAUDE.md, Cursor rules, and skills in sync as your codebase evolves",
   "type": "module",
   "bin": {

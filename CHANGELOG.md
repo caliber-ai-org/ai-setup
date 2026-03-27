@@ -1,3 +1,9 @@
+## v1.30.5 (2026-03-27)
+
+### Bug Fixes
+
+- exclude .env files from code analysis and sanitize secrets in file content
+
 ## v1.30.4 (2026-03-26)
 
 ### Other
