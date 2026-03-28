@@ -343,8 +343,8 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
 ```bash
-git clone https://github.com/pangerlkr/ai-setup.git
-cd ai-setup
+git clone https://github.com/rely-ai-org/caliber.git
+cd caliber
 npm install
 npm run dev      # Watch mode
 npm run test     # Run tests
