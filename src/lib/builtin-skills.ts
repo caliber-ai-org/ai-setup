@@ -261,6 +261,8 @@ const PLATFORM_CONFIGS: Array<{ platformDir: string; skillsDir: string }> = [
   { platformDir: '.agents', skillsDir: path.join('.agents', 'skills') },
 ];
 
+export const BUILTIN_SKILL_NAMES = new Set(BUILTIN_SKILLS.map(s => s.name));
+
 export function ensureBuiltinSkills(): string[] {
   const written: string[] = [];
 
@@ -269,7 +271,7 @@ export function ensureBuiltinSkills(): string[] {
 
     for (const skill of BUILTIN_SKILLS) {
       const skillPath = path.join(skillsDir, skill.name, 'SKILL.md');
-      if (fs.existsSync(skillPath)) continue;
+      // Always overwrite — builtin skills are managed by Caliber, not the LLM
 
       fs.mkdirSync(path.dirname(skillPath), { recursive: true });
       fs.writeFileSync(skillPath, buildSkillContent(skill));

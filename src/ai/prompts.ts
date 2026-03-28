@@ -53,6 +53,7 @@ const SKILL_FORMAT_RULES = `All skills follow the OpenSkills standard (agentskil
 
 Skill field requirements:
 - "name": kebab-case (lowercase letters, numbers, hyphens only). Becomes the directory name.
+- "name" MUST NOT be any of these reserved names (they are managed by Caliber automatically): "setup-caliber", "find-skills", "save-learning". Do NOT generate skills with these names.
 - "description": MUST include WHAT it does + WHEN to use it with specific trigger phrases. Example: "Manages database migrations. Use when user says 'run migration', 'create migration', 'db schema change', or modifies files in db/migrations/."
 - "content": markdown body only — do NOT include YAML frontmatter, it is generated from name+description.
 
