@@ -23,7 +23,7 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || ech
   2. Run: \`${bin} refresh && git add ${MANAGED_DOC_PATHS} 2>/dev/null\`
   3. After it completes, briefly tell the user what Caliber updated. Then proceed with the commit.
 
-If \`${bin}\` is not found, tell the user: "This project uses Caliber for agent config sync. Install it with: npm install -g @rely-ai/caliber"
+If \`${bin}\` is not found, tell the user: "This project uses Caliber for agent config sync. Run /setup-caliber to get set up."
 ${BLOCK_END}`;
 }
 
@@ -41,7 +41,7 @@ Run: \`grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active"
 If hook-active: just commit normally — Caliber syncs automatically via the hook. Tell the user: "Caliber will sync your agent configs automatically."
 If no-hook: run \`${bin} refresh && git add ${MANAGED_DOC_PATHS} 2>/dev/null\` before committing, and tell the user what was updated.
 
-If \`${bin}\` is not found, tell the user: "This project uses Caliber for agent config sync. Install with: npm install -g @rely-ai/caliber"
+If \`${bin}\` is not found, tell the user: "This project uses Caliber for agent config sync. Run /setup-caliber to get set up."
 `;
 }
 
@@ -131,7 +131,7 @@ alwaysApply: true
 ---
 This project uses Caliber to keep AI agent configs (CLAUDE.md, Cursor rules, Copilot instructions)
 in sync with the codebase automatically. Before each commit, run \`${bin} refresh\` to sync configs.
-If \`${bin}\` is not found, tell the user: "This project uses Caliber for agent config sync. Install with: npm install -g @rely-ai/caliber"
+If \`${bin}\` is not found, tell the user: "This project uses Caliber for agent config sync. Run /setup-caliber to get set up."
 `;
 }
 
