@@ -1,3 +1,25 @@
+import path from 'path';
+
+export function sanitizePath(component: string): string {
+  const cleaned = component
+    .replace(/\.\./g, '')
+    .replace(/[/\\]/g, '-')
+    .replace(/-{2,}/g, '-')
+    .replace(/^-+|-+$/g, '');
+  if (!cleaned) {
+    throw new Error(`Invalid path component: ${component}`);
+  }
+  return cleaned;
+}
+
+export function assertPathWithinDir(filePath: string, baseDir: string): void {
+  const resolved = path.resolve(baseDir, filePath);
+  const resolvedBase = path.resolve(baseDir);
+  if (!resolved.startsWith(resolvedBase + path.sep) && resolved !== resolvedBase) {
+    throw new Error(`Path traversal detected: ${filePath} escapes ${baseDir}`);
+  }
+}
+
 const KNOWN_PREFIX_PATTERNS: [RegExp, string][] = [
   // Anthropic (before generic sk- pattern)
   [/sk-ant-[A-Za-z0-9_-]{20,}/g, '[REDACTED]'],
@@ -22,10 +44,14 @@ const KNOWN_PREFIX_PATTERNS: [RegExp, string][] = [
   [/[Bb]earer\s+[A-Za-z0-9_\-.]{20,}/g, '[REDACTED]'],
   // PEM private keys
   [/-----BEGIN[A-Z ]+KEY-----[\s\S]+?-----END[A-Z ]+KEY-----/g, '[REDACTED]'],
+  // Database connection strings with credentials
+  [/(postgresql|mysql|mongodb(\+srv)?|redis|amqp):\/\/[^@\s]+:[^@\s]+@[^\s'"]+/g, '[REDACTED]'],
+  // GitLab tokens
+  [/glpat-[a-zA-Z0-9_-]{20,}/g, '[REDACTED]'],
 ];
 
 const SENSITIVE_ASSIGNMENT =
-  /(?:api[_-]?key|secret[_-]?key|password|token|credential|auth[_-]?token|private[_-]?key)\s*[:=]\s*['"]?([^\s'"]{8,500})['"]?/gi;
+  /(?:api[_-]?key|secret[_-]?key|password|token|credential|auth[_-]?token|private[_-]?key|database[_-]?url|connection[_-]?string)\s*[:=]\s*['"]?([^\s'"]{8,500})['"]?/gi;
 
 export function sanitizeSecrets(text: string): string {
   let result = text;

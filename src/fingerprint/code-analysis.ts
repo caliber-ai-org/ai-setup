@@ -112,6 +112,9 @@ const SKIP_PATTERNS = [
   /\.generated\./,
   /\.snap$/,
   /^\.env($|\.)/,
+  /\.(pem|key|crt|cer|pfx|p12|jks|keystore)$/,
+  /^id_(rsa|ed25519|ecdsa)$/,
+  /^(known_hosts|authorized_keys)$/,
 ];
 
 const COMMENT_LINE: Record<string, RegExp> = {

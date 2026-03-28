@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { CALIBER_DIR } from '../constants.js';
+import { assertPathWithinDir } from '../lib/sanitize.js';
 
 const STAGED_DIR = path.join(CALIBER_DIR, 'staged');
 const PROPOSED_DIR = path.join(STAGED_DIR, 'proposed');
@@ -23,7 +24,7 @@ export interface StageResult {
 function normalizeContent(content: string): string {
   return content
     .split('\n')
-    .map(line => line.trimEnd())
+    .map((line) => line.trimEnd())
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -31,7 +32,7 @@ function normalizeContent(content: string): string {
 
 export function stageFiles(
   files: Array<{ path: string; content: string }>,
-  projectDir: string
+  projectDir: string,
 ): StageResult {
   cleanupStaging();
 
@@ -40,6 +41,7 @@ export function stageFiles(
   const stagedFiles: StagedFile[] = [];
 
   for (const file of files) {
+    assertPathWithinDir(file.path, projectDir);
     const originalPath = path.join(projectDir, file.path);
 
     // Skip files where the only changes are whitespace/formatting
@@ -59,7 +61,13 @@ export function stageFiles(
       fs.mkdirSync(path.dirname(currentPath), { recursive: true });
       fs.copyFileSync(originalPath, currentPath);
       modifiedFiles++;
-      stagedFiles.push({ relativePath: file.path, proposedPath, currentPath, originalPath, isNew: false });
+      stagedFiles.push({
+        relativePath: file.path,
+        proposedPath,
+        currentPath,
+        originalPath,
+        isNew: false,
+      });
     } else {
       newFiles++;
       stagedFiles.push({ relativePath: file.path, proposedPath, isNew: true });
