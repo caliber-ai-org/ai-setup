@@ -90,7 +90,7 @@ export async function initCommand(options: InitOptions) {
     console.log(chalk.dim('  3. Generate   Audit existing config or generate from scratch'));
     console.log(chalk.dim('  4. Finalize   Review changes and score your setup\n'));
   } else {
-    console.log(brand.bold('\n  CALIBER') + chalk.dim('  — regenerating config\n'));
+    console.log(brand.bold('\n  CALIBER') + chalk.dim('  — setting up continuous sync\n'));
   }
 
   const platforms = detectPlatforms();
@@ -155,12 +155,14 @@ export async function initCommand(options: InitOptions) {
   // ───────────────────────────────────────────────────────────────────────────
   console.log(title.bold('  Step 2/4 — Setup\n'));
 
+  console.log(chalk.dim('  Installing sync infrastructure...\n'));
+
   // Install pre-commit hook early — sync infrastructure first
   const hookResult = installPreCommitHook();
   if (hookResult.installed) {
-    console.log(`  ${chalk.green('✓')} Pre-commit hook — configs sync on every commit`);
+    console.log(`  ${chalk.green('✓')} Pre-commit hook installed — configs sync on every commit`);
   } else if (hookResult.alreadyInstalled) {
-    console.log(`  ${chalk.green('✓')} Pre-commit hook — already installed`);
+    console.log(`  ${chalk.green('✓')} Pre-commit hook — active`);
   }
 
   // Install builtin skills (setup-caliber, find-skills, save-learning)
@@ -173,7 +175,9 @@ export async function initCommand(options: InitOptions) {
   }
   const skillsWritten = ensureBuiltinSkills();
   if (skillsWritten.length > 0) {
-    console.log(`  ${chalk.green('✓')} Agent skills — ${skillsWritten.length} skills installed (setup-caliber, find-skills, save-learning)`);
+    console.log(`  ${chalk.green('✓')} Agent skills installed — /setup-caliber, /find-skills, /save-learning`);
+  } else {
+    console.log(`  ${chalk.green('✓')} Agent skills — already installed`);
   }
 
   console.log('');
@@ -221,11 +225,15 @@ export async function initCommand(options: InitOptions) {
     skipGeneration = !options.force;
   } else if (hasExistingConfig && !options.force && !options.autoApprove) {
     trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
-    const auditAnswer = await promptInput('  Want Caliber to audit and improve your existing config? (Y/n) ');
+    console.log(chalk.dim('\n  Sync infrastructure is ready. Caliber can also audit your existing'));
+    console.log(chalk.dim('  configs and improve them using AI.\n'));
+    const auditAnswer = await promptInput('  Audit and improve your existing config? (Y/n) ');
     skipGeneration = auditAnswer.toLowerCase() === 'n';
   } else if (!hasExistingConfig && !options.force && !options.autoApprove) {
     trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
-    const generateAnswer = await promptInput('  Want Caliber to generate agent configs for your project? (Y/n) ');
+    console.log(chalk.dim('\n  Sync infrastructure is ready. Caliber can also generate tailored'));
+    console.log(chalk.dim('  CLAUDE.md, Cursor rules, and Codex configs for your project.\n'));
+    const generateAnswer = await promptInput('  Generate agent configs? (Y/n) ');
     skipGeneration = generateAnswer.toLowerCase() === 'n';
   } else {
     trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
@@ -756,26 +764,31 @@ export async function initCommand(options: InitOptions) {
 
   console.log(chalk.bold('  What was configured:\n'));
 
-  console.log(`    ${done}  Config generated          ${title(`${bin} score`)} ${chalk.dim('for full breakdown')}`);
-  console.log(`    ${done}  Docs auto-refresh        ${chalk.dim(`agents run ${bin} refresh before commits`)}`);
+  console.log(`    ${done}  Continuous sync          ${chalk.dim('pre-commit hook keeps all agent configs in sync')}`);
+  console.log(`    ${done}  Config generated         ${title(`${bin} score`)} ${chalk.dim('for full breakdown')}`);
+  console.log(`    ${done}  Agent skills             ${chalk.dim('/setup-caliber for new team members')}`);
 
   if (hasLearnableAgent) {
     if (enableLearn) {
-      console.log(`    ${done}  Session learning          ${chalk.dim('agent learns from your feedback')}`);
+      console.log(`    ${done}  Session learning         ${chalk.dim('agent learns from your feedback')}`);
     } else {
-      console.log(`    ${skip}  Session learning          ${title(`${bin} learn install`)} to enable later`);
+      console.log(`    ${skip}  Session learning         ${title(`${bin} learn install`)} ${chalk.dim('to enable later')}`);
     }
   }
 
   if (communitySkillsInstalled > 0) {
-    console.log(`    ${done}  Community skills          ${chalk.dim(`${communitySkillsInstalled} skill${communitySkillsInstalled > 1 ? 's' : ''} installed for your stack`)}`);
+    console.log(`    ${done}  Community skills         ${chalk.dim(`${communitySkillsInstalled} skill${communitySkillsInstalled > 1 ? 's' : ''} installed for your stack`)}`);
   } else if (skillSearchResult.results.length > 0) {
-    console.log(`    ${skip}  Community skills          ${chalk.dim('available but skipped')}`);
+    console.log(`    ${skip}  Community skills         ${chalk.dim('available but skipped')}`);
   }
 
-  console.log(chalk.bold('\n  Explore next:\n'));
-  console.log(`    ${title(`${bin} skills`)}       Find more community skills as your codebase evolves`);
-  console.log(`    ${title(`${bin} score`)}        See the full scoring breakdown with improvement tips`);
+  console.log(chalk.bold('\n  What happens next:\n'));
+  console.log(chalk.dim('    Every commit will automatically sync your agent configs.'));
+  console.log(chalk.dim('    New team members can run /setup-caliber to get set up instantly.\n'));
+
+  console.log(chalk.bold('  Explore:\n'));
+  console.log(`    ${title(`${bin} score`)}        Full scoring breakdown with improvement tips`);
+  console.log(`    ${title(`${bin} skills`)}       Find community skills for your stack`);
   console.log(`    ${title(`${bin} undo`)}         Revert all changes from this run`);
   console.log('');
 
