@@ -216,7 +216,27 @@ caliber score --json --quiet 2>/dev/null | head -1
 
 Ask the user: "Are you setting up for yourself only, or for your team too?"
 
-- If **solo** → Tell the user the summary (see below) and stop.
+- If **solo** → Continue with solo setup:
+
+  Check if session learning is enabled:
+  \`\`\`bash
+  caliber learn status 2>/dev/null | head -3
+  \`\`\`
+  - If learning is already enabled → note it in the summary.
+  - If not enabled → ask the user: "Caliber can learn from your coding sessions — when you correct a mistake or fix a pattern, it remembers for next time. Enable session learning?"
+    If yes:
+    \`\`\`bash
+    caliber learn install
+    \`\`\`
+
+  Then tell the user:
+  "You're all set! Here's what happens next:
+  - Every time you commit, Caliber syncs your agent configs automatically
+  - Your CLAUDE.md, Cursor rules, and AGENTS.md stay current with your code
+  - Run \`caliber skills\` anytime to discover community skills for your stack"
+
+  Then show the summary (see below) and stop.
+
 - If **team** → Check if the GitHub Action already exists:
   \`\`\`bash
   [ -f .github/workflows/caliber-sync.yml ] && echo "ACTION_EXISTS" || echo "NO_ACTION"
@@ -246,7 +266,43 @@ Ask the user: "Are you setting up for yourself only, or for your team too?"
             env:
               ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
     \`\`\`
-    Tell the user: "Add your ANTHROPIC_API_KEY to repo secrets (Settings → Secrets → Actions), then commit and push."
+    Now determine which LLM provider the team uses. Check the local Caliber config:
+    \`\`\`bash
+    caliber config --show 2>/dev/null || echo "NO_CONFIG"
+    \`\`\`
+
+    Based on the provider, the GitHub Action needs the corresponding secret:
+    - **anthropic** → \`ANTHROPIC_API_KEY\`
+    - **openai** → \`OPENAI_API_KEY\`
+    - **vertex** → \`VERTEX_PROJECT_ID\` and \`GOOGLE_APPLICATION_CREDENTIALS\` (service account JSON)
+
+    Update the workflow env block to match the provider. For example, if using OpenAI:
+    \`\`\`yaml
+            env:
+              OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
+    \`\`\`
+
+    Then check if the \`gh\` CLI is available to set the secret:
+    \`\`\`bash
+    command -v gh >/dev/null 2>&1 && echo "GH_AVAILABLE" || echo "NO_GH"
+    \`\`\`
+
+    - If GH_AVAILABLE → Ask the user for their API key and set it:
+      \`\`\`bash
+      gh secret set ANTHROPIC_API_KEY
+      \`\`\`
+      (This prompts for the value securely via stdin)
+    - If NO_GH → Tell the user exactly what to do:
+      "Go to your repo on GitHub → Settings → Secrets and variables → Actions → New repository secret.
+       Name: ANTHROPIC_API_KEY (or OPENAI_API_KEY depending on provider)
+       Value: your API key"
+
+    Finally, offer to commit and push the workflow file:
+    \`\`\`bash
+    git add .github/workflows/caliber-sync.yml
+    git commit -m "feat: add Caliber sync GitHub Action"
+    git push
+    \`\`\`
 
 ### Summary
 
