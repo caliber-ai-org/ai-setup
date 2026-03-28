@@ -4,6 +4,7 @@ const https = require('https');
 const VALID_AGENTS = new Set(['claude', 'cursor', 'codex', 'github-copilot']);
 
 const MANAGED_FILES = ['CLAUDE.md', 'AGENTS.md', '.cursorrules', '.cursor/', '.claude/', '.github/copilot-instructions.md', '.github/instructions/', 'CALIBER_LEARNINGS.md'];
+const CALIBER_PKG = '@rely-ai/caliber@latest';
 
 // --- GitHub Actions helpers (no @actions/core dependency) ---
 
@@ -140,9 +141,16 @@ async function runSync(token) {
     }
   } catch { /* fall back to 'main' */ }
 
+  // Ensure we're on the default branch for sync mode
+  try {
+    execFileSync('git', ['checkout', defaultBranch], { stdio: 'pipe' });
+  } catch {
+    console.log(`Warning: Could not checkout ${defaultBranch}`);
+  }
+
   // Run caliber refresh
   try {
-    execFileSync('npx', ['--yes', '@rely-ai/caliber@latest', 'refresh', '--quiet'], {
+    execFileSync('npx', ['--yes', CALIBER_PKG, 'refresh', '--quiet'], {
       encoding: 'utf-8',
       timeout: 300000,
       env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
@@ -167,13 +175,11 @@ async function runSync(token) {
   execFileSync('git', ['config', 'user.name', 'caliber[bot]']);
   execFileSync('git', ['config', 'user.email', 'caliber-bot@users.noreply.github.com']);
 
-  // Create branch, stage, commit, push
+  // Create sync branch from current state (carries uncommitted refresh changes)
   try {
-    execFileSync('git', ['checkout', '-b', syncBranch]);
-  } catch {
-    // Branch may already exist from a previous run today
-    execFileSync('git', ['checkout', syncBranch]);
-  }
+    execFileSync('git', ['branch', '-D', syncBranch], { stdio: 'pipe' });
+  } catch { /* branch may not exist locally */ }
+  execFileSync('git', ['checkout', '-b', syncBranch]);
 
   try {
     execFileSync('git', ['add', ...MANAGED_FILES], { stdio: 'pipe' });
@@ -190,7 +196,7 @@ async function runSync(token) {
   execFileSync('git', ['commit', '-m', `[caliber] sync ${formatNames}`]);
 
   try {
-    execFileSync('git', ['push', 'origin', syncBranch]);
+    execFileSync('git', ['push', '--force', 'origin', syncBranch]);
   } catch (err) {
     console.log(`Failed to push sync branch: ${err.message}`);
     return;
@@ -255,7 +261,7 @@ async function run() {
   // Run caliber score
   let resultJson;
   try {
-    const output = execFileSync('npx', ['--yes', '@rely-ai/caliber@latest', 'score', '--json', '--quiet', '--agent', agent], {
+    const output = execFileSync('npx', ['--yes', CALIBER_PKG, 'score', '--json', '--quiet', '--agent', agent], {
       encoding: 'utf-8',
       timeout: 120000,
       env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
@@ -291,7 +297,7 @@ async function run() {
           try {
             if (!/^[\w\.\-\/]+$/.test(baseBranch)) throw new Error('Invalid base branch name');
             const baseOutput = execFileSync(
-              'npx', ['--yes', '@rely-ai/caliber@latest', 'score', '--json', '--quiet', '--agent', agent, '--compare', `origin/${baseBranch}`],
+              'npx', ['--yes', CALIBER_PKG, 'score', '--json', '--quiet', '--agent', agent, '--compare', `origin/${baseBranch}`],
               { encoding: 'utf-8', timeout: 120000, env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' } },
             );
             const parsed = JSON.parse(baseOutput.trim());
@@ -338,7 +344,7 @@ async function run() {
   // Auto-refresh
   if (autoRefresh) {
     try {
-      execFileSync('npx', ['--yes', '@rely-ai/caliber@latest', 'refresh', '--quiet'], {
+      execFileSync('npx', ['--yes', CALIBER_PKG, 'refresh', '--quiet'], {
         encoding: 'utf-8',
         timeout: 300000,
         env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
