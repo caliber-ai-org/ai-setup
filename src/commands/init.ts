@@ -181,6 +181,8 @@ export async function initCommand(options: InitOptions) {
   }
 
   console.log('');
+  console.log(chalk.dim('  New team members can run /setup-caliber inside their coding agent'));
+  console.log(chalk.dim('  (Claude Code or Cursor) to get set up automatically.\n'));
 
   // Compute & show initial score
   let baselineScore = computeLocalScore(process.cwd(), targetAgent);
