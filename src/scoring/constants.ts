@@ -115,8 +115,8 @@ export const SECRET_PATTERNS = [
   /AKIA[A-Z0-9]{16}/,
   /ghp_[a-zA-Z0-9]{36}/,
   /ghu_[a-zA-Z0-9]{36}/,
-  /glpat-[a-zA-Z0-9\-_]{20,}/,
-  /xox[bpors]-[a-zA-Z0-9\-]{10,}/,
+  /glpat-[a-zA-Z0-9_-]{20,}/,
+  /xox[bpors]-[a-zA-Z0-9-]{10,}/,
   /(?:password|secret|token|api_key)\s*[:=]\s*["'][^"']{8,}["']/i,
 ] as const;
 
@@ -132,39 +132,21 @@ export const SECRET_PLACEHOLDER_PATTERNS = [
 ] as const;
 
 // ── Platform-specific check IDs ───────────────────────────────────────
-export const CURSOR_ONLY_CHECKS = new Set([
-  'cursor_rules_exist',
-  'cursor_mdc_rules',
-]);
+export const CURSOR_ONLY_CHECKS = new Set(['cursor_rules_exist', 'cursor_mdc_rules']);
 
-export const CLAUDE_ONLY_CHECKS = new Set([
-  'claude_md_exists',
-  'claude_md_freshness',
-]);
+export const CLAUDE_ONLY_CHECKS = new Set(['claude_md_exists', 'claude_md_freshness']);
 
-export const BOTH_ONLY_CHECKS = new Set([
-  'cross_platform_parity',
-  'no_duplicate_content',
-]);
+export const BOTH_ONLY_CHECKS = new Set(['cross_platform_parity', 'no_duplicate_content']);
 
-export const CODEX_ONLY_CHECKS = new Set([
-  'codex_agents_md_exists',
-]);
+export const CODEX_ONLY_CHECKS = new Set(['codex_agents_md_exists']);
 
-export const COPILOT_ONLY_CHECKS = new Set([
-  'copilot_instructions_exists',
-]);
+export const COPILOT_ONLY_CHECKS = new Set(['copilot_instructions_exists']);
 
 /** Checks that should NOT appear for codex targets (avoid double-counting). */
-export const NON_CODEX_CHECKS = new Set([
-  'agents_md_exists',
-]);
+export const NON_CODEX_CHECKS = new Set(['agents_md_exists']);
 
 /** Checks relevant only to Claude or Codex (skills live in .claude/skills/ or .agents/skills/). */
-export const CLAUDE_OR_CODEX_CHECKS = new Set([
-  'skills_exist',
-  'open_skills_format',
-]);
+export const CLAUDE_OR_CODEX_CHECKS = new Set(['skills_exist', 'open_skills_format']);
 
 // ── Grading ────────────────────────────────────────────────────────────
 export const GRADE_THRESHOLDS = [

@@ -4,34 +4,104 @@ import { execSync } from 'child_process';
 import { sanitizeSecrets } from '../lib/sanitize.js';
 
 const IGNORE_DIRS = new Set([
-  'node_modules', '.git', '.next', 'dist', 'build', '.cache',
-  '.turbo', 'coverage', '.caliber', '__pycache__', '.venv',
-  'venv', 'env', 'vendor', 'target', '.parcel-cache', '.nyc_output',
-  '.claude', '.cursor', '.agents', '.codex',
+  'node_modules',
+  '.git',
+  '.next',
+  'dist',
+  'build',
+  '.cache',
+  '.turbo',
+  'coverage',
+  '.caliber',
+  '__pycache__',
+  '.venv',
+  'venv',
+  'env',
+  'vendor',
+  'target',
+  '.parcel-cache',
+  '.nyc_output',
+  '.claude',
+  '.cursor',
+  '.agents',
+  '.codex',
 ]);
 
 const TEXT_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
-  '.py', '.pyw',
-  '.go', '.rs', '.rb', '.java', '.kt', '.scala', '.cs',
-  '.c', '.cpp', '.h', '.hpp',
-  '.swift', '.m',
-  '.php', '.lua', '.r', '.jl', '.ex', '.exs', '.erl', '.hs',
-  '.sh', '.bash', '.zsh', '.fish',
-  '.sql', '.graphql', '.gql', '.prisma',
-  '.html', '.css', '.scss', '.sass', '.less', '.svelte', '.vue', '.astro',
-  '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg',
-  '.xml', '.plist',
-  '.md', '.mdx', '.txt', '.rst',
-  '.tf', '.hcl',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.py',
+  '.pyw',
+  '.go',
+  '.rs',
+  '.rb',
+  '.java',
+  '.kt',
+  '.scala',
+  '.cs',
+  '.c',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.swift',
+  '.m',
+  '.php',
+  '.lua',
+  '.r',
+  '.jl',
+  '.ex',
+  '.exs',
+  '.erl',
+  '.hs',
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.fish',
+  '.sql',
+  '.graphql',
+  '.gql',
+  '.prisma',
+  '.html',
+  '.css',
+  '.scss',
+  '.sass',
+  '.less',
+  '.svelte',
+  '.vue',
+  '.astro',
+  '.json',
+  '.yaml',
+  '.yml',
+  '.toml',
+  '.ini',
+  '.cfg',
+  '.xml',
+  '.plist',
+  '.md',
+  '.mdx',
+  '.txt',
+  '.rst',
+  '.tf',
+  '.hcl',
   '.proto',
   '.mdc',
 ]);
 
 const SKIP_FILES = new Set([
-  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb',
-  'Cargo.lock', 'Gemfile.lock', 'poetry.lock', 'composer.lock',
-  '.DS_Store', 'Thumbs.db',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'bun.lockb',
+  'Cargo.lock',
+  'Gemfile.lock',
+  'poetry.lock',
+  'composer.lock',
+  '.DS_Store',
+  'Thumbs.db',
 ]);
 
 const SKIP_PATTERNS = [
@@ -45,25 +115,73 @@ const SKIP_PATTERNS = [
 ];
 
 const COMMENT_LINE: Record<string, RegExp> = {
-  'c': /^\s*\/\//,
-  'h': /^\s*#/,
-  'x': /^\s*<!--.*-->\s*$/,
+  c: /^\s*\/\//,
+  h: /^\s*#/,
+  x: /^\s*<!--.*-->\s*$/,
 };
 
 const EXT_COMMENT: Record<string, string> = {
-  '.ts': 'c', '.tsx': 'c', '.js': 'c', '.jsx': 'c', '.mjs': 'c', '.cjs': 'c',
-  '.go': 'c', '.rs': 'c', '.java': 'c', '.kt': 'c', '.scala': 'c', '.cs': 'c',
-  '.c': 'c', '.cpp': 'c', '.h': 'c', '.hpp': 'c', '.swift': 'c', '.php': 'c',
-  '.py': 'h', '.pyw': 'h', '.rb': 'h', '.sh': 'h', '.bash': 'h', '.zsh': 'h',
-  '.fish': 'h', '.r': 'h', '.tf': 'h', '.hcl': 'h', '.yaml': 'h', '.yml': 'h',
-  '.toml': 'h', '.ini': 'h', '.cfg': 'h',
-  '.html': 'x', '.xml': 'x', '.vue': 'x', '.svelte': 'x',
+  '.ts': 'c',
+  '.tsx': 'c',
+  '.js': 'c',
+  '.jsx': 'c',
+  '.mjs': 'c',
+  '.cjs': 'c',
+  '.go': 'c',
+  '.rs': 'c',
+  '.java': 'c',
+  '.kt': 'c',
+  '.scala': 'c',
+  '.cs': 'c',
+  '.c': 'c',
+  '.cpp': 'c',
+  '.h': 'c',
+  '.hpp': 'c',
+  '.swift': 'c',
+  '.php': 'c',
+  '.py': 'h',
+  '.pyw': 'h',
+  '.rb': 'h',
+  '.sh': 'h',
+  '.bash': 'h',
+  '.zsh': 'h',
+  '.fish': 'h',
+  '.r': 'h',
+  '.tf': 'h',
+  '.hcl': 'h',
+  '.yaml': 'h',
+  '.yml': 'h',
+  '.toml': 'h',
+  '.ini': 'h',
+  '.cfg': 'h',
+  '.html': 'x',
+  '.xml': 'x',
+  '.vue': 'x',
+  '.svelte': 'x',
 };
 
 const SOURCE_EXTENSIONS = new Set([
-  '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
-  '.py', '.pyw', '.go', '.rs', '.rb', '.java', '.kt',
-  '.scala', '.cs', '.c', '.cpp', '.h', '.hpp', '.swift', '.php',
+  '.ts',
+  '.tsx',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.py',
+  '.pyw',
+  '.go',
+  '.rs',
+  '.rb',
+  '.java',
+  '.kt',
+  '.scala',
+  '.cs',
+  '.c',
+  '.cpp',
+  '.h',
+  '.hpp',
+  '.swift',
+  '.php',
 ]);
 
 const TOKEN_BUDGET = 80_000;
@@ -139,7 +257,6 @@ function extractSkeleton(content: string, ext: string): string {
   const lines = content.split('\n');
   const result: string[] = [];
   let braceDepth = 0;
-  let inSignature = false;
   let skipBody = false;
 
   if (['.py', '.pyw', '.rb'].includes(ext)) {
@@ -163,14 +280,19 @@ function extractSkeleton(content: string, ext: string): string {
         if (j > i) result.push(lines[j]);
         depth += (lines[j].match(/{/g) || []).length;
         depth -= (lines[j].match(/}/g) || []).length;
-        if (depth <= 0 && j > i) { i = j; break; }
+        if (depth <= 0 && j > i) {
+          i = j;
+          break;
+        }
       }
       continue;
     }
 
     // Detect function/method/class signatures
-    const isFnOrClass = /^\s*(export\s+)?(default\s+)?(async\s+)?(function|class|const\s+\w+\s*=\s*(async\s*)?\(|pub\s+fn|fn|func)\s/.test(trimmed)
-      || /^\s*(def|func|fn|pub fn|pub async fn)\s/.test(trimmed);
+    const isFnOrClass =
+      /^\s*(export\s+)?(default\s+)?(async\s+)?(function|class|const\s+\w+\s*=\s*(async\s*)?\(|pub\s+fn|fn|func)\s/.test(
+        trimmed,
+      ) || /^\s*(def|func|fn|pub fn|pub async fn)\s/.test(trimmed);
 
     if (isFnOrClass && braceDepth === 0) {
       result.push(line);
@@ -205,7 +327,7 @@ function extractSkeleton(content: string, ext: string): string {
   return result.join('\n');
 }
 
-function extractSkeletonIndentBased(lines: string[], ext: string): string {
+function extractSkeletonIndentBased(lines: string[], _ext: string): string {
   const result: string[] = [];
   let skipIndent = -1;
 
@@ -292,7 +414,16 @@ function buildImportCounts(files: Map<string, string>): Map<string, number> {
     const imports = extractImports(content, filePath);
     for (const imp of imports) {
       // Try to match imported path to an actual file
-      const candidates = [imp, imp + '.ts', imp + '.js', imp + '.tsx', imp + '.jsx', imp + '/index.ts', imp + '/index.js', imp + '.py'];
+      const candidates = [
+        imp,
+        imp + '.ts',
+        imp + '.js',
+        imp + '.tsx',
+        imp + '.jsx',
+        imp + '/index.ts',
+        imp + '/index.js',
+        imp + '.py',
+      ];
       for (const candidate of candidates) {
         const normalized = candidate.replace(/\\/g, '/');
         if (files.has(normalized)) {
@@ -319,7 +450,9 @@ function getGitFrequency(dir: string): Map<string, number> {
       const trimmed = line.trim();
       if (trimmed) freq.set(trimmed, (freq.get(trimmed) || 0) + 1);
     }
-  } catch { /* not a git repo or git not available */ }
+  } catch {
+    /* not a git repo or git not available */
+  }
   return freq;
 }
 
@@ -346,11 +479,13 @@ function groupByDirectory(files: ScoredFile[]): Map<string, ScoredFile[]> {
 }
 
 function structuralFingerprint(content: string, ext: string): string {
-  const lines = content.split('\n').filter(l => l.trim().length > 0);
+  const lines = content.split('\n').filter((l) => l.trim().length > 0);
   const bucket = Math.floor(lines.length / 10) * 10;
   const first = (lines[0] || '').trim().slice(0, 50);
-  const imports = lines.filter(l => /^\s*(import |from |require\(|use )/.test(l)).length;
-  const fns = lines.filter(l => /^\s*(export\s+)?(async\s+)?(function |def |func |fn |pub fn |class )/.test(l)).length;
+  const imports = lines.filter((l) => /^\s*(import |from |require\(|use )/.test(l)).length;
+  const fns = lines.filter((l) =>
+    /^\s*(export\s+)?(async\s+)?(function |def |func |fn |pub fn |class )/.test(l),
+  ).length;
   return `${ext}:${bucket}:${imports}:${fns}:${first}`;
 }
 
@@ -363,7 +498,11 @@ export function analyzeCode(dir: string): CodeAnalysis {
   // Count total raw size
   let totalChars = 0;
   for (const relPath of allPaths) {
-    try { totalChars += fs.statSync(path.join(dir, relPath)).size; } catch { /* skip */ }
+    try {
+      totalChars += fs.statSync(path.join(dir, relPath)).size;
+    } catch {
+      /* skip */
+    }
   }
 
   // Read all files
@@ -372,7 +511,9 @@ export function analyzeCode(dir: string): CodeAnalysis {
     try {
       const content = fs.readFileSync(path.join(dir, relPath), 'utf-8');
       if (content.split('\n').length <= 500) fileContents.set(relPath, content);
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
   }
 
   // Build scoring signals
@@ -414,11 +555,20 @@ export function analyzeCode(dir: string): CodeAnalysis {
 
     // Check if files in this directory are structurally similar
     const repFP = structuralFingerprint(rep.compressed, rep.ext);
-    const similar = group.slice(1).filter(f => structuralFingerprint(f.compressed, f.ext) === repFP);
-    const unique = group.slice(1).filter(f => structuralFingerprint(f.compressed, f.ext) !== repFP);
+    const similar = group
+      .slice(1)
+      .filter((f) => structuralFingerprint(f.compressed, f.ext) === repFP);
+    const unique = group
+      .slice(1)
+      .filter((f) => structuralFingerprint(f.compressed, f.ext) !== repFP);
 
     // Representative gets full compressed content (sanitized for secrets)
-    const repEntry = { path: rep.path, content: sanitizeSecrets(rep.compressed), size: rep.compressed.length, priority: rep.score };
+    const repEntry = {
+      path: rep.path,
+      content: sanitizeSecrets(rep.compressed),
+      size: rep.compressed.length,
+      priority: rep.score,
+    };
     const repSize = rep.path.length + rep.compressed.length + 10;
     if (includedChars + repSize <= CHAR_BUDGET) {
       result.push(repEntry);
@@ -428,11 +578,16 @@ export function analyzeCode(dir: string): CodeAnalysis {
     // Similar files get a single summary line
     if (similar.length > 0) {
       dupGroups++;
-      const names = similar.map(f => path.basename(f.path));
+      const names = similar.map((f) => path.basename(f.path));
       const summary = `(${similar.length} similar file${similar.length === 1 ? '' : 's'} in ${dirPath}/: ${names.join(', ')})`;
       const summarySize = summary.length + 30;
       if (includedChars + summarySize <= CHAR_BUDGET) {
-        result.push({ path: `[similar to ${rep.path}]`, content: summary, size: summary.length, priority: rep.score });
+        result.push({
+          path: `[similar to ${rep.path}]`,
+          content: summary,
+          size: summary.length,
+          priority: rep.score,
+        });
         includedChars += summarySize;
       }
     }
@@ -441,19 +596,29 @@ export function analyzeCode(dir: string): CodeAnalysis {
     for (const f of unique) {
       const skeletonSize = f.path.length + f.skeleton.length + 10;
       if (includedChars + skeletonSize <= CHAR_BUDGET) {
-        result.push({ path: f.path, content: sanitizeSecrets(f.skeleton), size: f.skeleton.length, priority: f.score });
+        result.push({
+          path: f.path,
+          content: sanitizeSecrets(f.skeleton),
+          size: f.skeleton.length,
+          priority: f.score,
+        });
         includedChars += skeletonSize;
       }
     }
   }
 
   // If there's still budget, fill with skeletons of files not yet included
-  const includedPaths = new Set(result.map(f => f.path));
+  const includedPaths = new Set(result.map((f) => f.path));
   for (const f of scored) {
     if (includedPaths.has(f.path)) continue;
     const skeletonSize = f.path.length + f.skeleton.length + 10;
     if (includedChars + skeletonSize > CHAR_BUDGET) continue;
-    result.push({ path: f.path, content: sanitizeSecrets(f.skeleton), size: f.skeleton.length, priority: f.score });
+    result.push({
+      path: f.path,
+      content: sanitizeSecrets(f.skeleton),
+      size: f.skeleton.length,
+      priority: f.score,
+    });
     includedChars += skeletonSize;
   }
 
@@ -475,7 +640,11 @@ function walkDir(base: string, rel: string, depth: number, maxDepth: number, fil
   if (depth > maxDepth) return;
   const fullPath = path.join(base, rel);
   let entries: fs.Dirent[];
-  try { entries = fs.readdirSync(fullPath, { withFileTypes: true }); } catch { return; }
+  try {
+    entries = fs.readdirSync(fullPath, { withFileTypes: true });
+  } catch {
+    return;
+  }
 
   for (const entry of entries) {
     if (IGNORE_DIRS.has(entry.name)) continue;
@@ -487,7 +656,7 @@ function walkDir(base: string, rel: string, depth: number, maxDepth: number, fil
       walkDir(base, relPath, depth + 1, maxDepth, files);
     } else if (entry.isFile()) {
       if (SKIP_FILES.has(entry.name)) continue;
-      if (SKIP_PATTERNS.some(p => p.test(entry.name))) continue;
+      if (SKIP_PATTERNS.some((p) => p.test(entry.name))) continue;
 
       const ext = path.extname(entry.name).toLowerCase();
       if (TEXT_EXTENSIONS.has(ext) || (depth === 0 && !ext && !entry.name.startsWith('.'))) {
@@ -500,10 +669,21 @@ function walkDir(base: string, rel: string, depth: number, maxDepth: number, fil
 function filePriority(filePath: string): number {
   const base = path.basename(filePath);
   const entryPoints = new Set([
-    'index.ts', 'index.js', 'index.tsx', 'index.jsx',
-    'main.ts', 'main.py', 'main.go', 'main.rs',
-    'app.ts', 'app.js', 'app.py', 'server.ts', 'server.js',
-    'mod.rs', 'lib.rs',
+    'index.ts',
+    'index.js',
+    'index.tsx',
+    'index.jsx',
+    'main.ts',
+    'main.py',
+    'main.go',
+    'main.rs',
+    'app.ts',
+    'app.js',
+    'app.py',
+    'server.ts',
+    'server.js',
+    'mod.rs',
+    'lib.rs',
   ]);
 
   if (entryPoints.has(base)) return 40;

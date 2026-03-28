@@ -22,11 +22,18 @@ vi.mock('../../llm/utils.js', () => ({
     let depth = 0;
     for (let i = start; i < text.length; i++) {
       if (text[i] === '{') depth++;
-      if (text[i] === '}') { depth--; if (depth === 0) return text.slice(start, i + 1); }
+      if (text[i] === '}') {
+        depth--;
+        if (depth === 0) return text.slice(start, i + 1);
+      }
     }
     return null;
   },
-  stripMarkdownFences: (text: string) => text.replace(/^```(?:json)?\s*/im, '').replace(/```\s*$/m, '').trim(),
+  stripMarkdownFences: (text: string) =>
+    text
+      .replace(/^```(?:json)?\s*/im, '')
+      .replace(/```\s*$/m, '')
+      .trim(),
 }));
 
 import { analyzeEvents, calculateSessionWaste } from '../learn.js';
@@ -65,110 +72,126 @@ describe('analyzeEvents', () => {
   });
 
   it('calls llmCall with events formatted in prompt', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: '- Always use pnpm',
-      skills: null,
-      explanations: ['Found pnpm usage pattern'],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: '- Always use pnpm',
+        skills: null,
+        explanations: ['Found pnpm usage pattern'],
+      }),
+    );
 
     const events = [makeEvent({ tool_name: 'Bash', tool_input: { command: 'pnpm install' } })];
     const result = await analyzeEvents(events);
 
     expect(mockedLlmCall).toHaveBeenCalledOnce();
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('Event 1');
-    expect(callArgs.prompt).toContain('Bash');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('Event 1');
+    expect(_callArgs.prompt).toContain('Bash');
     expect(result.claudeMdLearnedSection).toBe('- Always use pnpm');
     expect(result.explanations).toContain('Found pnpm usage pattern');
   });
 
   it('marks failure events correctly', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: null,
-      explanations: ['No patterns found'],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: null,
+        explanations: ['No patterns found'],
+      }),
+    );
 
     const events = [makeEvent({ hook_event_name: 'PostToolUseFailure' })];
     await analyzeEvents(events);
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('[FAILURE]');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('[FAILURE]');
   });
 
   it('marks success events correctly', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: null,
-      explanations: [],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: null,
+        explanations: [],
+      }),
+    );
 
     const events = [makeEvent({ hook_event_name: 'PostToolUse' })];
     await analyzeEvents(events);
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('[SUCCESS]');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('[SUCCESS]');
   });
 
   it('includes existing CLAUDE.md context truncated to 5000 chars', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: null,
-      explanations: [],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: null,
+        explanations: [],
+      }),
+    );
 
     const longClaudeMd = 'x'.repeat(6000);
     await analyzeEvents([makeEvent()], longClaudeMd);
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('Existing CLAUDE.md');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('Existing CLAUDE.md');
     // Should be truncated to 5000
-    expect(callArgs.prompt).not.toContain('x'.repeat(6000));
+    expect(_callArgs.prompt).not.toContain('x'.repeat(6000));
   });
 
   it('includes existing learned section', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: null,
-      explanations: [],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: null,
+        explanations: [],
+      }),
+    );
 
     await analyzeEvents([makeEvent()], undefined, '- Use pnpm\n- Always lint');
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('Existing Learned Section');
-    expect(callArgs.prompt).toContain('Use pnpm');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('Existing Learned Section');
+    expect(_callArgs.prompt).toContain('Use pnpm');
   });
 
   it('includes existing skills summary', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: null,
-      explanations: [],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: null,
+        explanations: [],
+      }),
+    );
 
     const skills = [{ filename: 'testing.md', content: 'Test with vitest' }];
     await analyzeEvents([makeEvent()], undefined, null, skills);
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('Existing Skills');
-    expect(callArgs.prompt).toContain('testing.md');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('Existing Skills');
+    expect(_callArgs.prompt).toContain('testing.md');
   });
 
   it('handles truncated tool responses', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: null,
-      explanations: [],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: null,
+        explanations: [],
+      }),
+    );
 
-    const events = [makeEvent({
-      tool_response: { _truncated: 'This was a very long response...' },
-    })];
+    const events = [
+      makeEvent({
+        tool_response: { _truncated: 'This was a very long response...' },
+      }),
+    ];
     await analyzeEvents(events);
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('This was a very long response...');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('This was a very long response...');
   });
 
   it('handles unparseable LLM response gracefully', async () => {
@@ -181,27 +204,31 @@ describe('analyzeEvents', () => {
   });
 
   it('formats UserPromptSubmit events as USER_PROMPT', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: '- **[correction]** Use pnpm not npm',
-      skills: null,
-      explanations: ['User corrected tool usage'],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: '- **[correction]** Use pnpm not npm',
+        skills: null,
+        explanations: ['User corrected tool usage'],
+      }),
+    );
 
     const events = [makePromptEvent()];
     await analyzeEvents(events);
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('[USER_PROMPT]');
-    expect(callArgs.prompt).toContain('User said:');
-    expect(callArgs.prompt).toContain('No, use pnpm not npm');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('[USER_PROMPT]');
+    expect(_callArgs.prompt).toContain('User said:');
+    expect(_callArgs.prompt).toContain('No, use pnpm not npm');
   });
 
   it('handles mixed tool and prompt events', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: null,
-      explanations: [],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: null,
+        explanations: [],
+      }),
+    );
 
     const events = [
       makeEvent({ tool_name: 'Bash', tool_input: { command: 'npm install' } }),
@@ -210,18 +237,27 @@ describe('analyzeEvents', () => {
     ];
     await analyzeEvents(events);
 
-    const callArgs = mockedLlmCall.mock.calls[0][0];
-    expect(callArgs.prompt).toContain('[SUCCESS]');
-    expect(callArgs.prompt).toContain('[USER_PROMPT]');
-    expect(callArgs.prompt).toContain('Stop, use pnpm instead');
+    const _callArgs = mockedLlmCall.mock.calls[0][0];
+    expect(_callArgs.prompt).toContain('[SUCCESS]');
+    expect(_callArgs.prompt).toContain('[USER_PROMPT]');
+    expect(_callArgs.prompt).toContain('Stop, use pnpm instead');
   });
 
   it('returns skills from LLM response', async () => {
-    mockedLlmCall.mockResolvedValue(JSON.stringify({
-      claudeMdLearnedSection: null,
-      skills: [{ name: 'learned-testing', description: 'Testing pattern', content: '# Test', isNew: true }],
-      explanations: ['Detected testing pattern'],
-    }));
+    mockedLlmCall.mockResolvedValue(
+      JSON.stringify({
+        claudeMdLearnedSection: null,
+        skills: [
+          {
+            name: 'learned-testing',
+            description: 'Testing pattern',
+            content: '# Test',
+            isNew: true,
+          },
+        ],
+        explanations: ['Detected testing pattern'],
+      }),
+    );
 
     const result = await analyzeEvents([makeEvent()]);
     expect(result.skills).toHaveLength(1);
@@ -232,8 +268,16 @@ describe('analyzeEvents', () => {
 describe('calculateSessionWaste', () => {
   it('counts failure events and their token cost', () => {
     const events = [
-      makeEvent({ hook_event_name: 'PostToolUseFailure', tool_input: { cmd: 'x' }, tool_response: { error: 'failed' } }),
-      makeEvent({ hook_event_name: 'PostToolUseFailure', tool_input: { cmd: 'y' }, tool_response: { error: 'boom' } }),
+      makeEvent({
+        hook_event_name: 'PostToolUseFailure',
+        tool_input: { cmd: 'x' },
+        tool_response: { error: 'failed' },
+      }),
+      makeEvent({
+        hook_event_name: 'PostToolUseFailure',
+        tool_input: { cmd: 'y' },
+        tool_response: { error: 'boom' },
+      }),
       makeEvent({ hook_event_name: 'PostToolUse' }),
     ];
 
@@ -269,7 +313,11 @@ describe('calculateSessionWaste', () => {
 
   it('sums waste from both failures and corrections', () => {
     const events = [
-      makeEvent({ hook_event_name: 'PostToolUseFailure', tool_input: { cmd: 'bad' }, tool_response: { error: 'no' } }),
+      makeEvent({
+        hook_event_name: 'PostToolUseFailure',
+        tool_input: { cmd: 'bad' },
+        tool_response: { error: 'no' },
+      }),
       makePromptEvent({ prompt_content: 'Wrong approach, try X' }),
       makeEvent({ hook_event_name: 'PostToolUse' }),
     ];

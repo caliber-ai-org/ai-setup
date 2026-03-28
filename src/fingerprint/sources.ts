@@ -60,12 +60,12 @@ export function loadSourcesConfig(dir: string): SourceConfig[] {
   try {
     const parsed = JSON.parse(content) as SourcesFile;
     if (!Array.isArray(parsed.sources)) {
-      console.warn('Warning: .caliber/sources.json is malformed (missing sources array), skipping sources');
+      console.warn(
+        'Warning: .caliber/sources.json is malformed (missing sources array), skipping sources',
+      );
       return [];
     }
-    return parsed.sources.filter(
-      (s) => s.type && (s.path || s.url),
-    );
+    return parsed.sources.filter((s) => s.type && (s.path || s.url));
   } catch {
     console.warn('Warning: .caliber/sources.json is malformed, skipping sources');
     return [];
@@ -200,8 +200,11 @@ function collectSourceSummary(resolved: ResolvedSource, projectDir: string): Sou
         role: config.role || (published.role as string) || 'related-repo',
         description: config.description || (published.description as string) || '',
         origin,
-        topLevelDirs: Array.isArray(published.topLevelDirs) ? published.topLevelDirs as string[] : undefined,
-        existingClaudeMd: typeof published.conventions === 'string' ? published.conventions : undefined,
+        topLevelDirs: Array.isArray(published.topLevelDirs)
+          ? (published.topLevelDirs as string[])
+          : undefined,
+        existingClaudeMd:
+          typeof published.conventions === 'string' ? published.conventions : undefined,
         packageName: typeof published.name === 'string' ? published.name : undefined,
       };
     } catch {
@@ -212,7 +215,7 @@ function collectSourceSummary(resolved: ResolvedSource, projectDir: string): Sou
   return collectRepoSummary(resolved, projectDir);
 }
 
-function collectRepoSummary(resolved: ResolvedSource, projectDir: string): SourceSummary {
+function collectRepoSummary(resolved: ResolvedSource, _projectDir: string): SourceSummary {
   const { config, origin, absPath } = resolved;
 
   const packageName = readPackageName(absPath);
@@ -229,7 +232,9 @@ function collectRepoSummary(resolved: ResolvedSource, projectDir: string): Sourc
       .filter((e) => e.isFile() && !e.name.startsWith('.'))
       .map((e) => e.name)
       .slice(0, 15);
-  } catch { /* skip */ }
+  } catch {
+    /* skip */
+  }
 
   const claudeMdContent = readFileOrNull(path.join(absPath, 'CLAUDE.md'));
   const existingClaudeMd = claudeMdContent
@@ -237,9 +242,7 @@ function collectRepoSummary(resolved: ResolvedSource, projectDir: string): Sourc
     : undefined;
 
   const readmeContent = readFileOrNull(path.join(absPath, 'README.md'));
-  const readmeExcerpt = readmeContent
-    ? readmeContent.slice(0, README_CONTENT_LIMIT)
-    : undefined;
+  const readmeExcerpt = readmeContent ? readmeContent.slice(0, README_CONTENT_LIMIT) : undefined;
 
   const gitRemoteUrl = getGitRemoteUrl(absPath);
 
@@ -258,7 +261,7 @@ function collectRepoSummary(resolved: ResolvedSource, projectDir: string): Sourc
   };
 }
 
-function collectFileSummary(resolved: ResolvedSource, projectDir: string): SourceSummary {
+function collectFileSummary(resolved: ResolvedSource, _projectDir: string): SourceSummary {
   const { config, origin, absPath } = resolved;
   const content = readFileOrNull(absPath);
 

@@ -57,8 +57,8 @@ describe('buildGeneratePrompt', () => {
     const prompt = buildGeneratePrompt(fp, ['claude']);
     expect(prompt).toContain('500/600');
     // Not all files fit
-    const included = fileTree.filter(f => prompt.includes(f));
-    expect(included.length).toBe(500);
+    const _included = fileTree.filter((f) => prompt.includes(f));
+    expect(_included.length).toBe(500);
   });
 
   it('truncates CLAUDE.md content to 8000 chars', () => {
@@ -116,7 +116,16 @@ describe('buildGeneratePrompt', () => {
       { path: 'package.json', content: '{"name": "test"}', size: 16, priority: 35 },
     ];
     const fp = makeFingerprint({
-      codeAnalysis: { files, truncated: false, totalProjectTokens: 100, compressedTokens: 80, includedTokens: 100, filesAnalyzed: 2, filesIncluded: 2, duplicateGroups: 0 },
+      codeAnalysis: {
+        files,
+        truncated: false,
+        totalProjectTokens: 100,
+        compressedTokens: 80,
+        includedTokens: 100,
+        filesAnalyzed: 2,
+        filesIncluded: 2,
+        duplicateGroups: 0,
+      },
     });
     const prompt = buildGeneratePrompt(fp, ['claude']);
     expect(prompt).toContain('[src/index.ts]');
@@ -126,7 +135,7 @@ describe('buildGeneratePrompt', () => {
   });
 
   it('shows trimming info when truncated', () => {
-    const fp = makeFingerprint({
+    const _high = makeFingerprint({
       codeAnalysis: {
         files: [{ path: 'src/a.ts', content: 'const a = 1;', size: 12, priority: 15 }],
         truncated: true,
@@ -138,7 +147,7 @@ describe('buildGeneratePrompt', () => {
         duplicateGroups: 10,
       },
     });
-    const prompt = buildGeneratePrompt(fp, ['claude']);
+    const prompt = buildGeneratePrompt(_high, ['claude']);
     expect(prompt).toContain('trimmed to');
     expect(prompt).toContain('150,000');
     expect(prompt).toContain('200,000');
@@ -240,14 +249,18 @@ describe('buildGeneratePrompt', () => {
     expect(prompt).toContain('[src/app.ts]');
 
     // Not all low-priority test files can fit
-    const testFileCount = Array.from({ length: 150 }, (_, i) => `test-${i}.test.ts`)
-      .filter(name => prompt.includes(name)).length;
+    const testFileCount = Array.from({ length: 150 }, (_, i) => `test-${i}.test.ts`).filter(
+      (name) => prompt.includes(name),
+    ).length;
     expect(testFileCount).toBeLessThan(150);
     expect(testFileCount).toBeGreaterThan(0);
   });
 
   it('simulates a 14K-file repo with claude-cli constraints', () => {
-    const fileTree = Array.from({ length: 14000 }, (_, i) => `src/dir${Math.floor(i / 100)}/file-${i}.c`);
+    const fileTree = Array.from(
+      { length: 14000 },
+      (_, i) => `src/dir${Math.floor(i / 100)}/file-${i}.c`,
+    );
 
     const codeFiles = Array.from({ length: 500 }, (_, i) => ({
       path: `src/dir${Math.floor(i / 10)}/file-${i}.c`,
@@ -289,8 +302,9 @@ describe('buildGeneratePrompt', () => {
   it('handles 50K-file monorepo without exceeding prompt limits', () => {
     // Worst case: massive monorepo with 50K file tree, heavy code analysis,
     // large existing configs, many skills, and many dependencies
-    const fileTree = Array.from({ length: 50000 }, (_, i) =>
-      `packages/pkg-${Math.floor(i / 500)}/src/module-${i}.ts`
+    const fileTree = Array.from(
+      { length: 50000 },
+      (_, i) => `packages/pkg-${Math.floor(i / 500)}/src/module-${i}.ts`,
     );
 
     // code-analysis.ts caps at TOKEN_BUDGET=80K (320K chars) but simulate
@@ -396,7 +410,7 @@ describe('sampleFileTree', () => {
 
     // Files from ALL packages should be represented
     const packagesWithFiles = new Set(
-      sampled.filter(e => !e.endsWith('/')).map(e => e.split('/')[0])
+      sampled.filter((e) => !e.endsWith('/')).map((e) => e.split('/')[0]),
     );
     expect(packagesWithFiles.size).toBe(5);
   });
@@ -411,8 +425,12 @@ describe('sampleFileTree', () => {
 
     const sampled = sampleFileTree(tree, [], 50);
 
-    const activeCount = sampled.filter(e => e.startsWith('pkg-active/') && !e.endsWith('/')).length;
-    const dormantCount = sampled.filter(e => e.startsWith('pkg-dormant/') && !e.endsWith('/')).length;
+    const activeCount = sampled.filter(
+      (e) => e.startsWith('pkg-active/') && !e.endsWith('/'),
+    ).length;
+    const dormantCount = sampled.filter(
+      (e) => e.startsWith('pkg-dormant/') && !e.endsWith('/'),
+    ).length;
 
     // Active package should have more files since they come first (most recent by mtime)
     expect(activeCount).toBeGreaterThan(dormantCount);
@@ -447,7 +465,10 @@ describe('sampleFileTree', () => {
   });
 
   it('respects the limit', () => {
-    const tree = Array.from({ length: 5000 }, (_, i) => `src/dir${Math.floor(i / 100)}/file-${i}.ts`);
+    const tree = Array.from(
+      { length: 5000 },
+      (_, i) => `src/dir${Math.floor(i / 100)}/file-${i}.ts`,
+    );
     const sampled = sampleFileTree(tree, [], 500);
     expect(sampled.length).toBeLessThanOrEqual(500);
   });

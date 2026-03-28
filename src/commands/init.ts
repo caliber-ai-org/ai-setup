@@ -42,10 +42,22 @@ import {
   trackInitLearnEnabled,
 } from '../telemetry/events.js';
 
-import { detectAgents, promptAgent, promptLearnInstall, promptReviewAction, refineLoop } from './init-prompts.js';
+import {
+  detectAgents,
+  promptAgent,
+  promptLearnInstall,
+  promptReviewAction,
+  refineLoop,
+} from './init-prompts.js';
 import type { TargetAgent } from './init-prompts.js';
-import { formatProjectPreview, formatWhatChanged, printSetupSummary, displayTokenUsage } from './init-display.js';
-import { isFirstRun, summarizeSetup, ensurePermissions, writeErrorLog, evaluateDismissals } from './init-helpers.js';
+import { formatWhatChanged, printSetupSummary, displayTokenUsage } from './init-display.js';
+import {
+  isFirstRun,
+  summarizeSetup,
+  ensurePermissions,
+  writeErrorLog,
+  evaluateDismissals,
+} from './init-helpers.js';
 import { recordScore } from '../scoring/history.js';
 
 export type { TargetAgent };
@@ -72,14 +84,16 @@ export async function initCommand(options: InitOptions) {
   const firstRun = isFirstRun(process.cwd());
 
   if (firstRun) {
-    console.log(brand.bold(`
+    console.log(
+      brand.bold(`
    ██████╗ █████╗ ██╗     ██╗██████╗ ███████╗██████╗
   ██╔════╝██╔══██╗██║     ██║██╔══██╗██╔════╝██╔══██╗
   ██║     ███████║██║     ██║██████╔╝█████╗  ██████╔╝
   ██║     ██╔══██║██║     ██║██╔══██╗██╔══╝  ██╔══██╗
   ╚██████╗██║  ██║███████╗██║██████╔╝███████╗██║  ██║
    ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
-  `));
+  `),
+    );
     console.log(chalk.dim('  Scan your project and generate tailored config files for'));
     console.log(chalk.dim('  Claude Code, Cursor, Codex, and GitHub Copilot.\n'));
 
@@ -95,7 +109,11 @@ export async function initCommand(options: InitOptions) {
   const platforms = detectPlatforms();
   if (!platforms.claude && !platforms.cursor && !platforms.codex) {
     console.log(chalk.yellow('  ⚠ No supported AI platforms detected (Claude, Cursor, Codex).'));
-    console.log(chalk.yellow('    Caliber will still generate config files, but they won\'t be auto-installed.\n'));
+    console.log(
+      chalk.yellow(
+        "    Caliber will still generate config files, but they won't be auto-installed.\n",
+      ),
+    );
   }
 
   const report = options.debugReport ? new DebugReport() : null;
@@ -129,7 +147,10 @@ export async function initCommand(options: InitOptions) {
 
   if (report) {
     report.markStep('Provider connection');
-    report.addSection('LLM Provider', `- **Provider**: ${config.provider}\n- **Model**: ${displayModel}\n- **Fast model**: ${fastModel || 'none'}`);
+    report.addSection(
+      'LLM Provider',
+      `- **Provider**: ${config.provider}\n- **Model**: ${displayModel}\n- **Fast model**: ${fastModel || 'none'}`,
+    );
   }
 
   await validateModel({ fast: true });
@@ -150,25 +171,36 @@ export async function initCommand(options: InitOptions) {
   trackInitAgentSelected(targetAgent, agentAutoDetected);
 
   // 1c. Compute & show initial score
-  let baselineScore = computeLocalScore(process.cwd(), targetAgent);
+  const baselineScore = computeLocalScore(process.cwd(), targetAgent);
   console.log(chalk.dim('\n  Current config score:'));
   displayScoreSummary(baselineScore);
   if (options.verbose) {
     for (const c of baselineScore.checks) {
-      log(options.verbose, `  ${c.passed ? '✓' : '✗'} ${c.name}: ${c.earnedPoints}/${c.maxPoints}${c.suggestion ? ` — ${c.suggestion}` : ''}`);
+      log(
+        options.verbose,
+        `  ${c.passed ? '✓' : '✗'} ${c.name}: ${c.earnedPoints}/${c.maxPoints}${c.suggestion ? ` — ${c.suggestion}` : ''}`,
+      );
     }
   }
 
   if (report) {
     report.markStep('Baseline scoring');
-    report.addSection('Scoring: Baseline', `**Score**: ${baselineScore.score}/100\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
-      baselineScore.checks.map(c => `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`).join('\n'));
+    report.addSection(
+      'Scoring: Baseline',
+      `**Score**: ${baselineScore.score}/100\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
+        baselineScore.checks
+          .map(
+            (c) =>
+              `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`,
+          )
+          .join('\n'),
+    );
     report.addSection('Generation: Target Agents', targetAgent.join(', '));
   }
 
   const hasExistingConfig = !!(
-    baselineScore.checks.some(c => c.id === 'claude_md_exists' && c.passed) ||
-    baselineScore.checks.some(c => c.id === 'cursorrules_exists' && c.passed)
+    baselineScore.checks.some((c) => c.id === 'claude_md_exists' && c.passed) ||
+    baselineScore.checks.some((c) => c.id === 'cursorrules_exists' && c.passed)
   );
 
   const NON_LLM_CHECKS = new Set([
@@ -180,22 +212,31 @@ export async function initCommand(options: InitOptions) {
     'mcp_completeness',
   ]);
 
-  const passingCount = baselineScore.checks.filter(c => c.passed).length;
-  const failingCount = baselineScore.checks.filter(c => !c.passed).length;
+  const passingCount = baselineScore.checks.filter((c) => c.passed).length;
+  const failingCount = baselineScore.checks.filter((c) => !c.passed).length;
 
   // Score gating
   if (hasExistingConfig && baselineScore.score === 100) {
     trackInitScoreComputed(baselineScore.score, passingCount, failingCount, true);
     console.log(chalk.bold.green('  Your config is already optimal — nothing to change.\n'));
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to regenerate anyway.\n'));
+    console.log(
+      chalk.dim('  Run ') +
+        chalk.hex('#83D1EB')(`${bin} init --force`) +
+        chalk.dim(' to regenerate anyway.\n'),
+    );
     if (!options.force) return;
   }
 
-  const allFailingChecks = baselineScore.checks.filter(c => !c.passed && c.maxPoints > 0);
-  const llmFixableChecks = allFailingChecks.filter(c => !NON_LLM_CHECKS.has(c.id));
+  const allFailingChecks = baselineScore.checks.filter((c) => !c.passed && c.maxPoints > 0);
+  const llmFixableChecks = allFailingChecks.filter((c) => !NON_LLM_CHECKS.has(c.id));
   trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
 
-  if (hasExistingConfig && llmFixableChecks.length === 0 && allFailingChecks.length > 0 && !options.force) {
+  if (
+    hasExistingConfig &&
+    llmFixableChecks.length === 0 &&
+    allFailingChecks.length > 0 &&
+    !options.force
+  ) {
     console.log(chalk.bold.green('\n  Your config is fully optimized for LLM generation.\n'));
     console.log(chalk.dim('  Remaining items need CLI actions:\n'));
     for (const check of allFailingChecks) {
@@ -205,7 +246,11 @@ export async function initCommand(options: InitOptions) {
       }
     }
     console.log('');
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to regenerate anyway.\n'));
+    console.log(
+      chalk.dim('  Run ') +
+        chalk.hex('#83D1EB')(`${bin} init --force`) +
+        chalk.dim(' to regenerate anyway.\n'),
+    );
     return;
   }
 
@@ -235,8 +280,14 @@ export async function initCommand(options: InitOptions) {
   const TASK_STACK = display.add('Detecting project stack', { pipelineLabel: 'Scan' });
   const TASK_CONFIG = display.add('Generating configs', { depth: 1, pipelineLabel: 'Generate' });
   const TASK_SKILLS_GEN = display.add('Generating skills', { depth: 2, pipelineLabel: 'Skills' });
-  const TASK_SKILLS_SEARCH = display.add('Searching community skills', { depth: 1, pipelineLabel: 'Search', pipelineRow: 1 });
-  const TASK_SCORE_REFINE = display.add('Validating & refining config', { pipelineLabel: 'Validate' });
+  const TASK_SKILLS_SEARCH = display.add('Searching community skills', {
+    depth: 1,
+    pipelineLabel: 'Search',
+    pipelineRow: 1,
+  });
+  const TASK_SCORE_REFINE = display.add('Validating & refining config', {
+    pipelineLabel: 'Validate',
+  });
   display.start();
   display.enableWaitingContent();
 
@@ -247,13 +298,21 @@ export async function initCommand(options: InitOptions) {
 
     const stackParts = [...fingerprint.languages, ...fingerprint.frameworks];
     const stackSummary = stackParts.join(', ') || 'no languages';
-    const largeRepoNote = fingerprint.fileTree.length > 5000
-      ? ` (${fingerprint.fileTree.length.toLocaleString()} files, smart sampling active)`
-      : '';
+    const largeRepoNote =
+      fingerprint.fileTree.length > 5000
+        ? ` (${fingerprint.fileTree.length.toLocaleString()} files, smart sampling active)`
+        : '';
     display.update(TASK_STACK, 'done', stackSummary + largeRepoNote);
 
-    trackInitProjectDiscovered(fingerprint.languages.length, fingerprint.frameworks.length, fingerprint.fileTree.length);
-    log(options.verbose, `Fingerprint: ${fingerprint.languages.length} languages, ${fingerprint.frameworks.length} frameworks, ${fingerprint.fileTree.length} files`);
+    trackInitProjectDiscovered(
+      fingerprint.languages.length,
+      fingerprint.frameworks.length,
+      fingerprint.fileTree.length,
+    );
+    log(
+      options.verbose,
+      `Fingerprint: ${fingerprint.languages.length} languages, ${fingerprint.frameworks.length} frameworks, ${fingerprint.fileTree.length} files`,
+    );
 
     // Resolve external sources
     const cliSources = options.source || [];
@@ -261,15 +320,26 @@ export async function initCommand(options: InitOptions) {
     const sources = resolveAllSources(process.cwd(), cliSources, workspaces);
     if (sources.length > 0) {
       fingerprint.sources = sources;
-      log(options.verbose, `Sources: ${sources.length} resolved (${sources.map(s => s.name).join(', ')})`);
+      log(
+        options.verbose,
+        `Sources: ${sources.length} resolved (${sources.map((s) => s.name).join(', ')})`,
+      );
     }
 
     if (report) {
-      report.addJson('Fingerprint: Git', { remote: fingerprint.gitRemoteUrl, packageName: fingerprint.packageName });
+      report.addJson('Fingerprint: Git', {
+        remote: fingerprint.gitRemoteUrl,
+        packageName: fingerprint.packageName,
+      });
       report.addCodeBlock('Fingerprint: File Tree', fingerprint.fileTree.join('\n'));
-      report.addJson('Fingerprint: Detected Stack', { languages: fingerprint.languages, frameworks: fingerprint.frameworks, tools: fingerprint.tools });
+      report.addJson('Fingerprint: Detected Stack', {
+        languages: fingerprint.languages,
+        frameworks: fingerprint.frameworks,
+        tools: fingerprint.tools,
+      });
       report.addJson('Fingerprint: Existing Configs', fingerprint.existingConfigs);
-      if (fingerprint.codeAnalysis) report.addJson('Fingerprint: Code Analysis', fingerprint.codeAnalysis);
+      if (fingerprint.codeAnalysis)
+        report.addJson('Fingerprint: Code Analysis', fingerprint.codeAnalysis);
     }
 
     // Get project description if empty
@@ -285,15 +355,15 @@ export async function initCommand(options: InitOptions) {
 
     const generatePromise = (async () => {
       let localBaseline = baselineScore;
-      const failingForDismissal = localBaseline.checks.filter(c => !c.passed && c.maxPoints > 0);
+      const failingForDismissal = localBaseline.checks.filter((c) => !c.passed && c.maxPoints > 0);
       if (failingForDismissal.length > 0) {
         display.update(TASK_CONFIG, 'running', 'Evaluating baseline checks...');
         try {
           const newDismissals = await evaluateDismissals(failingForDismissal, fingerprint);
           if (newDismissals.length > 0) {
             const existing = readDismissedChecks();
-            const existingIds = new Set(existing.map(d => d.id));
-            const merged = [...existing, ...newDismissals.filter(d => !existingIds.has(d.id))];
+            const existingIds = new Set(existing.map((d) => d.id));
+            const merged = [...existing, ...newDismissals.filter((d) => !existingIds.has(d.id))];
             writeDismissedChecks(merged);
             localBaseline = computeLocalScore(process.cwd(), targetAgent);
           }
@@ -307,18 +377,27 @@ export async function initCommand(options: InitOptions) {
       let currentScore: number | undefined;
 
       if (hasExistingConfig && localBaseline.score >= 95 && !options.force) {
-        const currentLlmFixable = localBaseline.checks
-          .filter(c => !c.passed && c.maxPoints > 0 && !NON_LLM_CHECKS.has(c.id));
-        failingChecks = currentLlmFixable
-          .map(c => ({ name: c.name, suggestion: c.suggestion, fix: c.fix }));
-        passingChecks = localBaseline.checks
-          .filter(c => c.passed)
-          .map(c => ({ name: c.name }));
+        const currentLlmFixable = localBaseline.checks.filter(
+          (c) => !c.passed && c.maxPoints > 0 && !NON_LLM_CHECKS.has(c.id),
+        );
+        failingChecks = currentLlmFixable.map((c) => ({
+          name: c.name,
+          suggestion: c.suggestion,
+          fix: c.fix,
+        }));
+        passingChecks = localBaseline.checks.filter((c) => c.passed).map((c) => ({ name: c.name }));
         currentScore = localBaseline.score;
       }
 
       if (report) {
-        const fullPrompt = buildGeneratePrompt(fingerprint, targetAgent, fingerprint.description, failingChecks, currentScore, passingChecks);
+        const fullPrompt = buildGeneratePrompt(
+          fingerprint,
+          targetAgent,
+          fingerprint.description,
+          failingChecks,
+          currentScore,
+          passingChecks,
+        );
         report.addCodeBlock('Generation: Full LLM Prompt', fullPrompt);
       }
 
@@ -328,12 +407,17 @@ export async function initCommand(options: InitOptions) {
         fingerprint.description,
         {
           onStatus: (status) => display.update(TASK_CONFIG, 'running', status),
-          onComplete: (setup) => { generatedSetup = setup; },
+          onComplete: (setup) => {
+            generatedSetup = setup;
+          },
           onError: (error) => display.update(TASK_CONFIG, 'failed', error),
           onContent: (text) => {
-            const lines = text.split('\n').filter(l => l.trim()).slice(-8);
+            const lines = text
+              .split('\n')
+              .filter((l) => l.trim())
+              .slice(-8);
             if (lines.length > 0) {
-              display.setPreviewContent(lines.map(l => `  ${chalk.dim(l.slice(0, 80))}`));
+              display.setPreviewContent(lines.map((l) => `  ${chalk.dim(l.slice(0, 80))}`));
             }
           },
         },
@@ -371,20 +455,19 @@ export async function initCommand(options: InitOptions) {
       display.update(TASK_SKILLS_SEARCH, 'running');
       try {
         const searchWithTimeout = Promise.race([
-          searchSkills(
-            fingerprint,
-            targetAgent,
-            (status) => display.update(TASK_SKILLS_SEARCH, 'running', status),
+          searchSkills(fingerprint, targetAgent, (status) =>
+            display.update(TASK_SKILLS_SEARCH, 'running', status),
           ),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), SEARCH_TIMEOUT_MS)
+            setTimeout(() => reject(new Error('timeout')), SEARCH_TIMEOUT_MS),
           ),
         ]);
         skillSearchResult = await searchWithTimeout;
         const count = skillSearchResult.results.length;
         display.update(TASK_SKILLS_SEARCH, 'done', count > 0 ? `${count} found` : 'No matches');
       } catch (err) {
-        const reason = err instanceof Error && err.message === 'timeout' ? 'Timed out' : 'Search failed';
+        const reason =
+          err instanceof Error && err.message === 'timeout' ? 'Timed out' : 'Search failed';
         display.update(TASK_SKILLS_SEARCH, 'failed', reason);
       }
     })();
@@ -415,7 +498,6 @@ export async function initCommand(options: InitOptions) {
     } else {
       display.update(TASK_SCORE_REFINE, 'failed', 'No config to validate');
     }
-
   } catch (err) {
     display.stop();
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -448,7 +530,10 @@ export async function initCommand(options: InitOptions) {
     report.addJson('Generation: Parsed Config', generatedSetup);
   }
 
-  log(options.verbose, `Generation completed: ${elapsedMs}ms, stopReason: ${genStopReason || 'end_turn'}`);
+  log(
+    options.verbose,
+    `Generation completed: ${elapsedMs}ms, stopReason: ${genStopReason || 'end_turn'}`,
+  );
 
   // ───────────────────────────────────────────────────────────────────────────
   // Step 3 — Review
@@ -469,10 +554,18 @@ export async function initCommand(options: InitOptions) {
     console.log('');
   }
 
-  console.log(chalk.dim(`  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}`));
+  console.log(
+    chalk.dim(
+      `  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}`,
+    ),
+  );
 
   if (skillSearchResult.results.length > 0) {
-    console.log(chalk.dim(`  ${chalk.cyan(`${skillSearchResult.results.length}`)} community skills available to install\n`));
+    console.log(
+      chalk.dim(
+        `  ${chalk.cyan(`${skillSearchResult.results.length}`)} community skills available to install\n`,
+      ),
+    );
   } else {
     console.log('');
   }
@@ -512,7 +605,11 @@ export async function initCommand(options: InitOptions) {
     }
     const updatedFiles = collectSetupFiles(generatedSetup, targetAgent);
     const restaged = stageFiles(updatedFiles, process.cwd());
-    console.log(chalk.dim(`  ${chalk.green(`${restaged.newFiles} new`)} / ${chalk.yellow(`${restaged.modifiedFiles} modified`)} file${restaged.newFiles + restaged.modifiedFiles !== 1 ? 's' : ''}\n`));
+    console.log(
+      chalk.dim(
+        `  ${chalk.green(`${restaged.newFiles} new`)} / ${chalk.yellow(`${restaged.modifiedFiles} modified`)} file${restaged.newFiles + restaged.modifiedFiles !== 1 ? 's' : ''}\n`,
+      ),
+    );
     printSetupSummary(generatedSetup);
 
     const { openReview: openRev } = await import('../utils/review.js');
@@ -549,7 +646,8 @@ export async function initCommand(options: InitOptions) {
       const agentRefs: string[] = [];
       if (claude) agentRefs.push('See `CLAUDE.md` for Claude Code configuration.');
       if (cursor) agentRefs.push('See `.cursor/rules/` for Cursor rules.');
-      if (agentRefs.length === 0) agentRefs.push('See CLAUDE.md and .cursor/rules/ for agent configurations.');
+      if (agentRefs.length === 0)
+        agentRefs.push('See CLAUDE.md and .cursor/rules/ for agent configurations.');
       const stubContent = `# AGENTS.md\n\nThis project uses AI coding agents configured by [Caliber](https://github.com/caliber-ai-org/ai-setup).\n\n${agentRefs.join(' ')}\n`;
       (generatedSetup as Record<string, unknown>).codex = { agentsMd: stubContent };
     }
@@ -597,29 +695,54 @@ export async function initCommand(options: InitOptions) {
   if (afterScore.score < baselineScore.score) {
     trackInitScoreRegression(baselineScore.score, afterScore.score);
     console.log('');
-    console.log(chalk.yellow(`  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`));
+    console.log(
+      chalk.yellow(
+        `  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`,
+      ),
+    );
     try {
       const { restored, removed } = undoSetup();
       if (restored.length > 0 || removed.length > 0) {
-        console.log(chalk.dim(`  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`));
+        console.log(
+          chalk.dim(
+            `  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`,
+          ),
+        );
       }
-    } catch { /* best effort */ }
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to override.\n'));
+    } catch {
+      /* best effort */
+    }
+    console.log(
+      chalk.dim('  Run ') +
+        chalk.hex('#83D1EB')(`${bin} init --force`) +
+        chalk.dim(' to override.\n'),
+    );
     return;
   }
 
   if (report) {
     report.markStep('Post-write scoring');
-    report.addSection('Scoring: Post-Write', `**Score**: ${afterScore.score}/100 (delta: ${afterScore.score - baselineScore.score >= 0 ? '+' : ''}${afterScore.score - baselineScore.score})\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
-      afterScore.checks.map(c => `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`).join('\n'));
+    report.addSection(
+      'Scoring: Post-Write',
+      `**Score**: ${afterScore.score}/100 (delta: ${afterScore.score - baselineScore.score >= 0 ? '+' : ''}${afterScore.score - baselineScore.score})\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
+        afterScore.checks
+          .map(
+            (c) =>
+              `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`,
+          )
+          .join('\n'),
+    );
   }
 
   recordScore(afterScore, 'init');
   displayScoreDelta(baselineScore, afterScore);
   if (options.verbose) {
     log(options.verbose, `Final score: ${afterScore.score}/100`);
-    for (const c of afterScore.checks.filter(ch => !ch.passed)) {
-      log(options.verbose, `  Still failing: ${c.name} (${c.earnedPoints}/${c.maxPoints})${c.suggestion ? ` — ${c.suggestion}` : ''}`);
+    for (const c of afterScore.checks.filter((ch) => !ch.passed)) {
+      log(
+        options.verbose,
+        `  Still failing: ${c.name} (${c.earnedPoints}/${c.maxPoints})${c.suggestion ? ` — ${c.suggestion}` : ''}`,
+      );
     }
   }
 
@@ -637,7 +760,9 @@ export async function initCommand(options: InitOptions) {
 
   // Docs auto-refresh is now handled via instructions in generated config files
   console.log('');
-  console.log(`  ${chalk.green('✓')} Docs auto-refresh          ${chalk.dim(`agents run ${resolveCaliber()} refresh before commits`)}`);
+  console.log(
+    `  ${chalk.green('✓')} Docs auto-refresh          ${chalk.dim(`agents run ${resolveCaliber()} refresh before commits`)}`,
+  );
   trackInitHookSelected('config-instructions');
 
   // Session Learning prompt
@@ -650,17 +775,28 @@ export async function initCommand(options: InitOptions) {
       if (enableLearn) {
         if (targetAgent.includes('claude')) {
           const r = installLearningHooks();
-          if (r.installed) console.log(`  ${chalk.green('✓')} Learning hooks installed for Claude Code`);
-          else if (r.alreadyInstalled) console.log(chalk.dim('  Claude Code learning hooks already installed'));
+          if (r.installed)
+            console.log(`  ${chalk.green('✓')} Learning hooks installed for Claude Code`);
+          else if (r.alreadyInstalled)
+            console.log(chalk.dim('  Claude Code learning hooks already installed'));
         }
         if (targetAgent.includes('cursor')) {
           const r = installCursorLearningHooks();
           if (r.installed) console.log(`  ${chalk.green('✓')} Learning hooks installed for Cursor`);
-          else if (r.alreadyInstalled) console.log(chalk.dim('  Cursor learning hooks already installed'));
+          else if (r.alreadyInstalled)
+            console.log(chalk.dim('  Cursor learning hooks already installed'));
         }
-        console.log(chalk.dim('    Run ') + chalk.hex('#83D1EB')(`${bin} learn status`) + chalk.dim(' to see insights'));
+        console.log(
+          chalk.dim('    Run ') +
+            chalk.hex('#83D1EB')(`${bin} learn status`) +
+            chalk.dim(' to see insights'),
+        );
       } else {
-        console.log(chalk.dim('  Skipped. Run ') + chalk.hex('#83D1EB')(`${bin} learn install`) + chalk.dim(' later to enable.'));
+        console.log(
+          chalk.dim('  Skipped. Run ') +
+            chalk.hex('#83D1EB')(`${bin} learn install`) +
+            chalk.dim(' later to enable.'),
+        );
       }
     } else {
       enableLearn = true;
@@ -671,34 +807,52 @@ export async function initCommand(options: InitOptions) {
 
   // Done!
   console.log(chalk.bold.green('\n  Configuration complete!'));
-  console.log(chalk.dim('  Your AI agents now understand your project\'s architecture, build commands,'));
-  console.log(chalk.dim('  testing patterns, and conventions. All changes are backed up automatically.\n'));
+  console.log(
+    chalk.dim("  Your AI agents now understand your project's architecture, build commands,"),
+  );
+  console.log(
+    chalk.dim('  testing patterns, and conventions. All changes are backed up automatically.\n'),
+  );
 
   const done = chalk.green('✓');
   const skip = chalk.dim('–');
 
   console.log(chalk.bold('  What was configured:\n'));
 
-  console.log(`    ${done}  Config generated          ${title(`${bin} score`)} ${chalk.dim('for full breakdown')}`);
-  console.log(`    ${done}  Docs auto-refresh        ${chalk.dim(`agents run ${bin} refresh before commits`)}`);
+  console.log(
+    `    ${done}  Config generated          ${title(`${bin} score`)} ${chalk.dim('for full breakdown')}`,
+  );
+  console.log(
+    `    ${done}  Docs auto-refresh        ${chalk.dim(`agents run ${bin} refresh before commits`)}`,
+  );
 
   if (hasLearnableAgent) {
     if (enableLearn) {
-      console.log(`    ${done}  Session learning          ${chalk.dim('agent learns from your feedback')}`);
+      console.log(
+        `    ${done}  Session learning          ${chalk.dim('agent learns from your feedback')}`,
+      );
     } else {
-      console.log(`    ${skip}  Session learning          ${title(`${bin} learn install`)} to enable later`);
+      console.log(
+        `    ${skip}  Session learning          ${title(`${bin} learn install`)} to enable later`,
+      );
     }
   }
 
   if (communitySkillsInstalled > 0) {
-    console.log(`    ${done}  Community skills          ${chalk.dim(`${communitySkillsInstalled} skill${communitySkillsInstalled > 1 ? 's' : ''} installed for your stack`)}`);
+    console.log(
+      `    ${done}  Community skills          ${chalk.dim(`${communitySkillsInstalled} skill${communitySkillsInstalled > 1 ? 's' : ''} installed for your stack`)}`,
+    );
   } else if (skillSearchResult.results.length > 0) {
     console.log(`    ${skip}  Community skills          ${chalk.dim('available but skipped')}`);
   }
 
   console.log(chalk.bold('\n  Explore next:\n'));
-  console.log(`    ${title(`${bin} skills`)}       Find more community skills as your codebase evolves`);
-  console.log(`    ${title(`${bin} score`)}        See the full scoring breakdown with improvement tips`);
+  console.log(
+    `    ${title(`${bin} skills`)}       Find more community skills as your codebase evolves`,
+  );
+  console.log(
+    `    ${title(`${bin} score`)}        See the full scoring breakdown with improvement tips`,
+  );
   console.log(`    ${title(`${bin} undo`)}         Revert all changes from this run`);
   console.log('');
 
@@ -710,6 +864,8 @@ export async function initCommand(options: InitOptions) {
     report.markStep('Finished');
     const reportPath = path.join(process.cwd(), '.caliber', 'debug-report.md');
     report.write(reportPath);
-    console.log(chalk.dim(`  Debug report written to ${path.relative(process.cwd(), reportPath)}\n`));
+    console.log(
+      chalk.dim(`  Debug report written to ${path.relative(process.cwd(), reportPath)}\n`),
+    );
   }
 }

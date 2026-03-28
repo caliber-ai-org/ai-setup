@@ -3,8 +3,7 @@ import fs from 'fs';
 
 vi.mock('fs');
 
-import { writeLearnedContent, readLearnedSection, readPersonalLearnings } from '../writer.js';
-import { PERSONAL_LEARNINGS_FILE } from '../../constants.js';
+import { writeLearnedContent, readLearnedSection } from '../writer.js';
 
 describe('writer', () => {
   beforeEach(() => {
@@ -13,9 +12,7 @@ describe('writer', () => {
 
   describe('deduplication', () => {
     it('removes duplicate bullets by substring match', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
       vi.mocked(fs.readFileSync).mockReturnValue(
         '# Caliber Learnings\n\nSome header.\n\n- Use pnpm for installs\n',
       );
@@ -30,9 +27,7 @@ describe('writer', () => {
     });
 
     it('removes duplicates when incoming is substring of existing with sufficient overlap', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
       vi.mocked(fs.readFileSync).mockReturnValue(
         '# Caliber Learnings\n\n- Always use pnpm for all package installs\n',
       );
@@ -46,9 +41,7 @@ describe('writer', () => {
     });
 
     it('keeps items when overlap ratio is below 70%', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
       vi.mocked(fs.readFileSync).mockReturnValue(
         '# Caliber Learnings\n\n- Never use npm - this project requires pnpm for all dependency management\n',
       );
@@ -63,9 +56,7 @@ describe('writer', () => {
     });
 
     it('preserves genuinely different items', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
       vi.mocked(fs.readFileSync).mockReturnValue(
         '# Caliber Learnings\n\n- Use pnpm for installs\n',
       );
@@ -83,20 +74,17 @@ describe('writer', () => {
     });
 
     it('caps at 30 items, keeping newest', () => {
-      const existingBullets = Array.from({ length: 28 }, (_, i) =>
-        `- Existing rule number ${i + 1}`
+      const existingBullets = Array.from(
+        { length: 28 },
+        (_, i) => `- Existing rule number ${i + 1}`,
       ).join('\n');
 
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
-      vi.mocked(fs.readFileSync).mockReturnValue(
-        `# Caliber Learnings\n\n${existingBullets}\n`,
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
+      vi.mocked(fs.readFileSync).mockReturnValue(`# Caliber Learnings\n\n${existingBullets}\n`);
 
-      const newBullets = Array.from({ length: 5 }, (_, i) =>
-        `- Brand new rule ${i + 1}`
-      ).join('\n');
+      const newBullets = Array.from({ length: 5 }, (_, i) => `- Brand new rule ${i + 1}`).join(
+        '\n',
+      );
 
       const result = writeLearnedContent({
         claudeMdLearnedSection: newBullets,
@@ -105,7 +93,7 @@ describe('writer', () => {
 
       expect(result.newItemCount).toBe(5);
       const written = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
-      const bullets = written.split('\n').filter(l => l.startsWith('- '));
+      const bullets = written.split('\n').filter((l) => l.startsWith('- '));
       expect(bullets).toHaveLength(30);
       expect(bullets[0]).toBe('- Existing rule number 4');
       expect(bullets[bullets.length - 1]).toBe('- Brand new rule 5');
@@ -114,9 +102,7 @@ describe('writer', () => {
 
   describe('type prefix handling', () => {
     it('typed bullet deduplicates against untyped version', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
       vi.mocked(fs.readFileSync).mockReturnValue(
         '# Caliber Learnings\n\n- Use pnpm for installs\n',
       );
@@ -133,9 +119,7 @@ describe('writer', () => {
     });
 
     it('typed bullet replaces untyped duplicate', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
       vi.mocked(fs.readFileSync).mockReturnValue(
         '# Caliber Learnings\n\n- Never edit generated files\n',
       );
@@ -153,7 +137,8 @@ describe('writer', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false);
 
       const result = writeLearnedContent({
-        claudeMdLearnedSection: '- **[gotcha]** tsup swallows type errors\n- **[env]** DATABASE_URL must be set',
+        claudeMdLearnedSection:
+          '- **[gotcha]** tsup swallows type errors\n- **[env]** DATABASE_URL must be set',
         skills: null,
       });
 
@@ -196,15 +181,17 @@ describe('writer', () => {
 
       const result = writeLearnedContent({
         claudeMdLearnedSection: null,
-        skills: [{
-          name: 'learned-db-setup',
-          description: 'Database setup steps',
-          content: '# DB Setup\n\nRun migrations first.',
-          isNew: true,
-        }],
+        skills: [
+          {
+            name: 'learned-db-setup',
+            description: 'Database setup steps',
+            content: '# DB Setup\n\nRun migrations first.',
+            isNew: true,
+          },
+        ],
       });
 
-      const skillPath = result.written.find(p => p.includes('learned-db-setup'));
+      const skillPath = result.written.find((p) => p.includes('learned-db-setup'));
       expect(skillPath).toBeDefined();
     });
   });
@@ -221,7 +208,7 @@ describe('writer', () => {
       expect(result.personalItemCount).toBe(1);
       expect(result.newItemCount).toBe(0);
       const calls = vi.mocked(fs.writeFileSync).mock.calls;
-      const personalCall = calls.find(c => String(c[0]).includes('personal-learnings.md'));
+      const personalCall = calls.find((c) => String(c[0]).includes('personal-learnings.md'));
       expect(personalCall).toBeDefined();
       expect(String(personalCall![1])).toContain('use bun not npm');
     });
@@ -237,7 +224,7 @@ describe('writer', () => {
       expect(result.newItemCount).toBe(1);
       expect(result.personalItemCount).toBe(0);
       const calls = vi.mocked(fs.writeFileSync).mock.calls;
-      const projectCall = calls.find(c => String(c[0]) === 'CALIBER_LEARNINGS.md');
+      const projectCall = calls.find((c) => String(c[0]) === 'CALIBER_LEARNINGS.md');
       expect(projectCall).toBeDefined();
     });
 
@@ -274,9 +261,7 @@ describe('writer', () => {
 
   describe('readLearnedSection', () => {
     it('reads bullets from CALIBER_LEARNINGS.md', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) =>
-        String(p) === 'CALIBER_LEARNINGS.md'
-      );
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === 'CALIBER_LEARNINGS.md');
       vi.mocked(fs.readFileSync).mockReturnValue(
         '# Caliber Learnings\n\nSome description.\n\n- Use pnpm\n- Run tests\n',
       );

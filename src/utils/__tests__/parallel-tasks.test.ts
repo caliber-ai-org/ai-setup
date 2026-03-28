@@ -1,13 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ParallelTaskDisplay } from '../parallel-tasks.js';
 
-function captureOutput(display: ParallelTaskDisplay): () => string {
+function captureOutput(_display: ParallelTaskDisplay): () => string {
   const chunks: string[] = [];
-  const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: string | Uint8Array) => {
-    chunks.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk));
-    return true;
+  const writeSpy = vi
+    .spyOn(process.stdout, 'write')
+    .mockImplementation((chunk: string | Uint8Array) => {
+      chunks.push(typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk));
+      return true;
+    });
+  Object.defineProperty(process.stdout, 'columns', {
+    value: 120,
+    writable: true,
+    configurable: true,
   });
-  Object.defineProperty(process.stdout, 'columns', { value: 120, writable: true, configurable: true });
   return () => {
     writeSpy.mockRestore();
     return chunks.join('');
@@ -134,9 +140,9 @@ describe('ParallelTaskDisplay', () => {
       display.start();
       display.stop();
       const frame = getLastFrame(getOutput());
-      const lines = frame.split('\n').filter(l => l.trim());
+      const lines = frame.split('\n').filter((l) => l.trim());
 
-      const child1Line = lines.find(l => l.includes('Child 1'));
+      const child1Line = lines.find((l) => l.includes('Child 1'));
       expect(child1Line).toContain('├─');
     });
 
@@ -150,9 +156,9 @@ describe('ParallelTaskDisplay', () => {
       display.start();
       display.stop();
       const frame = getLastFrame(getOutput());
-      const lines = frame.split('\n').filter(l => l.trim());
+      const lines = frame.split('\n').filter((l) => l.trim());
 
-      const child2Line = lines.find(l => l.includes('Child 2'));
+      const child2Line = lines.find((l) => l.includes('Child 2'));
       expect(child2Line).toContain('└─');
     });
 
@@ -167,9 +173,9 @@ describe('ParallelTaskDisplay', () => {
       display.start();
       display.stop();
       const frame = getLastFrame(getOutput());
-      const lines = frame.split('\n').filter(l => l.trim());
+      const lines = frame.split('\n').filter((l) => l.trim());
 
-      const subLine = lines.find(l => l.includes('Sub-task'));
+      const subLine = lines.find((l) => l.includes('Sub-task'));
       expect(subLine).toContain('│');
       expect(subLine).toContain('└─');
     });
@@ -185,9 +191,9 @@ describe('ParallelTaskDisplay', () => {
       display.start();
       display.stop();
       const frame = getLastFrame(getOutput());
-      const lines = frame.split('\n').filter(l => l.trim());
+      const lines = frame.split('\n').filter((l) => l.trim());
 
-      const subLine = lines.find(l => l.includes('Sub-task'));
+      const subLine = lines.find((l) => l.includes('Sub-task'));
       expect(subLine).toBeDefined();
       expect(subLine).toContain('└─');
       expect(subLine).not.toContain('│');
@@ -201,9 +207,9 @@ describe('ParallelTaskDisplay', () => {
       display.start();
       display.stop();
       const frame = getLastFrame(getOutput());
-      const lines = frame.split('\n').filter(l => l.trim());
+      const lines = frame.split('\n').filter((l) => l.trim());
 
-      const topLine = lines.find(l => l.includes('Top level'));
+      const topLine = lines.find((l) => l.includes('Top level'));
       expect(topLine).not.toContain('├─');
       expect(topLine).not.toContain('└─');
     });
@@ -304,7 +310,11 @@ describe('ParallelTaskDisplay', () => {
       display.add('Detecting project stack', { pipelineLabel: 'Scan' });
       display.add('Generating configs', { depth: 1, pipelineLabel: 'Generate' });
       display.add('Generating skills', { depth: 2, pipelineLabel: 'Skills' });
-      display.add('Searching community skills', { depth: 1, pipelineLabel: 'Search', pipelineRow: 1 });
+      display.add('Searching community skills', {
+        depth: 1,
+        pipelineLabel: 'Search',
+        pipelineRow: 1,
+      });
       display.add('Validating & refining config', { pipelineLabel: 'Validate' });
 
       const getOutput = captureOutput(display);
@@ -322,15 +332,15 @@ describe('ParallelTaskDisplay', () => {
       expect(frame).toContain('↗');
 
       // Tree connectors
-      const lines = frame.split('\n').filter(l => l.trim());
-      const configLine = lines.find(l => l.includes('Generating configs'));
+      const lines = frame.split('\n').filter((l) => l.trim());
+      const configLine = lines.find((l) => l.includes('Generating configs'));
       expect(configLine).toContain('├─');
 
-      const skillsLine = lines.find(l => l.includes('Generating skills'));
+      const skillsLine = lines.find((l) => l.includes('Generating skills'));
       expect(skillsLine).toContain('│');
       expect(skillsLine).toContain('└─');
 
-      const searchLine = lines.find(l => l.includes('Searching community'));
+      const searchLine = lines.find((l) => l.includes('Searching community'));
       expect(searchLine).toContain('└─');
     });
   });

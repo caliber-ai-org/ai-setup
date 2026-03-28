@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -12,7 +12,9 @@ function makeTempDir(): string {
 const tmpDirs: string[] = [];
 afterEach(() => {
   for (const d of tmpDirs) {
-    try { fs.rmSync(d, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(d, { recursive: true, force: true });
+    } catch {}
   }
   tmpDirs.length = 0;
 });
@@ -95,15 +97,18 @@ describe('fingerprint cache', () => {
       tmpDirs.push(tmp);
       const cacheDir = path.join(tmp, '.caliber', 'cache');
       fs.mkdirSync(cacheDir, { recursive: true });
-      fs.writeFileSync(path.join(cacheDir, 'fingerprint.json'), JSON.stringify({
-        version: 999,
-        gitHead: '',
-        treeSignature: '',
-        codeAnalysis: mockCodeAnalysis,
-        languages: [],
-        frameworks: [],
-        tools: [],
-      }));
+      fs.writeFileSync(
+        path.join(cacheDir, 'fingerprint.json'),
+        JSON.stringify({
+          version: 999,
+          gitHead: '',
+          treeSignature: '',
+          codeAnalysis: mockCodeAnalysis,
+          languages: [],
+          frameworks: [],
+          tools: [],
+        }),
+      );
 
       const cached = loadFingerprintCache(tmp, mockTree);
       expect(cached).toBeNull();

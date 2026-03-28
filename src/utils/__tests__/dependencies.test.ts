@@ -18,7 +18,7 @@ function setupFs(files: Record<string, string>) {
   for (const [k, v] of Object.entries(files)) {
     normalized[normalize(k)] = v;
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   mockFs.readFileSync.mockImplementation(((path: fs.PathLike) => {
     const content = normalized[String(path)];
     if (content === undefined) throw new Error(`ENOENT: ${path}`);
@@ -55,8 +55,11 @@ describe('extractNpmDeps', () => {
     setupFs({
       '/p/package.json': JSON.stringify({
         devDependencies: {
-          typescript: '5.0', prettier: '3.0', eslint: '9.0',
-          husky: '9.0', 'lint-staged': '15.0',
+          typescript: '5.0',
+          prettier: '3.0',
+          eslint: '9.0',
+          husky: '9.0',
+          'lint-staged': '15.0',
         },
       }),
     });

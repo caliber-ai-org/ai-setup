@@ -22,12 +22,10 @@ describe('readExistingConfigs', () => {
       return false;
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(fs.readdirSync).mockReturnValue(['testing', 'deployment'] as any);
 
     vi.mocked(fs.statSync).mockReturnValue({ isDirectory: () => true } as fs.Stats);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(fs.readFileSync).mockImplementation(((p: unknown) => {
       const s = String(p);
       if (s.includes('testing')) return '---\nname: Testing\n---\nTest instructions';

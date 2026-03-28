@@ -9,6 +9,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       exclude: ['src/test/**', 'src/bin.ts', 'src/cli.ts', 'src/commands/**', 'dist/**'],
+      thresholds: {
+        lines: 50,
+        functions: 50,
+        branches: 50,
+        statements: 50,
+      },
     },
   },
 });

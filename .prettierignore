@@ -1,0 +1,7 @@
+dist/
+coverage/
+node_modules/
+github-action/
+.caliber/
+*.md
+package-lock.json

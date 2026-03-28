@@ -12,7 +12,11 @@ describe('detectProjectStack', () => {
     vi.clearAllMocks();
     delete process.env.CALIBER_FAST_MODEL;
     delete process.env.ANTHROPIC_SMALL_FAST_MODEL;
-    mockLlmJsonCall.mockResolvedValue({ languages: ['TypeScript'], frameworks: ['Express'], tools: ['PostgreSQL'] });
+    mockLlmJsonCall.mockResolvedValue({
+      languages: ['TypeScript'],
+      frameworks: ['Express'],
+      tools: ['PostgreSQL'],
+    });
   });
 
   it('returns languages, frameworks, and tools from LLM', async () => {
@@ -54,7 +58,7 @@ describe('detectProjectStack', () => {
   it('uses provider default fast model when no env override is set', async () => {
     await detectProjectStack(['src/index.ts'], {});
 
-    const callArgs = mockLlmJsonCall.mock.calls[0][0];
+    const _options = mockLlmJsonCall.mock.calls[0][0];
     // getFastModel() auto-resolves to provider default when no env var is set
     // Result depends on configured provider — may be undefined or a default model
   });

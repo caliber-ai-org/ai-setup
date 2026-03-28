@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import crypto from 'crypto';
 
 vi.mock('fs');
 
@@ -23,7 +22,6 @@ describe('scanLocalState — cursor skills', () => {
       return false;
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
       const s = String(p);
       if (s === path.join(dir, '.cursor', 'skills')) {
@@ -32,11 +30,10 @@ describe('scanLocalState — cursor skills', () => {
       return [];
     }) as any);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(fs.readFileSync).mockReturnValue('---\nname: My Skill\n---\nContent' as any);
 
     const items = scanLocalState(dir);
-    const cursorSkills = items.filter(i => i.type === 'skill' && i.platform === 'cursor');
+    const cursorSkills = items.filter((i) => i.type === 'skill' && i.platform === 'cursor');
 
     expect(cursorSkills).toHaveLength(1);
     expect(cursorSkills[0].name).toBe('my-skill/SKILL.md');
@@ -47,7 +44,7 @@ describe('scanLocalState — cursor skills', () => {
   it('returns no cursor skills when directory does not exist', () => {
     vi.mocked(fs.existsSync).mockReturnValue(false);
     const items = scanLocalState('/project');
-    const cursorSkills = items.filter(i => i.type === 'skill' && i.platform === 'cursor');
+    const cursorSkills = items.filter((i) => i.type === 'skill' && i.platform === 'cursor');
     expect(cursorSkills).toHaveLength(0);
   });
 });

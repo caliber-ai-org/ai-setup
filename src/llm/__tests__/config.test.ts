@@ -5,7 +5,17 @@ import path from 'path';
 vi.mock('fs');
 vi.mock('os', () => ({ default: { homedir: () => '/home/user' } }));
 
-import { loadConfig, resolveFromEnv, readConfigFile, writeConfigFile, DEFAULT_MODELS, DEFAULT_FAST_MODELS, getFastModel, getMaxPromptTokens, MODEL_CONTEXT_WINDOWS } from '../config.js';
+import {
+  loadConfig,
+  resolveFromEnv,
+  readConfigFile,
+  writeConfigFile,
+  DEFAULT_MODELS,
+  DEFAULT_FAST_MODELS,
+  getFastModel,
+  getMaxPromptTokens,
+  MODEL_CONTEXT_WINDOWS,
+} from '../config.js';
 
 const CONFIG_DIR = path.join('/home/user', '.caliber');
 
@@ -178,9 +188,13 @@ describe('config', () => {
 
     it('parses valid config file', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test' }) as any
+        JSON.stringify({
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          apiKey: 'sk-test',
+        }) as any,
       );
       const config = readConfigFile();
       expect(config?.provider).toBe('anthropic');
@@ -189,34 +203,34 @@ describe('config', () => {
 
     it('returns null for invalid JSON', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue('not json' as any);
       expect(readConfigFile()).toBeNull();
     });
 
     it('returns null for legacy config without provider field', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ api_base: 'http://localhost', token: 'abc' }) as any
+        JSON.stringify({ api_base: 'http://localhost', token: 'abc' }) as any,
       );
       expect(readConfigFile()).toBeNull();
     });
 
     it('returns null for unknown provider type', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'gemini', model: 'gemini-2' }) as any
+        JSON.stringify({ provider: 'gemini', model: 'gemini-2' }) as any,
       );
       expect(readConfigFile()).toBeNull();
     });
 
     it('parses config file with cursor provider', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'cursor', model: 'default' }) as any
+        JSON.stringify({ provider: 'cursor', model: 'default' }) as any,
       );
       const config = readConfigFile();
       expect(config?.provider).toBe('cursor');
@@ -225,9 +239,9 @@ describe('config', () => {
 
     it('parses config file with claude-cli provider', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'claude-cli', model: 'default' }) as any
+        JSON.stringify({ provider: 'claude-cli', model: 'default' }) as any,
       );
       const config = readConfigFile();
       expect(config?.provider).toBe('claude-cli');
@@ -244,9 +258,9 @@ describe('config', () => {
 
     it('falls back to config file when no env vars', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'openai', model: 'gpt-4.1', apiKey: 'sk-test' }) as any
+        JSON.stringify({ provider: 'openai', model: 'gpt-4.1', apiKey: 'sk-test' }) as any,
       );
       const config = loadConfig();
       expect(config?.provider).toBe('openai');
@@ -259,9 +273,13 @@ describe('config', () => {
     it('env vars take priority over config file', () => {
       process.env.OPENAI_API_KEY = 'sk-from-env';
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-from-file' }) as any
+        JSON.stringify({
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          apiKey: 'sk-from-file',
+        }) as any,
       );
       const config = loadConfig();
       expect(config?.provider).toBe('openai');
@@ -370,9 +388,14 @@ describe('config', () => {
 
     it('config file fastModel overrides provider default', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test', fastModel: 'custom-fast' }) as any
+        JSON.stringify({
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          apiKey: 'sk-test',
+          fastModel: 'custom-fast',
+        }) as any,
       );
       expect(getFastModel()).toBe('custom-fast');
     });
@@ -381,9 +404,14 @@ describe('config', () => {
       process.env.CALIBER_FAST_MODEL = 'env-fast-model';
       process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test', fastModel: 'config-fast' }) as any
+        JSON.stringify({
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-6',
+          apiKey: 'sk-test',
+          fastModel: 'config-fast',
+        }) as any,
       );
       expect(getFastModel()).toBe('env-fast-model');
     });
