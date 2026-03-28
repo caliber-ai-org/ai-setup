@@ -14,7 +14,7 @@
 
 ---
 
-### Try it — zero install, zero commitment
+### Try it вЂ” zero install, zero commitment
 
 ```bash
 npx @rely-ai/caliber score
@@ -22,19 +22,19 @@ npx @rely-ai/caliber score
 
 Score your AI agent config in 3 seconds. No API key. No changes to your code. Just a score.
 
-> **Your code stays on your machine.** Scoring is 100% local — no LLM calls, no code sent anywhere. Generation uses your own AI subscription (Claude Code, Cursor) or your own API key (Anthropic, OpenAI, Vertex AI). Caliber never sees your code.
+> **Your code stays on your machine.** Scoring is 100% local вЂ” no LLM calls, no code sent anywhere. Generation uses your own AI subscription (Claude Code, Cursor) or your own API key (Anthropic, OpenAI, Vertex AI). Caliber never sees your code.
 
 ---
 
-Caliber scores, generates, and keeps your AI agent configs in sync with your codebase. It fingerprints your project — languages, frameworks, dependencies, architecture — and produces tailored configs for **Claude Code**, **Cursor**, and **OpenAI Codex**. When your code evolves, Caliber detects the drift and updates your configs to match.
+Caliber scores, generates, and keeps your AI agent configs in sync with your codebase. It fingerprints your project вЂ” languages, frameworks, dependencies, architecture вЂ” and produces tailored configs for **Claude Code**, **Cursor**, and **OpenAI Codex**. When your code evolves, Caliber detects the drift and updates your configs to match.
 
 ## Before / After
 
-Most repos start with a hand-written `CLAUDE.md` and nothing else. Here's what Caliber finds — and fixes:
+Most repos start with a hand-written `CLAUDE.md` and nothing else. Here's what Caliber finds вЂ” and fixes:
 
 ```
   Before                                    After caliber init
-  ──────────────────────────────            ──────────────────────────────
+  в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ            в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
 
   Agent Config Score    35 / 100            Agent Config Score    94 / 100
   Grade D                                   Grade A
@@ -47,7 +47,7 @@ Most repos start with a hand-written `CLAUDE.md` and nothing else. Here's what C
   BONUS                   0 / 5             BONUS                   5 / 5
 ```
 
-Scoring is deterministic — no LLM, no API calls. It cross-references your config files against your actual project filesystem: do referenced paths exist? Are code blocks present? Is there config drift since your last commit?
+Scoring is deterministic вЂ” no LLM, no API calls. It cross-references your config files against your actual project filesystem: do referenced paths exist? Are code blocks present? Is there config drift since your last commit?
 
 ```bash
 caliber score --compare main    # See how your branch changed the score
@@ -57,11 +57,11 @@ caliber score --compare main    # See how your branch changed the score
 
 Caliber never overwrites your existing configs without asking. The workflow mirrors code review:
 
-1. **Score** — read-only audit of your current setup
-2. **Propose** — generate or improve configs, shown as a diff
-3. **Review** — accept, refine via chat, or decline each change
-4. **Backup** — originals saved to `.caliber/backups/` before every write
-5. **Undo** — `caliber undo` restores everything to its previous state
+1. **Score** вЂ” read-only audit of your current setup
+2. **Propose** вЂ” generate or improve configs, shown as a diff
+3. **Review** вЂ” accept, refine via chat, or decline each change
+4. **Backup** вЂ” originals saved to `.caliber/backups/` before every write
+5. **Undo** вЂ” `caliber undo` restores everything to its previous state
 
 If your existing config scores **95+**, Caliber skips full regeneration and applies targeted fixes to the specific checks that are failing.
 
@@ -71,47 +71,72 @@ Caliber is not a one-time setup tool. It's a loop:
 
 ```
           caliber score
-              │
-              ▼
-  ┌──── caliber init ◄────────────────┐
-  │     (generate / fix)              │
-  │           │                       │
-  │           ▼                       │
-  │     your code evolves             │
-  │     (new deps, renamed files,     │
-  │      changed architecture)        │
-  │           │                       │
-  │           ▼                       │
-  └──► caliber refresh ──────────────►┘
+              в”‚
+              в–ј
+  в”Њв”Ђв”Ђв”Ђв”Ђ caliber init в—„в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”ђ
+  в”‚     (generate / fix)              в”‚
+  в”‚           в”‚                       в”‚
+  в”‚           в–ј                       в”‚
+  в”‚     your code evolves             в”‚
+  в”‚     (new deps, renamed files,     в”‚
+  в”‚      changed architecture)        в”‚
+  в”‚           в”‚                       в”‚
+  в”‚           в–ј                       в”‚
+  в””в”Ђв”Ђв–є caliber refresh в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв–єв”
        (detect drift, update configs)
 ```
 
-Auto-refresh hooks run this loop automatically — on every commit or at the end of each AI coding session.
+Auto-refresh hooks run this loop automatically вЂ” on every commit or at the end of each AI coding session.
 
 ### What It Generates
 
 **Claude Code**
-- `CLAUDE.md` — Project context, build/test commands, architecture, conventions
-- `CALIBER_LEARNINGS.md` — Patterns learned from your AI coding sessions
-- `.claude/skills/*/SKILL.md` — Reusable skills ([OpenSkills](https://agentskills.io) format)
-- `.mcp.json` — Auto-discovered MCP server configurations
-- `.claude/settings.json` — Permissions and hooks
+- `CLAUDE.md` вЂ” Project context, build/test commands, architecture, conventions
+- `CALIBER_LEARNINGS.md` вЂ” Patterns learned from your AI coding sessions
+- `.claude/skills/*/SKILL.md` вЂ” Reusable skills ([OpenSkills](https://agentskills.io) format)
+- `.mcp.json` вЂ” Auto-discovered MCP server configurations
+- `.claude/settings.json` вЂ” Permissions and hooks
 
 **Cursor**
-- `.cursor/rules/*.mdc` — Modern rules with frontmatter (description, globs, alwaysApply)
-- `.cursor/skills/*/SKILL.md` — Skills for Cursor
-- `.cursor/mcp.json` — MCP server configurations
+- `.cursor/rules/*.mdc` вЂ” Modern rules with frontmatter (description, globs, alwaysApply)
+- `.cursor/skills/*/SKILL.md` вЂ” Skills for Cursor
+- `.cursor/mcp.json` вЂ” MCP server configurations
 
 **OpenAI Codex**
-- `AGENTS.md` — Project context for Codex
-- `.agents/skills/*/SKILL.md` — Skills for Codex
+- `AGENTS.md` вЂ” Project context for Codex
+- `.agents/skills/*/SKILL.md` вЂ” Skills for Codex
+
+### Optional: Wrap an MCP server with a stdio firewall
+
+If you already launch a local stdio MCP server from `.mcp.json` or `.cursor/mcp.json`, you can place it behind `mcp-transport-firewall` without changing the underlying server package. This keeps the generated MCP config surface the same while adding an explicit fail-closed transport boundary.
+
+```json
+{
+  "mcpServers": {
+    "filesystem-safe": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-transport-firewall",
+        "--",
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "."
+      ]
+    }
+  }
+}
+```
+
+More launch patterns, including env-based target resolution, are documented at https://github.com/shleder/mcp-transport-firewall/blob/main/docs/CLIENT_CONFIGS.md.
 
 ## Key Features
 
 <details>
 <summary><strong>Any Codebase</strong></summary>
 
-TypeScript, Python, Go, Rust, Java, Ruby, Terraform, and more. Language and framework detection is fully LLM-driven — no hardcoded mappings. Caliber works on any project.
+TypeScript, Python, Go, Rust, Java, Ruby, Terraform, and more. Language and framework detection is fully LLM-driven вЂ” no hardcoded mappings. Caliber works on any project.
 
 </details>
 
@@ -132,7 +157,7 @@ caliber init --agent claude,cursor # Comma-separated
 <details>
 <summary><strong>Chat-Based Refinement</strong></summary>
 
-Not happy with the generated output? During review, refine via natural language — describe what you want changed and Caliber iterates until you're satisfied.
+Not happy with the generated output? During review, refine via natural language вЂ” describe what you want changed and Caliber iterates until you're satisfied.
 
 </details>
 
@@ -146,7 +171,7 @@ Caliber detects the tools your project uses (databases, APIs, services) and auto
 <details>
 <summary><strong>Deterministic Scoring</strong></summary>
 
-`caliber score` evaluates your config quality without any LLM calls — purely by cross-referencing config files against your actual project filesystem.
+`caliber score` evaluates your config quality without any LLM calls вЂ” purely by cross-referencing config files against your actual project filesystem.
 
 | Category | Points | What it checks |
 |---|---|---|
@@ -157,14 +182,14 @@ Caliber detects the tools your project uses (databases, APIs, services) and auto
 | **Freshness & Safety** | 10 | Recently updated, no leaked secrets, permissions configured |
 | **Bonus** | 5 | Auto-refresh hooks, AGENTS.md, OpenSkills format |
 
-Every failing check includes structured fix data — when `caliber init` runs, the LLM receives exactly what's wrong and how to fix it.
+Every failing check includes structured fix data вЂ” when `caliber init` runs, the LLM receives exactly what's wrong and how to fix it.
 
 </details>
 
 <details>
 <summary><strong>Session Learning</strong></summary>
 
-Caliber watches your AI coding sessions and learns from them. Hooks capture tool usage, failures, and your corrections — then an LLM distills operational patterns into `CALIBER_LEARNINGS.md`.
+Caliber watches your AI coding sessions and learns from them. Hooks capture tool usage, failures, and your corrections вЂ” then an LLM distills operational patterns into `CALIBER_LEARNINGS.md`.
 
 ```bash
 caliber learn install      # Install hooks for Claude Code and Cursor
@@ -173,7 +198,7 @@ caliber learn finalize     # Manually trigger analysis (auto-runs on session end
 caliber learn remove       # Remove hooks
 ```
 
-Learned items are categorized by type — **[correction]**, **[gotcha]**, **[fix]**, **[pattern]**, **[env]**, **[convention]** — and automatically deduplicated.
+Learned items are categorized by type вЂ” **[correction]**, **[gotcha]**, **[fix]**, **[pattern]**, **[env]**, **[convention]** вЂ” and automatically deduplicated.
 
 </details>
 
@@ -200,10 +225,10 @@ The `refresh` command analyzes your git diff (committed, staged, and unstaged ch
 <details>
 <summary><strong>Fully Reversible</strong></summary>
 
-- **Automatic backups** — originals saved to `.caliber/backups/` before every write
-- **Score regression guard** — if a regeneration produces a lower score, changes are auto-reverted
-- **Full undo** — `caliber undo` restores everything to its previous state
-- **Dry run** — preview changes with `--dry-run` before applying
+- **Automatic backups** вЂ” originals saved to `.caliber/backups/` before every write
+- **Score regression guard** вЂ” if a regeneration produces a lower score, changes are auto-reverted
+- **Full undo** вЂ” `caliber undo` restores everything to its previous state
+- **Dry run** вЂ” preview changes with `--dry-run` before applying
 
 </details>
 
@@ -213,11 +238,11 @@ The `refresh` command analyzes your git diff (committed, staged, and unstaged ch
 |---|---|
 | `caliber score` | Score config quality (deterministic, no LLM) |
 | `caliber score --compare <ref>` | Compare current score against a git ref |
-| `caliber init` | Full setup wizard — analyze, generate, review, install hooks |
+| `caliber init` | Full setup wizard вЂ” analyze, generate, review, install hooks |
 | `caliber regenerate` | Re-analyze and regenerate configs (aliases: `regen`, `re`) |
 | `caliber refresh` | Update docs based on recent code changes |
 | `caliber skills` | Discover and install community skills |
-| `caliber learn` | Session learning — install hooks, view status, finalize analysis |
+| `caliber learn` | Session learning вЂ” install hooks, view status, finalize analysis |
 | `caliber hooks` | Manage auto-refresh hooks |
 | `caliber config` | Configure LLM provider, API key, and model |
 | `caliber status` | Show current setup status |
@@ -258,7 +283,7 @@ Yes. Run `caliber init` from any directory. `caliber refresh` can update configs
 <details>
 <summary><strong>Does it send my code anywhere?</strong></summary>
 
-Scoring is fully local. Generation sends your project fingerprint (not source code) to whatever LLM provider you configure — the same provider your AI editor already uses. Anonymous usage analytics (no code, no file contents) can be disabled via `caliber config`.
+Scoring is fully local. Generation sends your project fingerprint (not source code) to whatever LLM provider you configure вЂ” the same provider your AI editor already uses. Anonymous usage analytics (no code, no file contents) can be disabled via `caliber config`.
 
 </details>
 
@@ -282,8 +307,8 @@ No API key? No problem. Caliber works with your existing AI tool subscription:
 
 | Provider | Setup | Default Model |
 |---|---|---|
-| **Claude Code** (your seat) | `caliber config` → Claude Code | Inherited from Claude Code |
-| **Cursor** (your seat) | `caliber config` → Cursor | Inherited from Cursor |
+| **Claude Code** (your seat) | `caliber config` в†’ Claude Code | Inherited from Claude Code |
+| **Cursor** (your seat) | `caliber config` в†’ Cursor | Inherited from Cursor |
 | **Anthropic** | `export ANTHROPIC_API_KEY=sk-ant-...` | `claude-sonnet-4-6` |
 | **OpenAI** | `export OPENAI_API_KEY=sk-...` | `gpt-4.1` |
 | **Vertex AI** | `export VERTEX_PROJECT_ID=my-project` | `claude-sonnet-4-6` |
@@ -291,7 +316,7 @@ No API key? No problem. Caliber works with your existing AI tool subscription:
 
 Override the model for any provider: `export CALIBER_MODEL=<model-name>` or use `caliber config`.
 
-Caliber uses a **two-tier model system** — lightweight tasks (classification, scoring) auto-use a faster model, while heavy tasks (generation, refinement) use the default. This keeps costs low and speed high.
+Caliber uses a **two-tier model system** вЂ” lightweight tasks (classification, scoring) auto-use a faster model, while heavy tasks (generation, refinement) use the default. This keeps costs low and speed high.
 
 Configuration is stored in `~/.caliber/config.json` with restricted permissions (`0600`). API keys are never written to project files.
 
@@ -351,7 +376,7 @@ npm run test     # Run tests
 npm run build    # Compile
 ```
 
-Uses [conventional commits](https://www.conventionalcommits.org/) — `feat:` for features, `fix:` for bug fixes.
+Uses [conventional commits](https://www.conventionalcommits.org/) вЂ” `feat:` for features, `fix:` for bug fixes.
 
 ## License
 
