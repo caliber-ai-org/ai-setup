@@ -180,10 +180,10 @@ export async function initCommand(options: InitOptions) {
     const detected = detectAgents(process.cwd());
     if (detected.length > 0 && (options.autoApprove || firstRun)) {
       targetAgent = detected;
-      console.log(chalk.dim(`  Detected agents: ${detected.join(', ')}\n`));
+      console.log(chalk.dim(`  Coding agents in this repo: ${detected.join(', ')}\n`));
     } else if (detected.length > 0) {
-      console.log(chalk.dim(`  Detected agents: ${detected.join(', ')}\n`));
-      const useDetected = await confirm({ message: 'Use detected agents?' });
+      console.log(chalk.dim(`  Coding agents in this repo: ${detected.join(', ')}\n`));
+      const useDetected = await confirm({ message: 'Generate configs for these agents?' });
       targetAgent = useDetected ? detected : await promptAgent();
     } else {
       targetAgent = options.autoApprove ? ['claude'] : await promptAgent();
