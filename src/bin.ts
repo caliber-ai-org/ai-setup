@@ -3,6 +3,17 @@ import { checkForUpdates } from './utils/version-check.js';
 import { flushTelemetry } from './telemetry/index.js';
 
 import { acquireLock, releaseLock } from './lib/lock.js';
+import { restoreTerminal } from './lib/terminal.js';
+
+process.on('exit', restoreTerminal);
+process.on('SIGINT', () => {
+  restoreTerminal();
+  process.exit(130);
+});
+process.on('SIGTERM', () => {
+  restoreTerminal();
+  process.exit(143);
+});
 
 acquireLock();
 
@@ -11,13 +22,15 @@ if (process.env.CALIBER_LOCAL) {
 }
 
 const userArgs = process.argv.slice(2);
-const hasCommand = userArgs.some(a => !a.startsWith('-'));
-const isQuickExit = !hasCommand || ['--version', '-V', '--help', '-h'].some(f => userArgs.includes(f));
+const hasCommand = userArgs.some((a) => !a.startsWith('-'));
+const isQuickExit =
+  !hasCommand || ['--version', '-V', '--help', '-h'].some((f) => userArgs.includes(f));
 if (!isQuickExit) {
   await checkForUpdates();
 }
 
-program.parseAsync()
+program
+  .parseAsync()
   .catch((err) => {
     const msg = err instanceof Error ? err.message : 'Unexpected error';
     if (msg !== '__exit__') {
