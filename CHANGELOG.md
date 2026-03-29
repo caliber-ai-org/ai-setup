@@ -1,3 +1,9 @@
+## v1.32.0 (2026-03-29)
+
+### Features
+
+- regenerate caliber configs with v1.32.0-dev
+
 ## v1.31.0 (2026-03-28)
 
 ### Features
