@@ -187,15 +187,14 @@ function getCursorSetupContent(): string {
 description: Check if Caliber agent config sync is set up and offer installation on new sessions
 alwaysApply: true
 ---
-This project uses Caliber to keep AI agent configs in sync automatically.
-At the start of each session, silently check if sync is active:
+IMPORTANT: At the start of each session, before responding to the user's first message, run this check:
 
-Run: \`grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "SYNC_ACTIVE" || echo "NO_SYNC"\`
+\`\`\`bash
+grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "SYNCED" || echo "NOT_SYNCED"
+\`\`\`
 
-If SYNC_ACTIVE: No action needed — Caliber syncs automatically on every commit.
-If NO_SYNC: Tell the user: "This project uses Caliber for automatic agent config sync, but it's not set up on your machine yet. Want me to set it up? It takes about 30 seconds."
-
-If the user agrees, read \`.cursor/skills/setup-caliber/SKILL.md\` and follow its instructions step by step.
+If SYNCED: proceed normally.
+If NOT_SYNCED: Tell the user: "This project uses Caliber to keep agent configs in sync. It's not set up on your machine yet — want me to set it up? (~30 seconds)". If they agree, read \`.cursor/skills/setup-caliber/SKILL.md\` and follow its instructions.
 `;
 }
 

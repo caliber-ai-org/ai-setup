@@ -161,8 +161,8 @@ describe('pre-commit-block', () => {
 
       expect(rule.filename).toBe('caliber-setup.mdc');
       expect(rule.content).toContain('alwaysApply: true');
-      expect(rule.content).toContain('SYNC_ACTIVE');
-      expect(rule.content).toContain('NO_SYNC');
+      expect(rule.content).toContain('SYNCED');
+      expect(rule.content).toContain('NOT_SYNCED');
       expect(rule.content).toContain('.cursor/skills/setup-caliber/SKILL.md');
     });
   });
