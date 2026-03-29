@@ -1,119 +1,140 @@
 ---
 name: scoring-checks
-description: Adds a deterministic scoring check to src/scoring/checks/ implementing Check interface from src/scoring/index.ts with run(dir:string):Check[]. Point values from src/scoring/constants.ts. Use when user says 'add scoring check', 'new check', 'scoring validation'. Do NOT make LLM calls in checks—must be synchronous and filesystem-based only.
+description: Adds a new deterministic scoring check in src/scoring/checks/. Follows the Check[] return pattern, uses constants from src/scoring/constants.ts, and integrates in src/scoring/index.ts. Use when user says 'add scoring check', 'new check', 'modify scoring logic'. Do NOT use for display/UI changes, test modifications, or scoring display formatting.
 ---
 # Scoring Checks
 
 ## Critical
 
-- **No LLM calls.** Checks run deterministically. Use only filesystem operations, glob, and string parsing.
-- **Check interface compliance.** Every check must export a `run(dir: string): Check[]` function returning an array of `Check` objects.
-- **Point values from constants.** Use `src/scoring/constants.ts` for point assignments. Do NOT hardcode values.
-- **Synchronous only.** No promises or async. Scoring runs in-band during `score` command.
-- **Idempotent results.** Same directory state must always produce same check results.
+- **All checks must be deterministic**: No randomness, no timestamps. Same input → same output.
+- **Return type is always `Check[]`**: Each check has `id`, `name`, `weight`, `maxScore`, `score`, `reasons`.
+- **Weights must sum to 100** across all checks in `src/scoring/index.ts`. Verify: `existenceWeight + qualityWeight + groundingWeight + accuracyWeight + freshnessWeight + bonusWeight + sourcesWeight === 100`.
+- **Only import from `src/scoring/constants.ts`** for weight/threshold values. Never hardcode thresholds.
+- **Check logic is synchronous**. No async/await in check functions.
 
 ## Instructions
 
-1. **Study the Check interface** in `src/scoring/index.ts`.
-   - Verify the shape: `{ name: string; points: number; reason: string; pass: boolean; rule?: string }`
-   - Note: `rule` is optional; use for referencing scoring constants or CLAUDE.md sections.
-   - Validation: Open `src/scoring/index.ts` and confirm the exact interface.
+### Step 1: Define the check function in a new file
 
-2. **Pick a point value from `src/scoring/constants.ts`** for your check.
-   - Examples: `POINTS.CLAUDE_MD` (20), `POINTS.AGENTS_MD` (15), `POINTS.CURSOR_RULES_EXIST` (10).
-   - Validation: Grep the constants file for the relevant key. If it doesn't exist, add it.
+Create `src/scoring/checks/<checkName>.ts`.
 
-3. **Create a new file** at `src/scoring/checks/<check-name>.ts`.
-   - Naming: Use kebab-case: `src/scoring/checks/my-new-check.ts`.
-   - Validation: Confirm file does not already exist.
+Use this template:
 
-4. **Import required modules** at the top:
-   ```typescript
-   import { globSync } from 'glob';
-   import { existsSync, readFileSync } from 'fs';
-   import path from 'path';
-   import type { Check } from '../index';
-   import { POINTS } from '../constants';
-   ```
+```typescript
+import { Check } from '../types.js';
+import { <CONSTANT_NAME> } from '../constants.js';
 
-5. **Implement `run(dir: string): Check[]`** function:
-   - Accept `dir` parameter (project root).
-   - Perform filesystem checks: file existence, glob patterns, file content parsing.
-   - Return array with one `Check` object per result (usually length 1).
-   - Example structure:
-     ```typescript
-     export function run(dir: string): Check[] {
-       const filePath = path.join(dir, 'CLAUDE.md');
-       const pass = existsSync(filePath);
-       return [{
-         name: 'CLAUDE.md exists',
-         points: POINTS.CLAUDE_MD,
-         reason: 'CLAUDE.md documents project context',
-         pass,
-         rule: 'CLAUDE.md'
-       }];
-     }
-     ```
-   - Validation: Check runs without throwing. Try/catch filesystem errors and return `pass: false`.
+export function <checkName>(
+  fingerprint: Fingerprint,
+  config: ParsedConfig,
+): Check[] {
+  const checkId = '<checkName>';
+  let score = 0;
+  const reasons: string[] = [];
 
-6. **Register the check** in `src/scoring/index.ts`.
-   - Import your check file: `import { run as runMyCheck } from './checks/my-new-check'`.
-   - Add to the `runs` array inside the scoring function (e.g., in a for-loop or array concat).
-   - Validation: Grep `src/scoring/index.ts` for how existing checks are registered.
+  // Logic here: inspect fingerprint/config, calculate score 0–maxScore
+  // Add reason strings for each deduction
 
-7. **Test the check** with `npm run test -- src/scoring/__tests__/checks.test.ts`.
-   - Create or update test file if it doesn't exist.
-   - Test structure: Mock filesystem with `memfs`, call `run(mockDir)`, assert `pass` and `points`.
-   - Validation: Test passes; coverage ≥80%.
+  return [
+    {
+      id: checkId,
+      name: 'Check Display Name',
+      weight: <WEIGHT_CONSTANT>,
+      maxScore: 100,
+      score,
+      reasons,
+    },
+  ];
+}
+```
+
+Verify the function returns exactly one `Check` object (or multiple if logically grouped). Verify `score` is between 0 and `maxScore`.
+
+### Step 2: Export from `src/scoring/checks/index.ts`
+
+Add the import and export:
+
+```typescript
+export { <checkName> } from './<checkName>.js';
+```
+
+Verify file is listed in the barrel export.
+
+### Step 3: Call the check in `src/scoring/index.ts`
+
+In the `score()` function, add a line:
+
+```typescript
+const <checkName>Results = <checkName>(fingerprint, config);
+allChecks.push(...<checkName>Results);
+```
+
+Verify placement is before the weight-sum validation at the end of `score()`.
+
+### Step 4: Update weight constants in `src/scoring/constants.ts`
+
+If adding a new check type (not modifying an existing one), add the weight constant:
+
+```typescript
+export const <CHECK_NAME>_WEIGHT = <number>;
+```
+
+Then update all other weight constants so the sum remains 100. Verify the weights comment block lists all active checks.
+
+Verify: Run `npm run test -- src/scoring/__tests__/index.test.ts` to ensure weight validation passes.
+
+### Step 5: Write or update the test
+
+In `src/scoring/__tests__/`, create or update `<checkName>.test.ts`. Test both pass and fail cases:
+
+```typescript
+it('returns maxScore when condition is met', () => {
+  const result = <checkName>({ /* fingerprint */ }, { /* config */ });
+  expect(result[0].score).toBe(100);
+});
+
+it('returns 0 when condition is not met', () => {
+  const result = <checkName>({ /* fingerprint */ }, { /* config */ });
+  expect(result[0].score).toBe(0);
+  expect(result[0].reasons.length).toBeGreaterThan(0);
+});
+```
+
+Verify: Run `npm run test -- src/scoring/__tests__/<checkName>.test.ts`.
 
 ## Examples
 
-**User says:** "Add a check to verify `.cursor/rules.json` exists and is valid JSON."
+**User says**: "Add a scoring check that penalizes repos without a CLAUDE.md file."
 
-**Actions:**
-1. Study `src/scoring/index.ts` — confirm `Check` type shape.
-2. Check `src/scoring/constants.ts` — find or add `POINTS.CURSOR_RULES_JSON`.
-3. Create `src/scoring/checks/cursor-rules-json.ts`:
-   ```typescript
-   import { existsSync, readFileSync } from 'fs';
-   import path from 'path';
-   import type { Check } from '../index';
-   import { POINTS } from '../constants';
-
-   export function run(dir: string): Check[] {
-     const filePath = path.join(dir, '.cursor', 'rules.json');
-     let pass = false;
-     let reason = '.cursor/rules.json missing or invalid';
-
-     if (existsSync(filePath)) {
-       try {
-         const content = readFileSync(filePath, 'utf-8');
-         JSON.parse(content);
-         pass = true;
-         reason = '.cursor/rules.json exists and is valid JSON';
-       } catch (e) {
-         reason = '.cursor/rules.json exists but is not valid JSON';
-       }
-     }
-
-     return [{
-       name: 'Cursor rules JSON valid',
-       points: POINTS.CURSOR_RULES_JSON,
-       reason,
-       pass,
-       rule: 'Cursor ACP'
-     }];
-   }
-   ```
-4. Register in `src/scoring/index.ts`: Add `import { run as runCursorRulesJson } from './checks/cursor-rules-json'` and append to checks array.
-5. Test in `src/scoring/__tests__/checks.test.ts`: Mock `.cursor/rules.json`, call `run()`, assert `pass === true` and `points > 0`.
-
-**Result:** Scoring now deducts points if `.cursor/rules.json` is missing or malformed.
+**Actions**:
+1. Create `src/scoring/checks/existence.ts` (or modify if exists).
+2. Check if `config.claudeMdPath` exists and is non-empty: if yes, `score = 100`; if no, `score = 0` with reason "CLAUDE.md not found".
+3. Add export to `src/scoring/checks/index.ts`.
+4. Call `existenceResults = existence(fingerprint, config)` in `src/scoring/index.ts` and push to `allChecks`.
+5. Ensure weight is defined in `constants.ts` (e.g., `EXISTENCE_WEIGHT = 20`).
+6. Test: `npm run test -- src/scoring/__tests__/existence.test.ts`.
 
 ## Common Issues
 
-- **"Check is not in the runs array."** → Verify you imported the `run` function and added it to the checks array in `src/scoring/index.ts`. Grep for existing check registrations.
-- **"Check returns async promise, fails during score."** → Remove any `await`, `async`, or promises. Use only `fs.readFileSync` and `fs.existsSync`.
-- **"Point value undefined (POINTS.MY_KEY not found)."** → Add the constant to `src/scoring/constants.ts` first. Example: `MY_NEW_CHECK: 15` (adjust point value based on severity).
-- **"Test fails with 'ENOENT: no such file or directory'."** → Use `memfs` in tests to mock the filesystem. See existing tests in `src/scoring/__tests__/`.
-- **"Check always returns pass: false even when file exists."** → Verify the glob pattern or file path is relative to `dir`. Use `path.join(dir, 'relative/path')` not absolute paths.
+**Error: "Weights do not sum to 100"**
+- Check `src/scoring/index.ts` at the end of `score()`: find the validation that sums all weights.
+- List all active checks and their weights from `constants.ts`.
+- Adjust the weight constant so the sum equals 100. Example: if adding a new check with weight 15, reduce an existing check's weight by 15.
+
+**Error: "Check returned undefined score"**
+- Ensure the check function always initializes `score` to a number before any logic.
+- Verify no conditional path leaves `score` unset.
+- Check must always return a `Check` object with `score` field.
+
+**Error: "Test fails with 'score out of bounds'"**
+- Verify `score` is >= 0 and <= `maxScore` (usually 100).
+- Check logic should cap: `Math.max(0, Math.min(maxScore, score))`.
+- Verify no negative deductions drop score below 0.
+
+**Error: "Check is called twice or results are duplicated in allChecks"**
+- Ensure `<checkName>()` is called exactly once in `src/scoring/index.ts`.
+- Verify you push the result array with spread: `allChecks.push(...result)` not `allChecks.push(result)`.
+
+**Error: "Fingerprint/config types are unknown"**
+- Import `Fingerprint` from `src/fingerprint/types.js` and `ParsedConfig` from `src/commands/types.js` (or check existing check files for the correct imports).
+- Match the type signature of an existing check function.

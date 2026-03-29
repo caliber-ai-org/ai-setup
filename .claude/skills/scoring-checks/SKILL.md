@@ -1,95 +1,119 @@
 ---
 name: scoring-checks
-description: Adds a new deterministic scoring check to src/scoring/checks/ implementing the Check interface. Point values from src/scoring/constants.ts. Checks are synchronous functions receiving dir:string and returning Check[]. Use when user says 'add scoring check', 'new check', 'score X', or modifies src/scoring/. Do NOT use for LLM-based scoring or checks requiring external API calls.
+description: Adds a new deterministic scoring check in src/scoring/checks/. Follows the Check[] return pattern, uses point constants from src/scoring/constants.ts, and integrates via filterChecksForTarget() in src/scoring/index.ts. Use when user says 'add scoring check', 'new check', 'modify scoring criteria', or works in src/scoring/checks/. Do NOT use for display changes, refactoring scoring logic, or changing how checks are executed.
 ---
 # Scoring Checks
 
 ## Critical
 
-- **Synchronous only**: No async/await, no Promise, no LLM calls. Checks must complete instantly on local filesystem inspection.
-- **Check interface**: Every check returns `Check[]` where `Check = { name: string; points: number; reason: string }`. Points MUST match a constant in `src/scoring/constants.ts`.
-- **No side effects**: Do not write files, modify state, or call external APIs. Only inspect the filesystem.
-- **Export as named function**: Export your check function from `src/scoring/checks/your-check.ts` and import it in `src/scoring/checks/index.ts` in the `CHECKS` array.
+- All checks return `Check[]` (array, never null/undefined)
+- Point values MUST come from `src/scoring/constants.ts` (e.g., `POINTS.EXISTENCE`, `POINTS.QUALITY`)
+- Each check has: `id` (kebab-case), `name`, `value` (number), `passed` (boolean), `reason` (string)
+- Register in `src/scoring/index.ts` via `filterChecksForTarget()` — add to the appropriate target's check array
+- Tests go in `src/scoring/checks/__tests__/` with `describe()` and `it()` blocks; import setup from `src/test/setup.ts`
 
 ## Instructions
 
-1. **Review the Check interface and constants**
-   - Open `src/scoring/index.ts` and locate the `Check` type: `{ name: string; points: number; reason: string }`
-   - Open `src/scoring/constants.ts` and identify point values: `POINTS.EXISTENCE`, `POINTS.QUALITY`, etc.
-   - Verify your check's points value exists in constants before proceeding.
+**Step 1: Create the check file**
 
-2. **Create the check file in src/scoring/checks/**
-   - File path: `src/scoring/checks/your-check-name.ts`
-   - Import from `src/scoring/constants.ts`: `import { POINTS } from '../constants'`
-   - Signature: `export function checkYourName(dir: string): Check[]`
-   - Verify the function name is camelCase and matches the check purpose.
+Add `src/scoring/checks/my-check.ts`. Import:
+```typescript
+import type { Check, ScoringContext } from '../types.js';
+import { POINTS } from '../constants.js';
+```
 
-3. **Implement the check logic**
-   - Use `fs.existsSync()` or `fs.statSync()` to inspect files (no fs/promises)
-   - Use `glob.sync()` from the `glob` package for file pattern matching (matches existing checks)
-   - Return an empty array `[]` if the check passes or does not apply
-   - Return `[{ name: 'Check Name', points: POINTS.CONSTANT, reason: 'Explanation of failure' }]` on failure
-   - Example: `fs.existsSync(path.join(dir, '.cursor/rules.md'))` to check file existence
-   - Verify your fs calls complete synchronously before proceeding.
+Export a function that takes `context: ScoringContext` and returns `Check[]`:
+```typescript
+export function myCheck(context: ScoringContext): Check[] {
+  const checks: Check[] = [];
+  // Your logic here
+  return checks;
+}
+```
 
-4. **Register the check in src/scoring/checks/index.ts**
-   - Import your function: `import { checkYourName } from './your-check-name'`
-   - Add it to the `CHECKS` array: `export const CHECKS = [checkExistence, checkQuality, ..., checkYourName]`
-   - Verify the CHECKS array is exported as a named export.
+Verify: Function signature matches existing checks in `src/scoring/checks/`.
 
-5. **Add unit tests in src/scoring/checks/__tests__/**
-   - File path: `src/scoring/checks/__tests__/your-check-name.test.ts`
-   - Use Vitest: `import { describe, it, expect, beforeEach, afterEach } from 'vitest'`
-   - Use `memfs` to mock the filesystem (see `src/scoring/checks/__tests__/existence.test.ts` for pattern)
-   - Test both pass (empty array) and fail (returns Check with correct points) cases
-   - Run `npm run test -- src/scoring/checks/__tests__/your-check-name.test.ts` to verify.
+**Step 2: Implement check logic**
 
-6. **Update src/scoring/constants.ts if needed**
-   - If your points value does not exist, add it to `POINTS` object
-   - Example: `POINTS.MY_CHECK = 15` (use integers)
-   - Verify the constant is exported before proceeding.
+For each condition:
+1. Determine pass/fail via `context.fingerprint` or `context.config`
+2. Push a Check object: `{ id: 'check-name', name: 'Human name', value: POINTS.EXISTENCE, passed: boolean, reason: 'Why it passed/failed' }`
+3. Do NOT hardcode point values — use constants
+
+Verify: Logic reads from `context` only (no side effects).
+
+**Step 3: Register in scoring index**
+
+Open `src/scoring/index.ts`. Find `filterChecksForTarget()`:
+```typescript
+if (target === 'claude') {
+  return [
+    existenceCheck(context),
+    qualityCheck(context),
+    // Add your check here
+    myCheck(context),
+  ].flat();
+}
+```
+
+Import at the top: `import { myCheck } from './checks/my-check.js';`
+
+Verify: Check appears in the correct target block and is imported.
+
+**Step 4: Write tests**
+
+Create `src/scoring/checks/__tests__/my-check.test.ts`:
+```typescript
+import { describe, it, expect } from 'vitest';
+import { myCheck } from '../my-check.js';
+import type { ScoringContext } from '../../types.js';
+
+describe('myCheck', () => {
+  it('passes when condition is true', () => {
+    const context: ScoringContext = { /* mock data */ };
+    const checks = myCheck(context);
+    expect(checks.some(c => c.id === 'check-name' && c.passed)).toBe(true);
+  });
+
+  it('fails when condition is false', () => {
+    const context: ScoringContext = { /* different mock */ };
+    const checks = myCheck(context);
+    expect(checks.some(c => c.id === 'check-name' && c.passed)).toBe(false);
+  });
+});
+```
+
+Verify: `npm run test src/scoring/checks/__tests__/my-check.test.ts` passes.
 
 ## Examples
 
-**User says:** "Add a check that scores points if AGENTS.md exists"
+**User**: "Add a check that verifies CLAUDE.md exists and has content"
 
-**Actions:**
-1. Create `src/scoring/checks/agents-file.ts`:
-   ```typescript
-   import path from 'path';
-   import fs from 'fs';
-   import { POINTS } from '../constants';
-   import type { Check } from '../index';
-
-   export function checkAgentsFile(dir: string): Check[] {
-     const agentsPath = path.join(dir, 'AGENTS.md');
-     if (!fs.existsSync(agentsPath)) {
-       return [{
-         name: 'AGENTS.md exists',
-         points: POINTS.EXISTENCE,
-         reason: 'AGENTS.md not found'
-       }];
-     }
-     return [];
-   }
-   ```
-2. Add to `src/scoring/checks/index.ts`: `import { checkAgentsFile } from './agents-file'` and add to `CHECKS` array
-3. Create `src/scoring/checks/__tests__/agents-file.test.ts` with memfs mocks
-4. Run `npm run test -- src/scoring/checks`
-
-**Result:** Check runs synchronously, returns points only if file missing.
-
-## Anti-patterns
-
-1. **Do NOT use async/await or Promise.** Checks must be fully synchronous. Use `fs.readFileSync()`, not `fs.promises.readFile()`. Use `glob.sync()`, not `glob.glob()`. Correct approach: `const files = glob.sync('**/*.ts', { cwd: dir })`
-
-2. **Do NOT call LLM functions or external APIs.** No `llmCall()`, no `fetch()`, no `axios.get()`. Checks run offline and must complete in <100ms. Correct approach: Parse JSON from a local file with `JSON.parse(fs.readFileSync(...))` if needed.
-
-3. **Do NOT return positive points on pass.** Return `[]` (empty array) for passing checks. Only return `Check[]` with points on failure. Correct approach: `if (condition) return []; return [{ name: 'Check', points: POINTS.X, reason: '...' }];`
+**Actions**:
+1. Create `src/scoring/checks/claude-existence.ts`
+2. Extract CLAUDE.md from `context.config.files`, check length > 0
+3. Return `[{ id: 'claude-exists', name: 'CLAUDE.md exists', value: POINTS.EXISTENCE, passed: !!file, reason: file ? 'Found' : 'Missing' }]`
+4. Add `claudeExistenceCheck(context)` to claude/cursor/codex blocks in `filterChecksForTarget()`
+5. Test with mock contexts (CLAUDE.md present, absent, empty)
 
 ## Common Issues
 
-- **Error: `fs.readFile is not a function`** → You used `fs/promises`. Use `import fs from 'fs'` (not `fs.promises`) and call `fs.readFileSync(path)` instead.
-- **Error: `glob.glob is not a function`** → You used async glob. Use `import { glob } from 'glob'` and call `glob.sync(pattern, { cwd: dir })` instead.
-- **Test fails: `ENOENT: no such file or directory`** → Mock the filesystem with memfs before calling your check. See `existence.test.ts`: `const vol = new Volume(); vol.fromJSON({...}); const fs = vol.promises` (note: for sync tests, use `vol` directly).
-- **Check not running in `npm run test:coverage`** → Verify your check is added to the `CHECKS` array in `src/scoring/checks/index.ts` and that the test file is named `your-check-name.test.ts` in `src/scoring/checks/__tests__/`.
+**"Check is not being run"**
+- Verify: Is `myCheck(context)` called in `filterChecksForTarget()`?
+- Verify: Is the import statement at the top of `src/scoring/index.ts`?
+- Verify: Does the target (claude/cursor/codex) match where you added it?
+
+**"POINTS.MY_CONSTANT is undefined"**
+- All point values must be in `src/scoring/constants.ts`
+- Add constant: `MY_CHECK: 10` in the POINTS object
+- Then import and use: `value: POINTS.MY_CHECK`
+
+**"Tests fail with 'context.config is undefined'"**
+- Mock the full `ScoringContext` type from `src/scoring/types.ts`
+- Include: `fingerprint: { ... }`, `config: { files: {...}, ...}`, `target: 'claude'`
+- Use `src/test/setup.ts` for common mocks if needed
+
+**"Check always returns empty array"**
+- Verify the check pushes to the `checks` array before returning
+- Verify: `return checks;` at end (not `return [];`)
+- Add console logs inside the function to debug

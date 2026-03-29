@@ -6,20 +6,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "caliber learn finalize --auto",
-            "description": "Caliber: finalizing session learnings"
+            "command": "caliber refresh --quiet",
+            "description": "Caliber: auto-refreshing docs based on code changes"
           }
         ]
-      }
-    ],
-    "UserPromptSubmit": [
+      },
       {
         "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "caliber learn observe --prompt",
-            "description": "Caliber: recording user prompt for correction detection"
+            "command": "caliber learn finalize --auto",
+            "description": "Caliber: finalizing session learnings"
           }
         ]
       }
@@ -47,14 +45,37 @@
           }
         ]
       }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "caliber learn observe --prompt",
+            "description": "Caliber: recording user prompt for correction detection"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/caliber-check-sync.sh",
+            "description": "Caliber: offer setup if not configured"
+          }
+        ]
+      }
     ]
   },
   "permissions": {
     "allow": [
+      "Bash(git *)",
       "Bash(npm run *)",
-      "Bash(npx vitest *)",
-      "Bash(npx tsc *)",
-      "Bash(git *)"
+      "Bash(npx *)"
     ]
   }
 }

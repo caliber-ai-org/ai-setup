@@ -1,3 +1,37 @@
+## v1.33.4 (2026-03-29)
+
+## v1.33.3 (2026-03-29)
+
+### Bug Fixes
+
+- use plain stdout in session start hook for better visibility
+
+### Other
+
+- debug: add logging to session start hook
+
+## v1.33.1 (2026-03-29)
+
+### Bug Fixes
+
+- make session start hook more assertive so agent acts on it
+
+## v1.33.0 (2026-03-29)
+
+### Features
+
+- add session start hook to nudge new team members to set up Caliber
+
+### Bug Fixes
+
+- restore terminal state on exit (Ghostty/Kitty) (#101)
+
+## v1.32.0 (2026-03-29)
+
+### Features
+
+- regenerate caliber configs with v1.32.0-dev
+
 ## v1.31.0 (2026-03-28)
 
 ### Features

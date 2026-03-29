@@ -1,137 +1,81 @@
 ---
 name: llm-provider
-description: Implements or modifies an LLM provider in src/llm/ implementing LLMProvider interface (call()+stream()) from src/llm/types.ts. All calls route through src/llm/index.ts. Use when user says 'add provider', 'new LLM', 'support model X', 'integrate API'. Do NOT call providers directly from commands—always route through llmCall() or llmJsonCall(). Do NOT add new provider types without updating src/llm/index.ts provider resolution logic.
+description: Adds a new LLM provider implementing LLMProvider interface from src/llm/types.ts with call() and stream() methods. Integrates config in src/llm/config.ts and factory in src/llm/index.ts. Use when adding a new AI backend, integrating a new model API, or extending provider support. Do NOT use for modifying existing providers or debugging provider issues.
 ---
 # LLM Provider
 
 ## Critical
 
-- **All LLM calls from commands MUST use `llmCall()` or `llmJsonCall()` from `src/llm/index.ts`**. Never instantiate or call a provider directly.
-- **Every provider MUST implement `LLMProvider` interface** from `src/llm/types.ts`: `call(params: LLMCallParams): Promise<string>` and `stream(params: LLMStreamParams): AsyncIterable<string>`.
-- **Provider detection logic lives in `src/llm/config.ts`** (`getProvider()` function). If adding a new provider, update the detection chain BEFORE adding the provider file.
-- **Error handling**: All providers MUST detect transient errors (rate limits, timeouts, 502/503) and throw `TransientError` so callers can retry. Reference `src/llm/model-recovery.ts` and `TRANSIENT_ERRORS` in `src/llm/index.ts`.
-- **Token estimation**: Use `estimateTokens()` from `src/llm/utils.ts` to pre-check request size and avoid oversized requests.
+- **All providers must implement `LLMProvider` interface** from `src/llm/types.ts`: `call(messages, params)` and `stream(messages, params)` returning `AsyncIterable<StreamChunk>`
+- **No partial implementations**: Both `call()` and `stream()` must work. Streaming is not optional.
+- **StreamChunk format**: `{ type: 'text' | 'error' | 'usage'; value: string; usage?: { input: number; output: number } }`
+- **Error handling**: Catch provider-specific errors, map to `ChatError` from `src/llm/types.ts` with `code` (e.g., `'auth'`, `'rate_limit'`, `'network'`) and `message`
+- **Model validation**: Call `validateModel(modelId)` in config before accepting the model. Refer to `src/llm/config.ts` for pattern.
 
 ## Instructions
 
-1. **Verify provider interface in `src/llm/types.ts`**
-   - Confirm `LLMProvider` has `call(params: LLMCallParams): Promise<string>` and `stream(params: LLMStreamParams): AsyncIterable<string>`.
-   - Check that `LLMCallParams` and `LLMStreamParams` match your API's model, temperature, max_tokens, system, messages.
-   - Validation: `npx tsc --noEmit` should pass before proceeding.
+1. **Define provider file** at `src/llm/{provider-name}.ts`
+   - Import `{ LLMProvider, ChatMessage, ChatParams, StreamChunk, ChatError }` from `src/llm/types.ts`
+   - Export class `{ProviderName}Provider implements LLMProvider`
+   - Constructor takes `{ apiKey?: string; model: string; baseUrl?: string }` matching config structure
+   - Store config in instance: `this.apiKey = apiKey || process.env.{PROVIDER_API_KEY}`
+   - Verify API key exists on first call, throw `ChatError` with `code: 'auth'` if missing
 
-2. **Create provider file at `src/llm/{provider-name}.ts`**
-   - Follow naming: `anthropic.ts`, `openai-compat.ts`, `vertex.ts` (kebab-case, no dots before extension).
-   - Export a class: `export class {ProviderName}LLMProvider implements LLMProvider { ... }`.
-   - Add constructor to accept config (API key, project ID, endpoint) from environment or passed argument.
-   - Validation: File must compile with `npx tsc --noEmit` before next step.
+2. **Implement `call()` method**
+   - Signature: `async call(messages: ChatMessage[], params: ChatParams): Promise<string>`
+   - Make HTTP request to provider API with messages and params (temperature, max_tokens, etc.)
+   - Extract text from response, return as single string
+   - On error (network, auth, rate limit), throw `ChatError` with appropriate `code` and `message`
+   - Verify this works before proceeding
 
-3. **Implement `call()` method**
-   - Accept `params: LLMCallParams` (model, system, messages, temperature, max_tokens).
-   - Make HTTP/SDK request to provider (Anthropic SDK, OpenAI SDK, REST, etc.).
-   - Return `string` (the assistant's text response).
-   - On error: throw `TransientError` for rate limits (429), timeouts, 502/503; throw `Error` for auth/model/bad request.
-   - Wrap in try/catch; log errors via `console.error()` before throwing.
-   - Validation: Test with `npm run test` against mocked provider responses.
+3. **Implement `stream()` method**
+   - Signature: `async *stream(messages: ChatMessage[], params: ChatParams): AsyncIterable<StreamChunk>`
+   - Use provider's streaming endpoint (e.g., SSE, WebSocket, chunked response)
+   - Yield `{ type: 'text', value: '<chunk>' }` for each text delta
+   - Yield `{ type: 'usage', value: '', usage: { input, output } }` at end if available
+   - On error, yield `{ type: 'error', value: '<error message>' }` and return
+   - Test streaming with `for await (const chunk of stream(...)) { console.log(chunk) }`
 
-4. **Implement `stream()` method**
-   - Accept `params: LLMStreamParams` (same fields as call()).
-   - Yield `string` chunks as they arrive (no buffering whole response).
-   - Return `AsyncIterable<string>` (use `async function*`).
-   - On error: catch and yield error message or throw `TransientError` before yielding any chunk.
-   - Validation: Verify stream completes without deadlock using `src/test/` helpers or manual test.
+4. **Add config in `src/llm/config.ts`**
+   - Import `{ProviderName}Provider` in `getProvider(config, model)` function
+   - Add condition: `if (config.provider === '{provider-slug}') return new {ProviderName}Provider({ apiKey: config.apiKey, model, baseUrl: config.baseUrl })`
+   - Add case in `validateModel()`: check against provider's official model list or hardcode supported models
+   - Export provider slug in `SUPPORTED_PROVIDERS` array if it exists
+   - Verify config function accepts and routes your provider
 
-5. **Update provider detection in `src/llm/config.ts`**
-   - Open `getProvider()` function (typically returns provider instance based on env vars).
-   - Add conditional: `if (process.env.{YOUR_KEY}) { return new {ProviderName}LLMProvider(...) }`.
-   - Order matters: check most specific (e.g., VERTEX_PROJECT_ID) before generic (e.g., OPENAI_API_KEY).
-   - Validation: Run `caliber init` in test project; verify provider is auto-detected.
+5. **Register in factory at `src/llm/index.ts`**
+   - Import provider in `getProvider()` function
+   - Add to the conditional chain matching provider name from config
+   - Run `npm run build && npm run test` to verify factory picks up provider
 
-6. **Export provider from `src/llm/index.ts`**
-   - Add import: `import { {ProviderName}LLMProvider } from './{provider-name}'`.
-   - Ensure `llmCall()` and `llmJsonCall()` use the result of `getProvider()` (already hooked up; verify no changes needed).
-   - Validation: `npm run test` passes; no unused imports.
-
-7. **Add tests in `src/llm/__tests__/{provider-name}.test.ts`**
-   - Test `call()` with mocked responses (use `vi.mock()` or `memfs` for file-based mocks).
-   - Test `stream()` yielding chunks, completing without error.
-   - Test error cases: 429 throws `TransientError`, 401 throws `Error`.
-   - Validation: `npm run test:coverage` — aim for >80% coverage on provider file.
+6. **Add tests in `src/llm/__tests__/{provider-name}.test.ts`**
+   - Mock API responses using `vitest.mock()` or `fetch` stub
+   - Test `call()`: verify message formatting, response parsing, error handling
+   - Test `stream()`: verify chunk parsing, usage reporting, error yields
+   - Test config validation: invalid model, missing API key
+   - Run `npx vitest run src/llm/__tests__/{provider-name}.test.ts`
 
 ## Examples
 
-**User says:** "Add support for Claude models via a custom endpoint."
+**User says**: "Add support for Groq as a new LLM provider."
 
-**Actions:**
-1. Check `src/llm/types.ts` confirms `LLMProvider` interface.
-2. Create `src/llm/custom-claude.ts`:
-   ```typescript
-   import { LLMProvider, LLMCallParams, LLMStreamParams } from './types';
-   import { TransientError } from './model-recovery';
-   
-   export class CustomClaudeLLMProvider implements LLMProvider {
-     constructor(private endpoint: string, private apiKey: string) {}
-   
-     async call(params: LLMCallParams): Promise<string> {
-       try {
-         const res = await fetch(`${this.endpoint}/messages`, {
-           method: 'POST',
-           headers: { 'Authorization': `Bearer ${this.apiKey}` },
-           body: JSON.stringify({
-             model: params.model,
-             system: params.system,
-             messages: params.messages,
-             temperature: params.temperature,
-             max_tokens: params.max_tokens,
-           }),
-         });
-         if (res.status === 429 || res.status === 502 || res.status === 503) throw new TransientError(`${res.status}`);
-         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-         const data = await res.json();
-         return data.content[0].text;
-       } catch (e) {
-         if (e instanceof TransientError) throw e;
-         throw new Error(`CustomClaude call failed: ${e}`);
-       }
-     }
-   
-     async *stream(params: LLMStreamParams): AsyncIterable<string> {
-       // Similar to call() but with stream endpoint and yield chunks.
-     }
-   }
-   ```
-3. Update `src/llm/config.ts`:
-   ```typescript
-   if (process.env.CUSTOM_CLAUDE_ENDPOINT && process.env.CUSTOM_CLAUDE_API_KEY) {
-     return new CustomClaudeLLMProvider(
-       process.env.CUSTOM_CLAUDE_ENDPOINT,
-       process.env.CUSTOM_CLAUDE_API_KEY
-     );
-   }
-   ```
-4. Export in `src/llm/index.ts`.
-5. Add test file `src/llm/__tests__/custom-claude.test.ts` with mocked fetch.
-6. Run `npm run test` and verify.
+**Actions**:
+1. Create `src/llm/groq.ts` with `GroqProvider` class
+2. Implement `call()` calling `https://api.groq.com/openai/v1/chat/completions` with OpenAI-compatible format
+3. Implement `stream()` using same endpoint with `stream: true`
+4. In `src/llm/config.ts`, add `if (config.provider === 'groq') return new GroqProvider(...)`
+5. In `src/llm/index.ts`, import and route `groq` provider in `getProvider()`
+6. Create tests mocking Groq API responses
+7. Verify: `npm run test -- src/llm/__tests__/groq.test.ts` passes
 
-**Result:** Commands like `caliber init` now detect and use the custom endpoint without modification.
+**Result**: Caliber can now use Groq models via `{ provider: 'groq', apiKey: '...', model: 'mixtral-8x7b-32768' }`
 
 ## Common Issues
 
-- **Error: "Provider not detected when env var is set"**
-  - Check `src/llm/config.ts` — is your env var check above other fallbacks? Move it higher in the `if` chain.
-  - Verify env var name matches exactly: `echo $CUSTOM_CLAUDE_ENDPOINT`.
-  - Confirm provider is exported in `src/llm/index.ts`.
-
-- **Error: "Cannot find module 'src/llm/{provider-name}'"**
-  - Verify file path is `src/llm/{provider-name}.ts` (not `.js`, not in subdirectory).
-  - Run `npm run build` to compile TypeScript to dist/; check dist/ has the file.
-
-- **Error: "Transient errors not retried, request fails immediately"**
-  - Verify you throw `TransientError` (not `Error`) for 429, 502, 503, timeouts.
-  - Check `src/llm/index.ts` `llmCall()` has retry logic (already present; ensure no overrides).
-  - Test: `npm run test -- src/llm/__tests__/{provider-name}.test.ts`.
-
-- **Error: "Stream method times out or yields nothing"**
-  - Ensure `stream()` returns `AsyncIterable<string>` and uses `async function*`.
-  - Never buffer the entire response; yield chunks as they arrive.
-  - Add timeout to stream read loop: `setTimeout(() => throw new Error('timeout'), 30000)`.
-  - Test with `npm run test:watch` and add `console.log()` in stream yields to debug.
+- **"Provider not recognized" in factory**: Verify provider slug matches exactly in `getProvider()` condition AND in config file. Check spelling and case sensitivity.
+- **"TypeError: stream is not async iterable"**: Ensure `stream()` is a generator function (uses `async *` and `yield`). Test with `for await` loop before deploying.
+- **"API key is undefined"**: Verify environment variable name in provider constructor matches what user sets. Log `apiKey` value in error message: `throw new ChatError('auth', 'API key missing: check {ENV_VAR_NAME}')`
+- **"Stream stops early or yields garbage"**: Check provider's response format (JSON lines, SSE, etc.). Log raw response chunk: `console.error('Raw chunk:', chunk)` to debug parsing.
+- **"Model validation fails but model is valid"**: Ensure `validateModel()` in config covers all supported models for this provider. If list is dynamic, call provider's models endpoint and cache.
+- **Type errors on ChatError**: Verify import is `from 'src/llm/types.js'` (with `.js` extension for ESM).
+- **Tests fail with "fetch is not defined"**: Add `import { fetch } from 'node-fetch'` or mock globally in `src/test/setup.ts`.

@@ -1,131 +1,113 @@
 ---
 name: adding-a-command
-description: Creates a new CLI command following caliber's pattern: file in src/commands/, named export async function, register in src/cli.ts with tracked(), use ora spinners, throw __exit__ on user-facing failures. Use when user says 'add command', 'new subcommand', 'create CLI action', or adds files to src/commands/. Do NOT use for modifying existing commands or fixing bugs in existing command logic.
+description: Creates a new CLI command following the Commander.js pattern in src/commands/. Handles command registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says 'add command', 'new CLI command', 'create subcommand', or adds files to src/commands/. Do NOT use for modifying existing commands or fixing bugs in existing commands.
 ---
 # Adding a Command
 
 ## Critical
 
-1. **Always register new commands in `src/cli.ts`** with `.action(tracked(commandFunction))`. Commands not registered will never execute.
-2. **User-facing errors must throw `__exit__`**, not `Error`. Exit codes: `1` (generic failure), `2` (validation), `3` (config missing). Example: `throw __exit__(1, 'Database connection failed')`.
-3. **Commands must be async functions** exported as named exports from `src/commands/[name].ts`. Return type should be `Promise<void>` or `Promise<Record<string, any>>` if producing JSON output.
-4. **All long-running operations need ora spinners**. Import `import * as ora from 'ora'` and wrap work: `const spinner = ora('Working...').start(); /* do work */; spinner.succeed('Done');`
-5. **Never use console.log directly**—use `ora` or `process.stdout.write()` for structured output. Queries use `process.stdout.write(JSON.stringify(result))`.
+- All commands MUST be registered in `src/cli.ts` via `.command()` and wrapped with `tracked()` for telemetry
+- Commands in `src/commands/` must export a default async function: `export default async (options) => { ... }`
+- Use exact naming: kebab-case for file and command name (e.g., `my-command.ts` → `caliber my-command`)
+- All user-facing errors must use the `ErrorResponse` type from `src/types.ts`
+- Test files go in `src/commands/__tests__/my-command.test.ts` and must import with `.js` extension
 
 ## Instructions
 
-1. **Create the command file** at `src/commands/[command-name].ts`.
-   - Copy the function signature from an existing command (e.g., `src/commands/init.ts` or `src/commands/score.ts`).
-   - Define as `export async function [commandName](options: CommandOptions): Promise<void>`.
-   - Verify the export is named (not default export).
-
-2. **Add command options type** (if needed).
-   - Check `src/commands/` for pattern: `interface InitOptions { configPath?: string; debug?: boolean; }`.
-   - Flatten all CLI flags into the interface. Commander.js passes flags as kebab-case properties.
-
-3. **Import required utilities**:
+1. **Create the command file** in `src/commands/{name}.ts` with boilerplate:
    ```typescript
-   import * as ora from 'ora';
-   import { __exit__ } from '../lib/state';
-   import { getConfig } from '../lib/resolve-caliber';
+   import { ErrorResponse } from '../types.js';
+   
+   export default async (options) => {
+     // implementation
+   };
    ```
-   - Verify `__exit__` is imported from `src/lib/state.ts` (not thrown as `new Error`).
-   - Verify all imports resolve by running `npm run build`.
+   Verify the file exists and exports a default async function before proceeding.
 
-4. **Implement error handling**:
-   - Wrap external calls in try/catch.
-   - On validation failure: `throw __exit__(2, 'Missing required flag: --model')`.
-   - On runtime failure: `throw __exit__(1, error.message)` (extract message from Error, don't nest).
-   - Verify exit code is one of: `1` (runtime), `2` (validation), `3` (config).
-
-5. **Add spinner for long operations**:
+2. **Register in `src/cli.ts`** using the pattern from existing commands (e.g., `score.ts`, `refresh.ts`):
    ```typescript
-   const spinner = ora('Generating config...').start();
-   try {
-     const result = await generateConfig(options);
-     spinner.succeed('Config generated');
-   } catch (error) {
-     spinner.fail('Generation failed');
-     throw __exit__(1, (error as Error).message);
+   import myCommand from './commands/my-command.js';
+   
+   program
+     .command('my-command')
+     .description('Human-readable description')
+     .option('--flag <value>', 'option description')
+     .action(tracked('my-command', myCommand));
+   ```
+   Verify the command appears when running `npx caliber --help` before proceeding.
+
+3. **Add telemetry tracking** via `tracked()` wrapper from `src/telemetry/events.ts`. The wrapper automatically captures: command name, execution time, success/error status.
+   Verify `src/telemetry/events.ts` exports `tracked()` and examine an existing command's registration for the exact pattern.
+
+4. **Parse options using Commander.js** patterns from existing commands:
+   - String options: `.option('--output <path>', 'output file')`
+   - Boolean flags: `.option('--dry-run', 'preview only')`
+   - Required arguments: `.argument('<name>', 'required argument')`
+   Options are passed as the first parameter to the command function.
+   Verify options object structure by comparing to similar command (e.g., `score.ts`, `refresh.ts`).
+
+5. **Handle errors consistently** using `ErrorResponse`:
+   ```typescript
+   if (!condition) {
+     throw { error: 'Human message', code: 1 } as ErrorResponse;
    }
    ```
-   - Verify spinner is started, then `succeed()` or `fail()` called, never left spinning.
+   Verify error handling in at least one existing command and follow that pattern.
 
-6. **Register in `src/cli.ts`**:
-   - Import the command: `import { [commandName] } from './commands/[command-name]'`.
-   - Add `.command()` chain before `.action(tracked(...))` (see `init`, `score` examples).
-   - Pass options object to `tracked()`: `.action(tracked((options) => [commandName](options)))`.
-   - Verify command name in `.command('name')` matches the CLI invocation.
-
-7. **Add tests** in `src/commands/__tests__/[command-name].test.ts` (if complex logic):
-   - Mock `ora` as `{ start: () => ({ succeed, fail }) }`.
-   - Mock `__exit__` to capture thrown errors.
-   - Verify command succeeds with valid input, fails with invalid input.
-   - Verify exit codes are correct.
-   - Run `npm run test` to confirm all tests pass.
-
-8. **Build and validate**:
-   - Run `npm run build` to transpile via tsup.
-   - Verify no TypeScript errors: `npx tsc --noEmit`.
-   - Test command locally: `node dist/bin.js [command-name] [args]`.
-   - Verify help text shows: `node dist/bin.js [command-name] --help`.
+6. **Write tests** in `src/commands/__tests__/{name}.test.ts`:
+   - Import with `.js` extension: `import myCommand from '../my-command.js'`
+   - Mock dependencies using `vi.mock()`
+   - Test success case and error cases
+   - Verify test runs: `npx vitest run src/commands/__tests__/my-command.test.ts`
 
 ## Examples
 
-**User says:** "Add a command to validate the fingerprint"
+**User says**: "Add a 'validate' command that checks if CLAUDE.md exists and is valid"
 
-**Actions:**
-1. Create `src/commands/validate-fingerprint.ts`:
+**Actions taken**:
+1. Create `src/commands/validate.ts`:
    ```typescript
-   import * as ora from 'ora';
-   import { __exit__ } from '../lib/state';
-   import { collectFingerprint } from '../fingerprint';
+   import { existsSync, readFileSync } from 'fs';
+   import { ErrorResponse } from '../types.js';
    
-   export async function validateFingerprint(): Promise<void> {
-     const spinner = ora('Validating fingerprint...').start();
-     try {
-       const fp = await collectFingerprint('.');
-       spinner.succeed('Fingerprint valid');
-       process.stdout.write(JSON.stringify({ hash: fp.hash }, null, 2));
-     } catch (error) {
-       spinner.fail('Validation failed');
-       throw __exit__(1, (error as Error).message);
+   export default async (options) => {
+     if (!existsSync('CLAUDE.md')) {
+       throw { error: 'CLAUDE.md not found', code: 1 } as ErrorResponse;
      }
-   }
+     const content = readFileSync('CLAUDE.md', 'utf-8');
+     console.log('✓ CLAUDE.md is valid');
+   };
    ```
 
-2. Update `src/cli.ts`:
+2. Register in `src/cli.ts`:
    ```typescript
-   import { validateFingerprint } from './commands/validate-fingerprint';
-   // ...
-   cli
-     .command('validate-fingerprint')
-     .description('Validate the project fingerprint')
-     .action(tracked(() => validateFingerprint()));
+   import validateCommand from './commands/validate.js';
+   program
+     .command('validate')
+     .description('Validate CLAUDE.md and agent configs')
+     .action(tracked('validate', validateCommand));
    ```
 
-3. Run `npm run build && node dist/bin.js validate-fingerprint`.
+3. Create `src/commands/__tests__/validate.test.ts`:
+   ```typescript
+   import { describe, it, expect, vi } from 'vitest';
+   import validateCommand from '../validate.js';
+   
+   vi.mock('fs');
+   
+   it('throws error when CLAUDE.md missing', async () => {
+     await expect(validateCommand({})).rejects.toMatchObject({
+       error: 'CLAUDE.md not found'
+     });
+   });
+   ```
 
-**Result:** Command executes with spinner, outputs JSON, exits cleanly.
-
-## Anti-patterns
-
-1. **Do NOT throw `new Error('message')` for user-facing failures.** Always `throw __exit__(code, message)`. Errors not thrown via `__exit__` cause stack traces printed to users. Use `__exit__(1, 'Database unreachable')` instead of `throw new Error('DB failed')`.
-
-2. **Do NOT use `console.log()` for progress or interactive output.** Use `ora` spinners. `console.log('Working...')` produces noise in logs and doesn't clear on completion. Use `ora('message').start()` then `.succeed()` or `.fail()`.
-
-3. **Do NOT register commands without wrapping in `tracked()`** in `.action()`. Commands without telemetry tracking are invisible to observability. Ensure pattern is `.action(tracked((opts) => myCommand(opts)))`, not `.action((opts) => myCommand(opts))`.
+**Result**: `npx caliber validate` now works and is tracked in telemetry.
 
 ## Common Issues
 
-**Issue:** Command not found after running `npm run build`.
-- **Fix:** Verify command is registered in `src/cli.ts` with `.command('name')` matching the invocation. Check import statement is present. Run `npm run build` again—tsup may not have picked up the new file. Check `dist/commands/` contains the compiled file.
-
-**Issue:** "Cannot find module './commands/my-command'" at runtime.
-- **Fix:** Verify the file exists at `src/commands/my-command.ts` (exact spelling, kebab-case). Verify the export is `export async function myCommand()` (camelCase function name). Run `npm run build` and check `dist/commands/my-command.js` is present.
-
-**Issue:** Spinner text not clearing, spins forever, or shows after completion.
-- **Fix:** Ensure `spinner.succeed()` or `spinner.fail()` is called in all code paths (success and catch blocks). Never leave spinner without a terminal state. Pattern: `const s = ora('msg').start(); try { work; s.succeed(); } catch (e) { s.fail(); throw __exit__(...); }`.
-
-**Issue:** Exit code not respected; process exits with 0 even after error.
-- **Fix:** Verify error is thrown as `__exit__(code, msg)`, not caught and swallowed. Check that `src/cli.ts` does not wrap the command in additional try/catch that catches `__exit__`. Verify `npm run build` compiled latest code.
+- **Command not found**: Verify import in `src/cli.ts` uses `.js` extension and `.command()` name matches kebab-case filename
+- **Tests fail with 'module not found'**: Import paths in test files must use `.js` extension (e.g., `import cmd from '../my-command.js'`)
+- **Telemetry not recorded**: Ensure command is wrapped with `tracked()` in `src/cli.ts` — check existing commands for exact pattern
+- **Option not passed to function**: Verify `.option()` is called before `.action()` in `src/cli.ts` — Commander passes options as first parameter
+- **Build fails with 'unknown file extension .ts'**: tsup output uses `.js` — ensure all imports in commands use `.js` extensions

@@ -1,94 +1,77 @@
 ---
 name: llm-provider
-description: Implements or modifies an LLM provider in src/llm/ by implementing the LLMProvider interface (call() + stream() methods) from src/llm/types.ts. All provider calls route through src/llm/index.ts (llmCall, llmJsonCall). Use when user says 'add provider', 'new LLM', 'support model X', or modifies src/llm/ files. Do NOT use for calling LLM from commands — use existing llmCall/llmJsonCall instead.
+description: Adds a new LLM provider implementing LLMProvider interface with call() and stream() methods. Integrates config in src/llm/config.ts, factory in src/llm/index.ts, and error handling. Use when adding a new provider backend, integrating a model API, or extending LLM capabilities. Do NOT use for modifying existing providers or fixing provider bugs.
 ---
-# LLM Provider Implementation
+# llm-provider
 
 ## Critical
 
-1. **All new providers MUST implement the `LLMProvider` interface** from `src/llm/types.ts`:
-   ```typescript
-   interface LLMProvider {
-     call(req: LLMRequest): Promise<LLMResponse>;
-     stream(req: LLMRequest): AsyncGenerator<LLMChunk, void>;
-   }
-   ```
-2. **Register provider in `src/llm/index.ts`** via the `llmCall()` and `llmJsonCall()` exports — this is the only entrypoint commands use.
-3. **Handle `TRANSIENT_ERRORS`** (network, rate-limit, timeout) by catching and re-throwing as `Error` with message matching pattern in `src/llm/model-recovery.ts`.
-4. **Never catch `SeatBasedError`** — let it propagate; use `parseSeatBasedError()` from `src/llm/seat-based-errors.ts` in caller if needed.
-5. **Verify token estimation** with `estimateTokens()` from `src/llm/utils.ts` for cost tracking via `trackUsage()` in `src/llm/usage.ts`.
+- All providers MUST implement the `LLMProvider` interface from `src/llm/types.ts`: `call(prompt, options)` and `stream(prompt, options)` methods.
+- Stream method MUST yield `{ delta: string; timestamp_ms?: number }` objects. Final event MUST omit `timestamp_ms` to avoid duplication.
+- Provider MUST handle `unknown` error types, never `any`. Validate inputs before API calls.
+- Config env vars MUST be loaded in `src/llm/config.ts` with fallback to `process.env`.
+- Provider MUST be registered in factory function in `src/llm/index.ts`.
+- Do NOT hardcode model names or tool behaviors. All detection is LLM-driven.
 
 ## Instructions
 
-1. **Create provider file in `src/llm/`** (e.g., `src/llm/my-provider.ts`).
-   - Verify it exports a class implementing `LLMProvider`.
-   - Validate constructor accepts config from `src/llm/config.ts` (type `LLMConfig`).
+1. **Define the provider file** in `src/llm/<provider-name>.ts`
+   - Import `LLMProvider`, `LLMOptions`, `StreamEvent` from `src/llm/types.ts`
+   - Import `logger` from `src/lib/log.js` (if available) or use `console`
+   - Export a class implementing `LLMProvider` with `call()` and `stream()` async methods
+   - Verify the class signature matches existing providers (e.g., `anthropic.ts`, `openai-compat.ts`)
 
-2. **Implement `call(req: LLMRequest): Promise<LLMResponse>`**.
-   - Extract request fields: `messages`, `model`, `maxTokens`, `temperature`, `systemPrompt`, `jsonMode`.
-   - Call provider API with correct field mappings (e.g., Anthropic uses `max_tokens`, OpenAI uses `max_tokens`).
-   - On success: return `{ content: string, inputTokens: number, outputTokens: number, model: string }`.
-   - On transient error: throw `Error` with message containing 'timeout', 'rate limit', or 'connection'.
-   - On auth/quota error: throw error with message matching `seat-based-errors.ts` patterns (e.g., 'quota', 'billing').
-   - Verify response parsing with `extractJson()` from `src/llm/utils.ts` if `jsonMode: true`.
+2. **Implement `call()` method**
+   - Accept `(prompt: string, options: LLMOptions)` parameters
+   - Make API request with model, temperature, max_tokens from options
+   - Return `{ text: string }` on success
+   - Wrap API calls in try/catch, catch unknown, and throw standardized error with `code` and `message` properties
+   - Verify error response includes error details before proceeding
 
-3. **Implement `stream(req: LLMRequest): AsyncGenerator<LLMChunk, void>`**.
-   - Yield chunks as `{ delta: string, inputTokens?: number, outputTokens?: number }`.
-   - Track final token counts; yield final chunk with cumulative counts.
-   - On error: throw the same error types as `call()`.
-   - Use `src/ai/stream-parser.ts` to parse tool calls if needed.
+3. **Implement `stream()` method**
+   - Accept same parameters as `call()`
+   - Yield `{ delta: string; timestamp_ms?: number }` for streamed chunks
+   - Final event MUST NOT include `timestamp_ms` (check `openai-compat.ts` or `cursor-acp.ts` for pattern)
+   - Handle stream cancellation and connection errors gracefully
+   - Verify streaming output does not duplicate final text
 
-4. **Export provider from `src/llm/index.ts`**.
-   - Add import: `import { MyProvider } from './my-provider'`.
-   - Update `getProvider()` function to instantiate your provider based on config type.
-   - Verify `llmCall()` and `llmJsonCall()` delegate to `provider.call()`.
+4. **Add config in `src/llm/config.ts`**
+   - Import provider class at top of file
+   - Add env var getters (e.g., `getProviderApiKey()`, `getProviderModel()`)
+   - Validate required env vars are present; throw error with clear message if missing
+   - Verify config matches pattern in existing config entries
 
-5. **Add provider to `src/llm/config.ts`** if it requires new config fields.
-   - Update `LLMConfig` type union to include new provider config type.
-   - Export type so callers can pass correct config shape.
+5. **Register in factory `src/llm/index.ts`**
+   - Import provider class and config getters
+   - Add case to `getProvider()` switch statement matching provider name
+   - Return instantiated provider with config passed to constructor
+   - Verify factory exports provider in getProvider() function
 
-6. **Test with `vitest`** in `src/llm/__tests__/`.
-   - Mock API calls; verify `call()` returns correct `LLMResponse` shape.
-   - Verify `stream()` yields correct `LLMChunk` objects.
-   - Test transient error handling: mock network timeout, verify error message matches `TRANSIENT_ERRORS` pattern.
-   - Run `npm run test -- src/llm/__tests__/my-provider.test.ts` to validate.
+6. **Test the provider**
+   - Create `src/llm/__tests__/<provider-name>.test.ts`
+   - Test `call()` returns `{ text: string }` with valid input
+   - Test `stream()` yields objects with `delta` and optional `timestamp_ms`; final event has no timestamp
+   - Test error handling: invalid API key, network error, malformed response
+   - Run `npm run test -- src/llm/__tests__/<provider-name>.test.ts` and verify all pass
 
 ## Examples
 
-**User**: "Add support for OpenAI-compatible endpoints."
+**User says**: "Add support for Claude API as a provider"
 
-**Actions**:
-1. Create `src/llm/openai-compat.ts` (already exists as reference).
-2. Import `LLMProvider`, `LLMRequest`, `LLMResponse`, `LLMConfig` from `src/llm/types.ts`.
-3. Define class `OpenAICompatProvider implements LLMProvider`.
-4. In `call()`: map `req.messages` to OpenAI format, call provider, extract tokens, return `LLMResponse`.
-5. In `stream()`: iterate provider stream, yield `LLMChunk` per delta.
-6. Export from `src/llm/index.ts`; update `getProvider()` to instantiate based on config.
-7. Test: `npm run test -- src/llm/__tests__/openai-compat.test.ts`.
+**Actions taken**:
+1. Create `src/llm/anthropic.ts` implementing `LLMProvider` with Anthropic SDK
+2. Implement `call()` using `client.messages.create()` with model/temp/max_tokens from options
+3. Implement `stream()` using `client.messages.create({ stream: true })`, yielding `{ delta }` for each event
+4. Add `getAnthropicApiKey()` and `getAnthropicModel()` in `src/llm/config.ts`
+5. Register in `src/llm/index.ts` factory: `case 'anthropic': return new AnthropicProvider(...)`
+6. Write tests validating both methods, error handling, and stream format
 
-**Result**: Commands using `llmCall({ messages, model })` automatically route to OpenAI-compatible endpoint based on config; token counts tracked via `trackUsage()`.
-
-## Anti-patterns
-
-1. **DO NOT** call provider API directly from commands — use `llmCall()` from `src/llm/index.ts`. CORRECT: `import { llmCall } from './llm'; const res = await llmCall({ messages, model });`
-
-2. **DO NOT** handle `SeatBasedError` inside provider — let it bubble up. Commands catch it via `try/catch` and call `parseSeatBasedError()`. CORRECT: throw raw error; let caller parse with `parseSeatBasedError(error.message)`.
-
-3. **DO NOT** forget to track usage for cost reporting — always return `inputTokens` and `outputTokens` in `LLMResponse`. CORRECT: after API call, estimate tokens with `estimateTokens()` or extract from provider response, call `trackUsage()` in caller context.
+**Result**: Provider callable via `getProvider('anthropic')` with full call/stream support
 
 ## Common Issues
 
-- **Error: "Provider not registered in llmCall()"**
-  - Verify import statement in `src/llm/index.ts`: `import { MyProvider } from './my-provider'`.
-  - Verify `getProvider()` function instantiates your provider: `if (config.type === 'my-provider') return new MyProvider(config)`.
-  - Run `npm run build` and verify no TypeScript errors.
-
-- **Error: "Transient error not caught, request retried infinitely"**
-  - Check error message from provider matches one of `TRANSIENT_ERRORS` patterns in `src/llm/model-recovery.ts` (e.g., 'timeout', 'ECONNREFUSED', 'rate_limit_exceeded').
-  - If not: wrap provider error in `new Error()` with message containing transient keyword, e.g., `throw new Error('timeout calling provider')`.
-  - Verify `model-recovery.ts` retry logic kicks in: `npm run test -- src/llm/__tests__/model-recovery.test.ts`.
-
-- **Error: "Token count mismatch, usage not tracked"**
-  - Verify `call()` returns `inputTokens` and `outputTokens` as numbers (not strings).
-  - If provider doesn't return token counts: use `estimateTokens(messages, model)` from `src/llm/utils.ts` to estimate before API call.
-  - Verify caller invokes `trackUsage()` after `llmCall()` succeeds (check `src/ai/generate.ts` for pattern).
+- **"Unexpected timestamp_ms in final event"**: Stream method includes `timestamp_ms` on the last chunk. Fix: Check if this is the final event (no more data), then remove `timestamp_ms` before yielding.
+- **"Provider is undefined in factory"**: Import statement missing in `src/llm/index.ts`. Fix: Add `import { YourProvider } from './your-provider.js'` at top of file.
+- **"API_KEY not found"**: Config getter returns undefined. Fix: Verify env var name in `config.ts` matches `process.env.YOUR_API_KEY`, add fallback check.
+- **"Stream yields objects without delta"**: Response structure mismatch. Fix: Verify API returns delta/content field name; map it to `{ delta: string }` before yielding.
+- **"call() and stream() signatures don't match LLMProvider"**: Type error on class. Fix: Ensure both methods are `async` and accept `(prompt: string, options: LLMOptions)`, return `Promise<...>`.
