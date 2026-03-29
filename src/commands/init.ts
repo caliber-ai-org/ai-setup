@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs';
 import { collectFingerprint, type Fingerprint } from '../fingerprint/index.js';
 import { detectPlatforms } from '../scanner/index.js';
-import { installPreCommitHook } from '../lib/hooks.js';
+import { installPreCommitHook, installStopHook } from '../lib/hooks.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { generateSetup, generateSkillsForSetup } from '../ai/generate.js';
@@ -204,6 +204,9 @@ export async function initCommand(options: InitOptions) {
   } else if (hookResult.alreadyInstalled) {
     console.log(`  ${chalk.green('✓')} Pre-commit hook — active`);
   }
+
+  installStopHook();
+  console.log(`  ${chalk.green('✓')} Onboarding hook — nudges new team members to set up`);
 
   const { ensureBuiltinSkills } = await import('../lib/builtin-skills.js');
   for (const agent of targetAgent) {

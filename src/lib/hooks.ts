@@ -102,6 +102,86 @@ export function removeHook(): { removed: boolean; notFound: boolean } {
   return { removed: true, notFound: false };
 }
 
+// ── SessionStart hook (onboarding nudge for new team members) ───────
+
+// ── Stop hook (onboarding nudge for new team members) ───────────────
+// Uses a Stop hook to block the agent from finishing until it mentions
+// Caliber setup. A per-repo flag file ensures the nudge fires only once.
+
+const STOP_HOOK_SCRIPT_CONTENT = `#!/bin/sh
+if grep -q "caliber" .git/hooks/pre-commit 2>/dev/null; then
+  exit 0
+fi
+FLAG="/tmp/caliber-nudge-$(echo "$PWD" | shasum | cut -c1-8)"
+find /tmp -maxdepth 1 -name "caliber-nudge-*" -mmin +120 -delete 2>/dev/null
+if [ -f "$FLAG" ]; then
+  exit 0
+fi
+touch "$FLAG"
+printf '{"decision":"block","reason":"Caliber agent config sync is not set up on this machine. Tell the user: This project uses Caliber to keep agent configs in sync — it is not set up yet. Want me to run /setup-caliber? (~30 seconds)"}'
+`;
+
+const STOP_HOOK_SCRIPT_PATH = path.join('.claude', 'hooks', 'caliber-check-sync.sh');
+const STOP_HOOK_DESCRIPTION = 'Caliber: offer setup if not configured';
+
+function hasStopHook(matchers: HookMatcher[]): boolean {
+  return matchers.some(entry =>
+    entry.hooks?.some(h => h.description === STOP_HOOK_DESCRIPTION)
+  );
+}
+
+export function installStopHook(): { installed: boolean; alreadyInstalled: boolean } {
+  const settings = readSettings();
+  if (!settings.hooks) settings.hooks = {};
+
+  const stop = settings.hooks.Stop as HookMatcher[] | undefined;
+  if (Array.isArray(stop) && hasStopHook(stop)) {
+    return { installed: false, alreadyInstalled: true };
+  }
+
+  const scriptDir = path.dirname(STOP_HOOK_SCRIPT_PATH);
+  if (!fs.existsSync(scriptDir)) fs.mkdirSync(scriptDir, { recursive: true });
+  fs.writeFileSync(STOP_HOOK_SCRIPT_PATH, STOP_HOOK_SCRIPT_CONTENT);
+  fs.chmodSync(STOP_HOOK_SCRIPT_PATH, 0o755);
+
+  if (!Array.isArray(settings.hooks.Stop)) {
+    settings.hooks.Stop = [];
+  }
+  (settings.hooks.Stop as HookMatcher[]).push({
+    matcher: '',
+    hooks: [{
+      type: 'command',
+      command: STOP_HOOK_SCRIPT_PATH,
+      description: STOP_HOOK_DESCRIPTION,
+    }],
+  });
+
+  writeSettings(settings);
+  return { installed: true, alreadyInstalled: false };
+}
+
+export function removeStopHook(): { removed: boolean; notFound: boolean } {
+  const settings = readSettings();
+  const stop = settings.hooks?.Stop as HookMatcher[] | undefined;
+
+  if (!Array.isArray(stop)) return { removed: false, notFound: true };
+
+  const idx = stop.findIndex(entry =>
+    entry.hooks?.some(h => h.description === STOP_HOOK_DESCRIPTION)
+  );
+  if (idx === -1) return { removed: false, notFound: true };
+
+  stop.splice(idx, 1);
+  if (stop.length === 0) delete settings.hooks!.Stop;
+  if (settings.hooks && Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+  writeSettings(settings);
+
+  try { fs.unlinkSync(STOP_HOOK_SCRIPT_PATH); } catch { /* best effort */ }
+
+  return { removed: true, notFound: false };
+}
+
 // ── Pre-commit hook ──────────────────────────────────────────────────
 
 const PRECOMMIT_START = '# caliber:pre-commit:start';

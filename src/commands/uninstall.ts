@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import confirm from '@inquirer/confirm';
-import { removePreCommitHook } from '../lib/hooks.js';
+import { removePreCommitHook, removeStopHook } from '../lib/hooks.js';
 import { removeLearningHooks, removeCursorLearningHooks } from '../lib/learning-hooks.js';
 import { stripManagedBlocks } from '../writers/pre-commit-block.js';
 import { BUILTIN_SKILL_NAMES, PLATFORM_CONFIGS } from '../lib/builtin-skills.js';
@@ -103,6 +103,12 @@ export async function uninstallCommand(options: UninstallOptions) {
   if (hookResult.removed) {
     console.log(`  ${chalk.red('✗')} Pre-commit hook removed`);
     actions.push('pre-commit hook');
+  }
+
+  const stopHookResult = removeStopHook();
+  if (stopHookResult.removed) {
+    console.log(`  ${chalk.red('✗')} Onboarding hook removed`);
+    actions.push('onboarding hook');
   }
 
   const learnResult = removeLearningHooks();
