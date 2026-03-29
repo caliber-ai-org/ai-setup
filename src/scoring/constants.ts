@@ -43,7 +43,11 @@ export const POINTS_HAS_STRUCTURE = 2;
 // ── Grounding checks (20 pts) ────────────────────────────────────────
 /** Does the config reference the project's actual directories and files? */
 export const POINTS_PROJECT_GROUNDING = 12;
-/** How many specific references (backticks, paths) does the config have? */
+/**
+ * Reference density: inline code + path-like refs, with path-like refs weighted by whether
+ * they resolve to this repo (scanned tree / disk). No hardcoded “important filename” tiers
+ * (stack-agnostic; see discussion on #59).
+ */
 export const POINTS_REFERENCE_DENSITY = 8;
 
 // ── Accuracy checks (15 pts) ─────────────────────────────────────────
