@@ -1,4 +1,5 @@
 import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { DEFAULT_MODELS } from '../llm/config.js';
 
 const BLOCK_START = '<!-- caliber:managed:pre-commit -->';
 const BLOCK_END = '<!-- /caliber:managed:pre-commit -->';
@@ -80,4 +81,32 @@ export function appendLearningsBlock(content: string): string {
 
 export function getCursorLearningsRule(): { filename: string; content: string } {
   return { filename: CURSOR_LEARNINGS_FILENAME, content: CURSOR_LEARNINGS_CONTENT };
+}
+
+// ── Model configuration block ────────────────────────────────────────
+
+const MODEL_BLOCK_START = '<!-- caliber:managed:model-config -->';
+const MODEL_BLOCK_END = '<!-- /caliber:managed:model-config -->';
+
+/** Default model id for generated docs — single source: `DEFAULT_MODELS` in llm/config. */
+function buildManagedModelBlock(): string {
+  const m = DEFAULT_MODELS.anthropic;
+  return `${MODEL_BLOCK_START}
+## Model Configuration
+
+Recommended default: \`${m}\` with high effort (stronger reasoning; higher cost and latency than smaller models).
+Smaller/faster models trade quality for speed and cost — pick what fits the task.
+Pin your choice (\`/model\` in Claude Code, or \`CALIBER_MODEL\` when using Caliber with an API provider) so upstream default changes do not silently change behavior.
+
+${MODEL_BLOCK_END}`;
+}
+
+export function hasModelBlock(content: string): boolean {
+  return content.includes(MODEL_BLOCK_START);
+}
+
+export function appendModelBlock(content: string): string {
+  if (hasModelBlock(content)) return content;
+  const trimmed = content.trimEnd();
+  return trimmed + '\n\n' + buildManagedModelBlock() + '\n';
 }

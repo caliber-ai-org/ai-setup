@@ -13,7 +13,7 @@ export const CATEGORY_MAX = {
   grounding: 20,
   accuracy: 15,
   freshness: 10,
-  bonus: 7,
+  bonus: 9,
 } as const;
 
 // ── Existence checks (25 pts) ─────────────────────────────────────────
@@ -57,8 +57,10 @@ export const POINTS_FRESHNESS = 4;
 export const POINTS_NO_SECRETS = 4;
 export const POINTS_PERMISSIONS = 2;
 
-// ── Bonus checks (5 pts + conditional source pts) ───────────────────
+// ── Bonus checks (max 9 pts: hooks, model, agents, skills format, learned; + conditional sources) ──
 export const POINTS_HOOKS = 2;
+/** Model/effort explicitly pinned to prevent silent provider regressions */
+export const POINTS_MODEL_PINNED = 2;
 export const POINTS_AGENTS_MD = 1;
 export const POINTS_OPEN_SKILLS_FORMAT = 2;
 export const POINTS_LEARNED_CONTENT = 2;

@@ -7,10 +7,12 @@ import {
   POINTS_AGENTS_MD,
   POINTS_OPEN_SKILLS_FORMAT,
   POINTS_LEARNED_CONTENT,
+  POINTS_MODEL_PINNED,
 } from '../constants.js';
 import { resolveCaliber } from '../../lib/resolve-caliber.js';
 import { readFileOrNull } from '../utils.js';
 import { hasPreCommitBlock as checkPreCommitBlock } from '../../writers/pre-commit-block.js';
+import { configContentSuggestsPinnedModel } from '../model-pinning.js';
 
 function hasPreCommitHook(dir: string): boolean {
   try {
@@ -153,6 +155,40 @@ export function checkBonus(dir: string): Check[] {
     passed: hasLearned,
     detail: hasLearned ? 'Session learnings found in CALIBER_LEARNINGS.md' : 'No learned content',
     suggestion: hasLearned ? undefined : `Install learning hooks: \`${resolveCaliber()} learn install\``,
+  });
+
+  // 5. Model and effort level pinned
+  const configContent = (() => {
+    const parts: string[] = [];
+    for (const rel of ['CLAUDE.md', 'AGENTS.md'] as const) {
+      const c = readFileOrNull(join(dir, rel));
+      if (c) parts.push(c);
+    }
+    try {
+      const rulesDir = join(dir, '.cursor', 'rules');
+      for (const f of readdirSync(rulesDir).filter((x) => x.endsWith('.mdc'))) {
+        const content = readFileOrNull(join(rulesDir, f));
+        if (content) parts.push(content);
+      }
+    } catch { /* dir missing */ }
+    return parts.join('\n').toLowerCase();
+  })();
+
+  const hasModelRef = configContentSuggestsPinnedModel(configContent);
+
+  checks.push({
+    id: 'model_pinned',
+    name: 'Model & effort pinned',
+    category: 'bonus',
+    maxPoints: POINTS_MODEL_PINNED,
+    earnedPoints: hasModelRef ? POINTS_MODEL_PINNED : 0,
+    passed: hasModelRef,
+    detail: hasModelRef
+      ? 'Model or effort level explicitly set in config'
+      : "Config doesn't pin model or effort level — behavior may change when defaults are updated",
+    suggestion: hasModelRef
+      ? undefined
+      : 'Add model/effort to config: CALIBER_MODEL env var, or /model in Claude Code, or a Model Configuration section in CLAUDE.md',
   });
 
   return checks;
