@@ -150,7 +150,8 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
   }
 
   const written = writeRefreshDocs(response.updatedDocs);
-  trackRefreshCompleted(written.length, Date.now());
+  const trigger = quiet ? 'hook' as const : 'manual' as const;
+  trackRefreshCompleted(written.length, Date.now(), trigger);
 
   // Quality gate: check for score regression
   const postScore = computeLocalScore(repoDir, targetAgent);

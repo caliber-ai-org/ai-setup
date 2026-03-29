@@ -80,8 +80,8 @@ export function detectTargetAgent(dir: string): TargetAgent {
 
   if (existsSync(join(dir, 'CLAUDE.md')) || existsSync(join(dir, '.claude', 'skills'))) agents.push('claude');
   if (existsSync(join(dir, '.cursorrules')) || existsSync(join(dir, '.cursor', 'rules'))) agents.push('cursor');
-  if (existsSync(join(dir, '.codex')) || existsSync(join(dir, '.agents', 'skills'))) agents.push('codex');
-  if (existsSync(join(dir, '.github', 'copilot-instructions.md'))) agents.push('github-copilot');
+  if (existsSync(join(dir, '.codex')) || existsSync(join(dir, '.agents', 'skills')) || existsSync(join(dir, 'AGENTS.md'))) agents.push('codex');
+  if (existsSync(join(dir, '.github', 'copilot-instructions.md')) || existsSync(join(dir, '.github', 'instructions'))) agents.push('github-copilot');
 
   return agents.length > 0 ? agents : ['claude'];
 }

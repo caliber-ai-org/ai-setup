@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs';
 import { collectFingerprint, type Fingerprint } from '../fingerprint/index.js';
 import { detectPlatforms } from '../scanner/index.js';
+import { installPreCommitHook } from '../lib/hooks.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { generateSetup, generateSkillsForSetup } from '../ai/generate.js';
@@ -13,11 +14,14 @@ import { installLearningHooks, installCursorLearningHooks } from '../lib/learnin
 import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { writeState, getCurrentHeadSha } from '../lib/state.js';
 import { promptInput } from '../utils/prompt.js';
-import { loadConfig, getFastModel, getDisplayModel } from '../llm/config.js';
+import { loadConfig, getFastModel, getDisplayModel, writeConfigFile } from '../llm/config.js';
 import { validateModel } from '../llm/index.js';
 import { runInteractiveProviderSetup } from './interactive-provider-setup.js';
+import { isClaudeCliAvailable } from '../llm/claude-cli.js';
+import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
+import confirm from '@inquirer/confirm';
 import { computeLocalScore } from '../scoring/index.js';
-import { displayScoreSummary, displayScoreDelta } from '../scoring/display.js';
+import { displayScoreDelta } from '../scoring/display.js';
 import { readDismissedChecks, writeDismissedChecks } from '../scoring/dismissed.js';
 import { searchSkills, selectSkills, installSkills } from './recommend.js';
 import type { SkillSearchResult } from './recommend.js';
@@ -40,24 +44,13 @@ import {
   trackInitSkillsSearch,
   trackInitScoreRegression,
   trackInitLearnEnabled,
+  trackInitCompleted,
 } from '../telemetry/events.js';
 
-import {
-  detectAgents,
-  promptAgent,
-  promptLearnInstall,
-  promptReviewAction,
-  refineLoop,
-} from './init-prompts.js';
+import { detectAgents, promptAgent, promptReviewAction, refineLoop } from './init-prompts.js';
 import type { TargetAgent } from './init-prompts.js';
-import { formatWhatChanged, printSetupSummary, displayTokenUsage } from './init-display.js';
-import {
-  isFirstRun,
-  summarizeSetup,
-  ensurePermissions,
-  writeErrorLog,
-  evaluateDismissals,
-} from './init-helpers.js';
+import { formatProjectPreview, formatWhatChanged, printSetupSummary, displayTokenUsage } from './init-display.js';
+import { isFirstRun, summarizeSetup, ensurePermissions, writeErrorLog, evaluateDismissals } from './init-helpers.js';
 import { recordScore } from '../scoring/history.js';
 
 export type { TargetAgent };
@@ -84,58 +77,84 @@ export async function initCommand(options: InitOptions) {
   const firstRun = isFirstRun(process.cwd());
 
   if (firstRun) {
-    console.log(
-      brand.bold(`
+    console.log(brand.bold(`
    ██████╗ █████╗ ██╗     ██╗██████╗ ███████╗██████╗
   ██╔════╝██╔══██╗██║     ██║██╔══██╗██╔════╝██╔══██╗
   ██║     ███████║██║     ██║██████╔╝█████╗  ██████╔╝
   ██║     ██╔══██║██║     ██║██╔══██╗██╔══╝  ██╔══██╗
   ╚██████╗██║  ██║███████╗██║██████╔╝███████╗██║  ██║
    ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
-  `),
-    );
-    console.log(chalk.dim('  Scan your project and generate tailored config files for'));
-    console.log(chalk.dim('  Claude Code, Cursor, Codex, and GitHub Copilot.\n'));
+  `));
+    console.log(chalk.dim('  Keep your AI agent configs in sync — automatically.'));
+    console.log(chalk.dim('  Works across Claude Code, Cursor, Codex, and GitHub Copilot.\n'));
 
     console.log(title.bold('  How it works:\n'));
-    console.log(chalk.dim('  1. Connect    Link your LLM provider and select your agents'));
-    console.log(chalk.dim('  2. Engine     Detect stack, generate configs & skills in parallel'));
-    console.log(chalk.dim('  3. Review     See all changes — accept, refine, or decline'));
-    console.log(chalk.dim('  4. Finalize   Score check and auto-sync hooks\n'));
+    console.log(chalk.dim('  1. Connect    Auto-detect your LLM provider and agents'));
+    console.log(chalk.dim('  2. Build      Install sync, scan your project, generate configs'));
+    console.log(chalk.dim('  3. Done       Review score and start syncing\n'));
   } else {
-    console.log(brand.bold('\n  CALIBER') + chalk.dim('  — regenerating config\n'));
+    console.log(brand.bold('\n  CALIBER') + chalk.dim('  — setting up continuous sync\n'));
   }
 
   const platforms = detectPlatforms();
   if (!platforms.claude && !platforms.cursor && !platforms.codex) {
     console.log(chalk.yellow('  ⚠ No supported AI platforms detected (Claude, Cursor, Codex).'));
-    console.log(
-      chalk.yellow(
-        "    Caliber will still generate config files, but they won't be auto-installed.\n",
-      ),
-    );
+    console.log(chalk.yellow('    Caliber will still generate config files, but they won\'t be auto-installed.\n'));
   }
 
   const report = options.debugReport ? new DebugReport() : null;
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Step 1 — Connect
+  // Step 1 — Connect (auto-detect provider + agents)
   // ───────────────────────────────────────────────────────────────────────────
-  console.log(title.bold('  Step 1/4 — Connect\n'));
+  console.log(title.bold('  Step 1/3 — Connect\n'));
 
-  // 1a. LLM provider
+  // 1a. LLM provider — auto-detect before prompting
   let config = loadConfig();
-  if (!config) {
-    console.log(chalk.dim('  No LLM provider configured yet.\n'));
-    await runInteractiveProviderSetup({
-      selectMessage: 'How do you want to use Caliber? (choose LLM provider)',
-    });
-    config = loadConfig();
-    if (!config) {
-      console.log(chalk.red('  Configuration cancelled or failed.\n'));
-      throw new Error('__exit__');
+  if (!config && !options.autoApprove) {
+    // Try seat-based auto-detection
+    if (isClaudeCliAvailable()) {
+      console.log(chalk.dim('  Detected: Claude Code CLI (uses your Pro/Max/Team subscription)\n'));
+      const useIt = await confirm({ message: 'Use Claude Code as your LLM provider?' });
+      if (useIt) {
+        const autoConfig = { provider: 'claude-cli' as const, model: 'default' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      }
+    } else if (isCursorAgentAvailable() && isCursorLoggedIn()) {
+      console.log(chalk.dim('  Detected: Cursor (uses your existing subscription)\n'));
+      const useIt = await confirm({ message: 'Use Cursor as your LLM provider?' });
+      if (useIt) {
+        const autoConfig = { provider: 'cursor' as const, model: 'sonnet-4.6' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      }
     }
-    console.log(chalk.green('  ✓ Provider saved\n'));
+  }
+  if (!config) {
+    if (options.autoApprove) {
+      // In auto-approve mode, try seat-based silently
+      if (isClaudeCliAvailable()) {
+        const autoConfig = { provider: 'claude-cli' as const, model: 'default' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      } else if (isCursorAgentAvailable() && isCursorLoggedIn()) {
+        const autoConfig = { provider: 'cursor' as const, model: 'sonnet-4.6' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      }
+    }
+    if (!config) {
+      console.log(chalk.dim('  No LLM provider detected.\n'));
+      await runInteractiveProviderSetup({
+        selectMessage: 'How do you want to use Caliber? (choose LLM provider)',
+      });
+      config = loadConfig();
+      if (!config) {
+        console.log(chalk.red('  Configuration cancelled or failed.\n'));
+        throw new Error('__exit__');
+      }
+    }
   }
   trackInitProviderSelected(config.provider, config.model, firstRun);
   const displayModel = getDisplayModel(config);
@@ -147,60 +166,81 @@ export async function initCommand(options: InitOptions) {
 
   if (report) {
     report.markStep('Provider connection');
-    report.addSection(
-      'LLM Provider',
-      `- **Provider**: ${config.provider}\n- **Model**: ${displayModel}\n- **Fast model**: ${fastModel || 'none'}`,
-    );
+    report.addSection('LLM Provider', `- **Provider**: ${config.provider}\n- **Model**: ${displayModel}\n- **Fast model**: ${fastModel || 'none'}`);
   }
 
   await validateModel({ fast: true });
 
-  // 1b. Pick target agents (auto-detect from existing dirs)
+  // 1b. Pick target agents — auto-detect, confirm once
   let targetAgent: TargetAgent;
   const agentAutoDetected = !options.agent;
   if (options.agent) {
     targetAgent = options.agent;
-  } else if (options.autoApprove) {
-    targetAgent = ['claude'];
-    log(options.verbose, 'Auto-approve: defaulting to claude agent');
   } else {
     const detected = detectAgents(process.cwd());
-    targetAgent = await promptAgent(detected.length > 0 ? detected : undefined);
+    if (detected.length > 0 && (options.autoApprove || firstRun)) {
+      targetAgent = detected;
+      console.log(chalk.dim(`  Detected agents: ${detected.join(', ')}\n`));
+    } else if (detected.length > 0) {
+      console.log(chalk.dim(`  Detected agents: ${detected.join(', ')}\n`));
+      const useDetected = await confirm({ message: 'Use detected agents?' });
+      targetAgent = useDetected ? detected : await promptAgent();
+    } else {
+      targetAgent = options.autoApprove ? ['claude'] : await promptAgent();
+    }
   }
   console.log(chalk.dim(`  Target: ${targetAgent.join(', ')}\n`));
   trackInitAgentSelected(targetAgent, agentAutoDetected);
 
-  // 1c. Compute & show initial score
-  const baselineScore = computeLocalScore(process.cwd(), targetAgent);
-  console.log(chalk.dim('\n  Current config score:'));
-  displayScoreSummary(baselineScore);
-  if (options.verbose) {
-    for (const c of baselineScore.checks) {
-      log(
-        options.verbose,
-        `  ${c.passed ? '✓' : '✗'} ${c.name}: ${c.earnedPoints}/${c.maxPoints}${c.suggestion ? ` — ${c.suggestion}` : ''}`,
-      );
-    }
+  // ───────────────────────────────────────────────────────────────────────────
+  // Step 2 — Build (install sync + fingerprint + generate)
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log(title.bold('  Step 2/3 — Build\n'));
+
+  // Install sync infrastructure
+  const hookResult = installPreCommitHook();
+  if (hookResult.installed) {
+    console.log(`  ${chalk.green('✓')} Pre-commit hook installed`);
+  } else if (hookResult.alreadyInstalled) {
+    console.log(`  ${chalk.green('✓')} Pre-commit hook — active`);
   }
+
+  const { ensureBuiltinSkills } = await import('../lib/builtin-skills.js');
+  for (const agent of targetAgent) {
+    if (agent === 'claude' && !fs.existsSync('.claude')) fs.mkdirSync('.claude', { recursive: true });
+    if (agent === 'cursor' && !fs.existsSync('.cursor')) fs.mkdirSync('.cursor', { recursive: true });
+    if (agent === 'codex' && !fs.existsSync('.agents')) fs.mkdirSync('.agents', { recursive: true });
+  }
+  const skillsWritten = ensureBuiltinSkills();
+  if (skillsWritten.length > 0) {
+    console.log(`  ${chalk.green('✓')} Agent skills installed`);
+  }
+
+  // Enable session learning by default
+  const hasLearnableAgent = targetAgent.includes('claude') || targetAgent.includes('cursor');
+  if (hasLearnableAgent) {
+    if (targetAgent.includes('claude')) installLearningHooks();
+    if (targetAgent.includes('cursor')) installCursorLearningHooks();
+    console.log(`  ${chalk.green('✓')} Session learning enabled`);
+    trackInitLearnEnabled(true);
+  }
+
+  console.log('');
+
+  // Compute baseline score silently (for regression check and delta display later)
+  let baselineScore = computeLocalScore(process.cwd(), targetAgent);
+  log(options.verbose, `Baseline score: ${baselineScore.score}/100`);
 
   if (report) {
     report.markStep('Baseline scoring');
-    report.addSection(
-      'Scoring: Baseline',
-      `**Score**: ${baselineScore.score}/100\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
-        baselineScore.checks
-          .map(
-            (c) =>
-              `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`,
-          )
-          .join('\n'),
-    );
+    report.addSection('Scoring: Baseline', `**Score**: ${baselineScore.score}/100\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
+      baselineScore.checks.map(c => `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`).join('\n'));
     report.addSection('Generation: Target Agents', targetAgent.join(', '));
   }
 
   const hasExistingConfig = !!(
-    baselineScore.checks.some((c) => c.id === 'claude_md_exists' && c.passed) ||
-    baselineScore.checks.some((c) => c.id === 'cursorrules_exists' && c.passed)
+    baselineScore.checks.some(c => c.id === 'claude_md_exists' && c.passed) ||
+    baselineScore.checks.some(c => c.id === 'cursorrules_exists' && c.passed)
   );
 
   const NON_LLM_CHECKS = new Set([
@@ -212,52 +252,84 @@ export async function initCommand(options: InitOptions) {
     'mcp_completeness',
   ]);
 
-  const passingCount = baselineScore.checks.filter((c) => c.passed).length;
-  const failingCount = baselineScore.checks.filter((c) => !c.passed).length;
-
-  // Score gating
-  if (hasExistingConfig && baselineScore.score === 100) {
-    trackInitScoreComputed(baselineScore.score, passingCount, failingCount, true);
-    console.log(chalk.bold.green('  Your config is already optimal — nothing to change.\n'));
-    console.log(
-      chalk.dim('  Run ') +
-        chalk.hex('#83D1EB')(`${bin} init --force`) +
-        chalk.dim(' to regenerate anyway.\n'),
-    );
-    if (!options.force) return;
-  }
-
-  const allFailingChecks = baselineScore.checks.filter((c) => !c.passed && c.maxPoints > 0);
-  const llmFixableChecks = allFailingChecks.filter((c) => !NON_LLM_CHECKS.has(c.id));
+  const passingCount = baselineScore.checks.filter(c => c.passed).length;
+  const failingCount = baselineScore.checks.filter(c => !c.passed).length;
   trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
 
-  if (
-    hasExistingConfig &&
-    llmFixableChecks.length === 0 &&
-    allFailingChecks.length > 0 &&
-    !options.force
-  ) {
-    console.log(chalk.bold.green('\n  Your config is fully optimized for LLM generation.\n'));
-    console.log(chalk.dim('  Remaining items need CLI actions:\n'));
-    for (const check of allFailingChecks) {
-      console.log(chalk.dim(`    • ${check.name}`));
-      if (check.suggestion) {
-        console.log(`      ${chalk.hex('#83D1EB')(check.suggestion)}`);
+  // Decide whether to generate configs
+  // First run: always generate (no question). Existing config at 100: skip. Existing config <100: ask to improve.
+  let skipGeneration = false;
+
+  if (hasExistingConfig && baselineScore.score === 100 && !options.force) {
+    skipGeneration = true;
+  } else if (hasExistingConfig && !options.force && !options.autoApprove) {
+    console.log(chalk.dim(`  Config score: ${baselineScore.score}/100 — Caliber can improve this.\n`));
+    const improveAnswer = await confirm({ message: 'Improve your existing configs?' });
+    skipGeneration = !improveAnswer;
+  }
+
+  if (skipGeneration) {
+    // Write managed blocks into config files so agents know about Caliber
+    const { appendManagedBlocks,
+            getCursorPreCommitRule, getCursorLearningsRule, getCursorSyncRule, getCursorSetupRule } = await import('../writers/pre-commit-block.js');
+
+    // CLAUDE.md — create or append managed blocks
+    const claudeMdPath = 'CLAUDE.md';
+    let claudeContent = '';
+    try { claudeContent = fs.readFileSync(claudeMdPath, 'utf-8'); } catch { /* doesn't exist */ }
+    if (!claudeContent) {
+      claudeContent = `# ${path.basename(process.cwd())}\n`;
+    }
+    const updatedClaude = appendManagedBlocks(claudeContent, 'claude');
+    if (updatedClaude !== claudeContent || !fs.existsSync(claudeMdPath)) {
+      fs.writeFileSync(claudeMdPath, updatedClaude);
+      console.log(`  ${chalk.green('✓')} CLAUDE.md — added Caliber sync instructions`);
+    }
+
+    // Cursor rules — write sync and pre-commit rules
+    if (targetAgent.includes('cursor')) {
+      const rulesDir = path.join('.cursor', 'rules');
+      if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
+      for (const rule of [getCursorPreCommitRule(), getCursorLearningsRule(), getCursorSyncRule(), getCursorSetupRule()]) {
+        fs.writeFileSync(path.join(rulesDir, rule.filename), rule.content);
+      }
+      console.log(`  ${chalk.green('✓')} Cursor rules — added Caliber sync rules`);
+    }
+
+    // Copilot — create or append managed blocks
+    if (targetAgent.includes('github-copilot')) {
+      const copilotPath = path.join('.github', 'copilot-instructions.md');
+      let copilotContent = '';
+      try { copilotContent = fs.readFileSync(copilotPath, 'utf-8'); } catch { /* doesn't exist */ }
+      if (!copilotContent) {
+        fs.mkdirSync('.github', { recursive: true });
+        copilotContent = `# ${path.basename(process.cwd())}\n`;
+      }
+      const updatedCopilot = appendManagedBlocks(copilotContent, 'copilot');
+      if (updatedCopilot !== copilotContent) {
+        fs.writeFileSync(copilotPath, updatedCopilot);
+        console.log(`  ${chalk.green('✓')} Copilot instructions — added Caliber sync instructions`);
       }
     }
-    console.log('');
-    console.log(
-      chalk.dim('  Run ') +
-        chalk.hex('#83D1EB')(`${bin} init --force`) +
-        chalk.dim(' to regenerate anyway.\n'),
-    );
+
+    const sha = getCurrentHeadSha();
+    writeState({
+      lastRefreshSha: sha ?? '',
+      lastRefreshTimestamp: new Date().toISOString(),
+      targetAgent,
+    });
+
+    trackInitCompleted('sync-only', baselineScore.score);
+    console.log(chalk.bold.green('\n  Caliber sync is set up!\n'));
+    console.log(chalk.dim('  Your agent configs will sync automatically on every commit.'));
+    console.log(chalk.dim('  Run ') + title(`${bin} init --force`) + chalk.dim(' anytime to generate or improve configs.\n'));
     return;
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // Step 2 — Parallel Engine
-  // ───────────────────────────────────────────────────────────────────────────
-  console.log(title.bold('  Step 2/4 — Engine\n'));
+  const allFailingChecks = baselineScore.checks.filter(c => !c.passed && c.maxPoints > 0);
+  const llmFixableChecks = allFailingChecks.filter(c => !NON_LLM_CHECKS.has(c.id));
+
+  // Generation phase (part of Step 2)
 
   const genModelInfo = fastModel
     ? `  Using ${displayModel} for docs, ${fastModel} for skills`
@@ -280,14 +352,8 @@ export async function initCommand(options: InitOptions) {
   const TASK_STACK = display.add('Detecting project stack', { pipelineLabel: 'Scan' });
   const TASK_CONFIG = display.add('Generating configs', { depth: 1, pipelineLabel: 'Generate' });
   const TASK_SKILLS_GEN = display.add('Generating skills', { depth: 2, pipelineLabel: 'Skills' });
-  const TASK_SKILLS_SEARCH = display.add('Searching community skills', {
-    depth: 1,
-    pipelineLabel: 'Search',
-    pipelineRow: 1,
-  });
-  const TASK_SCORE_REFINE = display.add('Validating & refining config', {
-    pipelineLabel: 'Validate',
-  });
+  const TASK_SKILLS_SEARCH = display.add('Searching community skills', { depth: 1, pipelineLabel: 'Search', pipelineRow: 1 });
+  const TASK_SCORE_REFINE = display.add('Validating & refining config', { pipelineLabel: 'Validate' });
   display.start();
   display.enableWaitingContent();
 
@@ -298,21 +364,13 @@ export async function initCommand(options: InitOptions) {
 
     const stackParts = [...fingerprint.languages, ...fingerprint.frameworks];
     const stackSummary = stackParts.join(', ') || 'no languages';
-    const largeRepoNote =
-      fingerprint.fileTree.length > 5000
-        ? ` (${fingerprint.fileTree.length.toLocaleString()} files, smart sampling active)`
-        : '';
+    const largeRepoNote = fingerprint.fileTree.length > 5000
+      ? ` (${fingerprint.fileTree.length.toLocaleString()} files, smart sampling active)`
+      : '';
     display.update(TASK_STACK, 'done', stackSummary + largeRepoNote);
 
-    trackInitProjectDiscovered(
-      fingerprint.languages.length,
-      fingerprint.frameworks.length,
-      fingerprint.fileTree.length,
-    );
-    log(
-      options.verbose,
-      `Fingerprint: ${fingerprint.languages.length} languages, ${fingerprint.frameworks.length} frameworks, ${fingerprint.fileTree.length} files`,
-    );
+    trackInitProjectDiscovered(fingerprint.languages.length, fingerprint.frameworks.length, fingerprint.fileTree.length);
+    log(options.verbose, `Fingerprint: ${fingerprint.languages.length} languages, ${fingerprint.frameworks.length} frameworks, ${fingerprint.fileTree.length} files`);
 
     // Resolve external sources
     const cliSources = options.source || [];
@@ -320,26 +378,15 @@ export async function initCommand(options: InitOptions) {
     const sources = resolveAllSources(process.cwd(), cliSources, workspaces);
     if (sources.length > 0) {
       fingerprint.sources = sources;
-      log(
-        options.verbose,
-        `Sources: ${sources.length} resolved (${sources.map((s) => s.name).join(', ')})`,
-      );
+      log(options.verbose, `Sources: ${sources.length} resolved (${sources.map(s => s.name).join(', ')})`);
     }
 
     if (report) {
-      report.addJson('Fingerprint: Git', {
-        remote: fingerprint.gitRemoteUrl,
-        packageName: fingerprint.packageName,
-      });
+      report.addJson('Fingerprint: Git', { remote: fingerprint.gitRemoteUrl, packageName: fingerprint.packageName });
       report.addCodeBlock('Fingerprint: File Tree', fingerprint.fileTree.join('\n'));
-      report.addJson('Fingerprint: Detected Stack', {
-        languages: fingerprint.languages,
-        frameworks: fingerprint.frameworks,
-        tools: fingerprint.tools,
-      });
+      report.addJson('Fingerprint: Detected Stack', { languages: fingerprint.languages, frameworks: fingerprint.frameworks, tools: fingerprint.tools });
       report.addJson('Fingerprint: Existing Configs', fingerprint.existingConfigs);
-      if (fingerprint.codeAnalysis)
-        report.addJson('Fingerprint: Code Analysis', fingerprint.codeAnalysis);
+      if (fingerprint.codeAnalysis) report.addJson('Fingerprint: Code Analysis', fingerprint.codeAnalysis);
     }
 
     // Get project description if empty
@@ -355,15 +402,15 @@ export async function initCommand(options: InitOptions) {
 
     const generatePromise = (async () => {
       let localBaseline = baselineScore;
-      const failingForDismissal = localBaseline.checks.filter((c) => !c.passed && c.maxPoints > 0);
+      const failingForDismissal = localBaseline.checks.filter(c => !c.passed && c.maxPoints > 0);
       if (failingForDismissal.length > 0) {
         display.update(TASK_CONFIG, 'running', 'Evaluating baseline checks...');
         try {
           const newDismissals = await evaluateDismissals(failingForDismissal, fingerprint);
           if (newDismissals.length > 0) {
             const existing = readDismissedChecks();
-            const existingIds = new Set(existing.map((d) => d.id));
-            const merged = [...existing, ...newDismissals.filter((d) => !existingIds.has(d.id))];
+            const existingIds = new Set(existing.map(d => d.id));
+            const merged = [...existing, ...newDismissals.filter(d => !existingIds.has(d.id))];
             writeDismissedChecks(merged);
             localBaseline = computeLocalScore(process.cwd(), targetAgent);
           }
@@ -377,27 +424,18 @@ export async function initCommand(options: InitOptions) {
       let currentScore: number | undefined;
 
       if (hasExistingConfig && localBaseline.score >= 95 && !options.force) {
-        const currentLlmFixable = localBaseline.checks.filter(
-          (c) => !c.passed && c.maxPoints > 0 && !NON_LLM_CHECKS.has(c.id),
-        );
-        failingChecks = currentLlmFixable.map((c) => ({
-          name: c.name,
-          suggestion: c.suggestion,
-          fix: c.fix,
-        }));
-        passingChecks = localBaseline.checks.filter((c) => c.passed).map((c) => ({ name: c.name }));
+        const currentLlmFixable = localBaseline.checks
+          .filter(c => !c.passed && c.maxPoints > 0 && !NON_LLM_CHECKS.has(c.id));
+        failingChecks = currentLlmFixable
+          .map(c => ({ name: c.name, suggestion: c.suggestion, fix: c.fix }));
+        passingChecks = localBaseline.checks
+          .filter(c => c.passed)
+          .map(c => ({ name: c.name }));
         currentScore = localBaseline.score;
       }
 
       if (report) {
-        const fullPrompt = buildGeneratePrompt(
-          fingerprint,
-          targetAgent,
-          fingerprint.description,
-          failingChecks,
-          currentScore,
-          passingChecks,
-        );
+        const fullPrompt = buildGeneratePrompt(fingerprint, targetAgent, fingerprint.description, failingChecks, currentScore, passingChecks);
         report.addCodeBlock('Generation: Full LLM Prompt', fullPrompt);
       }
 
@@ -407,17 +445,12 @@ export async function initCommand(options: InitOptions) {
         fingerprint.description,
         {
           onStatus: (status) => display.update(TASK_CONFIG, 'running', status),
-          onComplete: (setup) => {
-            generatedSetup = setup;
-          },
+          onComplete: (setup) => { generatedSetup = setup; },
           onError: (error) => display.update(TASK_CONFIG, 'failed', error),
           onContent: (text) => {
-            const lines = text
-              .split('\n')
-              .filter((l) => l.trim())
-              .slice(-8);
+            const lines = text.split('\n').filter(l => l.trim()).slice(-8);
             if (lines.length > 0) {
-              display.setPreviewContent(lines.map((l) => `  ${chalk.dim(l.slice(0, 80))}`));
+              display.setPreviewContent(lines.map(l => `  ${chalk.dim(l.slice(0, 80))}`));
             }
           },
         },
@@ -455,19 +488,20 @@ export async function initCommand(options: InitOptions) {
       display.update(TASK_SKILLS_SEARCH, 'running');
       try {
         const searchWithTimeout = Promise.race([
-          searchSkills(fingerprint, targetAgent, (status) =>
-            display.update(TASK_SKILLS_SEARCH, 'running', status),
+          searchSkills(
+            fingerprint,
+            targetAgent,
+            (status) => display.update(TASK_SKILLS_SEARCH, 'running', status),
           ),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('timeout')), SEARCH_TIMEOUT_MS),
+            setTimeout(() => reject(new Error('timeout')), SEARCH_TIMEOUT_MS)
           ),
         ]);
         skillSearchResult = await searchWithTimeout;
         const count = skillSearchResult.results.length;
         display.update(TASK_SKILLS_SEARCH, 'done', count > 0 ? `${count} found` : 'No matches');
       } catch (err) {
-        const reason =
-          err instanceof Error && err.message === 'timeout' ? 'Timed out' : 'Search failed';
+        const reason = err instanceof Error && err.message === 'timeout' ? 'Timed out' : 'Search failed';
         display.update(TASK_SKILLS_SEARCH, 'failed', reason);
       }
     })();
@@ -498,6 +532,7 @@ export async function initCommand(options: InitOptions) {
     } else {
       display.update(TASK_SCORE_REFINE, 'failed', 'No config to validate');
     }
+
   } catch (err) {
     display.stop();
     const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -530,15 +565,12 @@ export async function initCommand(options: InitOptions) {
     report.addJson('Generation: Parsed Config', generatedSetup);
   }
 
-  log(
-    options.verbose,
-    `Generation completed: ${elapsedMs}ms, stopReason: ${genStopReason || 'end_turn'}`,
-  );
+  log(options.verbose, `Generation completed: ${elapsedMs}ms, stopReason: ${genStopReason || 'end_turn'}`);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Step 3 — Review
+  // Step 3 — Done (Review + Score)
   // ───────────────────────────────────────────────────────────────────────────
-  console.log(title.bold('  Step 3/4 — Review\n'));
+  console.log(title.bold('  Step 3/3 — Done\n'));
 
   const setupFiles = collectSetupFiles(generatedSetup, targetAgent);
   const staged = stageFiles(setupFiles, process.cwd());
@@ -554,18 +586,10 @@ export async function initCommand(options: InitOptions) {
     console.log('');
   }
 
-  console.log(
-    chalk.dim(
-      `  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}`,
-    ),
-  );
+  console.log(chalk.dim(`  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}`));
 
   if (skillSearchResult.results.length > 0) {
-    console.log(
-      chalk.dim(
-        `  ${chalk.cyan(`${skillSearchResult.results.length}`)} community skills available to install\n`,
-      ),
-    );
+    console.log(chalk.dim(`  ${chalk.cyan(`${skillSearchResult.results.length}`)} community skills available to install\n`));
   } else {
     console.log('');
   }
@@ -605,11 +629,7 @@ export async function initCommand(options: InitOptions) {
     }
     const updatedFiles = collectSetupFiles(generatedSetup, targetAgent);
     const restaged = stageFiles(updatedFiles, process.cwd());
-    console.log(
-      chalk.dim(
-        `  ${chalk.green(`${restaged.newFiles} new`)} / ${chalk.yellow(`${restaged.modifiedFiles} modified`)} file${restaged.newFiles + restaged.modifiedFiles !== 1 ? 's' : ''}\n`,
-      ),
-    );
+    console.log(chalk.dim(`  ${chalk.green(`${restaged.newFiles} new`)} / ${chalk.yellow(`${restaged.modifiedFiles} modified`)} file${restaged.newFiles + restaged.modifiedFiles !== 1 ? 's' : ''}\n`));
     printSetupSummary(generatedSetup);
 
     const { openReview: openRev } = await import('../utils/review.js');
@@ -624,11 +644,6 @@ export async function initCommand(options: InitOptions) {
     console.log(chalk.dim('Declined. No files were modified.'));
     return;
   }
-
-  // ───────────────────────────────────────────────────────────────────────────
-  // Step 4 — Finalize
-  // ───────────────────────────────────────────────────────────────────────────
-  console.log(title.bold('\n  Step 4/4 — Finalize\n'));
 
   // Write files
   if (options.dryRun) {
@@ -646,8 +661,7 @@ export async function initCommand(options: InitOptions) {
       const agentRefs: string[] = [];
       if (claude) agentRefs.push('See `CLAUDE.md` for Claude Code configuration.');
       if (cursor) agentRefs.push('See `.cursor/rules/` for Cursor rules.');
-      if (agentRefs.length === 0)
-        agentRefs.push('See CLAUDE.md and .cursor/rules/ for agent configurations.');
+      if (agentRefs.length === 0) agentRefs.push('See CLAUDE.md and .cursor/rules/ for agent configurations.');
       const stubContent = `# AGENTS.md\n\nThis project uses AI coding agents configured by [Caliber](https://github.com/caliber-ai-org/ai-setup).\n\n${agentRefs.join(' ')}\n`;
       (generatedSetup as Record<string, unknown>).codex = { agentsMd: stubContent };
     }
@@ -695,54 +709,30 @@ export async function initCommand(options: InitOptions) {
   if (afterScore.score < baselineScore.score) {
     trackInitScoreRegression(baselineScore.score, afterScore.score);
     console.log('');
-    console.log(
-      chalk.yellow(
-        `  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`,
-      ),
-    );
+    console.log(chalk.yellow(`  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`));
     try {
       const { restored, removed } = undoSetup();
       if (restored.length > 0 || removed.length > 0) {
-        console.log(
-          chalk.dim(
-            `  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`,
-          ),
-        );
+        console.log(chalk.dim(`  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`));
       }
-    } catch {
-      /* best effort */
-    }
-    console.log(
-      chalk.dim('  Run ') +
-        chalk.hex('#83D1EB')(`${bin} init --force`) +
-        chalk.dim(' to override.\n'),
-    );
+    } catch { /* best effort */ }
+    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to override.\n'));
     return;
   }
 
   if (report) {
     report.markStep('Post-write scoring');
-    report.addSection(
-      'Scoring: Post-Write',
-      `**Score**: ${afterScore.score}/100 (delta: ${afterScore.score - baselineScore.score >= 0 ? '+' : ''}${afterScore.score - baselineScore.score})\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
-        afterScore.checks
-          .map(
-            (c) =>
-              `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`,
-          )
-          .join('\n'),
-    );
+    report.addSection('Scoring: Post-Write', `**Score**: ${afterScore.score}/100 (delta: ${afterScore.score - baselineScore.score >= 0 ? '+' : ''}${afterScore.score - baselineScore.score})\n\n| Check | Passed | Points | Max |\n|-------|--------|--------|-----|\n` +
+      afterScore.checks.map(c => `| ${c.name} | ${c.passed ? 'Yes' : 'No'} | ${c.earnedPoints} | ${c.maxPoints} |`).join('\n'));
   }
 
   recordScore(afterScore, 'init');
+  trackInitCompleted('full-generation', afterScore.score);
   displayScoreDelta(baselineScore, afterScore);
   if (options.verbose) {
     log(options.verbose, `Final score: ${afterScore.score}/100`);
-    for (const c of afterScore.checks.filter((ch) => !ch.passed)) {
-      log(
-        options.verbose,
-        `  Still failing: ${c.name} (${c.earnedPoints}/${c.maxPoints})${c.suggestion ? ` — ${c.suggestion}` : ''}`,
-      );
+    for (const c of afterScore.checks.filter(ch => !ch.passed)) {
+      log(options.verbose, `  Still failing: ${c.name} (${c.earnedPoints}/${c.maxPoints})${c.suggestion ? ` — ${c.suggestion}` : ''}`);
     }
   }
 
@@ -758,102 +748,32 @@ export async function initCommand(options: InitOptions) {
     }
   }
 
-  // Docs auto-refresh is now handled via instructions in generated config files
-  console.log('');
-  console.log(
-    `  ${chalk.green('✓')} Docs auto-refresh          ${chalk.dim(`agents run ${resolveCaliber()} refresh before commits`)}`,
-  );
   trackInitHookSelected('config-instructions');
 
-  // Session Learning prompt
-  const hasLearnableAgent = targetAgent.includes('claude') || targetAgent.includes('cursor');
-  let enableLearn = false;
-  if (hasLearnableAgent) {
-    if (!options.autoApprove) {
-      enableLearn = await promptLearnInstall(targetAgent);
-      trackInitLearnEnabled(enableLearn);
-      if (enableLearn) {
-        if (targetAgent.includes('claude')) {
-          const r = installLearningHooks();
-          if (r.installed)
-            console.log(`  ${chalk.green('✓')} Learning hooks installed for Claude Code`);
-          else if (r.alreadyInstalled)
-            console.log(chalk.dim('  Claude Code learning hooks already installed'));
-        }
-        if (targetAgent.includes('cursor')) {
-          const r = installCursorLearningHooks();
-          if (r.installed) console.log(`  ${chalk.green('✓')} Learning hooks installed for Cursor`);
-          else if (r.alreadyInstalled)
-            console.log(chalk.dim('  Cursor learning hooks already installed'));
-        }
-        console.log(
-          chalk.dim('    Run ') +
-            chalk.hex('#83D1EB')(`${bin} learn status`) +
-            chalk.dim(' to see insights'),
-        );
-      } else {
-        console.log(
-          chalk.dim('  Skipped. Run ') +
-            chalk.hex('#83D1EB')(`${bin} learn install`) +
-            chalk.dim(' later to enable.'),
-        );
-      }
-    } else {
-      enableLearn = true;
-      if (targetAgent.includes('claude')) installLearningHooks();
-      if (targetAgent.includes('cursor')) installCursorLearningHooks();
-    }
-  }
-
   // Done!
-  console.log(chalk.bold.green('\n  Configuration complete!'));
-  console.log(
-    chalk.dim("  Your AI agents now understand your project's architecture, build commands,"),
-  );
-  console.log(
-    chalk.dim('  testing patterns, and conventions. All changes are backed up automatically.\n'),
-  );
-
   const done = chalk.green('✓');
-  const skip = chalk.dim('–');
 
-  console.log(chalk.bold('  What was configured:\n'));
+  console.log(chalk.bold.green('\n  Caliber is set up!\n'));
 
-  console.log(
-    `    ${done}  Config generated          ${title(`${bin} score`)} ${chalk.dim('for full breakdown')}`,
-  );
-  console.log(
-    `    ${done}  Docs auto-refresh        ${chalk.dim(`agents run ${bin} refresh before commits`)}`,
-  );
-
+  console.log(chalk.bold('  What\'s configured:\n'));
+  console.log(`    ${done}  Continuous sync     ${chalk.dim('pre-commit hook keeps all agent configs in sync')}`);
+  console.log(`    ${done}  Config generated    ${chalk.dim(`score: ${afterScore.score}/100`)}`);
+  console.log(`    ${done}  Agent skills        ${chalk.dim('/setup-caliber for new team members')}`);
   if (hasLearnableAgent) {
-    if (enableLearn) {
-      console.log(
-        `    ${done}  Session learning          ${chalk.dim('agent learns from your feedback')}`,
-      );
-    } else {
-      console.log(
-        `    ${skip}  Session learning          ${title(`${bin} learn install`)} to enable later`,
-      );
-    }
+    console.log(`    ${done}  Session learning    ${chalk.dim('learns from your corrections')}`);
   }
-
   if (communitySkillsInstalled > 0) {
-    console.log(
-      `    ${done}  Community skills          ${chalk.dim(`${communitySkillsInstalled} skill${communitySkillsInstalled > 1 ? 's' : ''} installed for your stack`)}`,
-    );
-  } else if (skillSearchResult.results.length > 0) {
-    console.log(`    ${skip}  Community skills          ${chalk.dim('available but skipped')}`);
+    console.log(`    ${done}  Community skills    ${chalk.dim(`${communitySkillsInstalled} installed for your stack`)}`);
   }
 
-  console.log(chalk.bold('\n  Explore next:\n'));
-  console.log(
-    `    ${title(`${bin} skills`)}       Find more community skills as your codebase evolves`,
-  );
-  console.log(
-    `    ${title(`${bin} score`)}        See the full scoring breakdown with improvement tips`,
-  );
-  console.log(`    ${title(`${bin} undo`)}         Revert all changes from this run`);
+  console.log(chalk.bold('\n  What happens next:\n'));
+  console.log(chalk.dim('    Every commit syncs your agent configs automatically.'));
+  console.log(chalk.dim('    New team members run /setup-caliber to get set up instantly.\n'));
+
+  console.log(`    ${title(`${bin} score`)}        Full scoring breakdown`);
+  console.log(`    ${title(`${bin} skills`)}       Find community skills`);
+  console.log(`    ${title(`${bin} undo`)}         Revert changes`);
+  console.log(`    ${title(`${bin} uninstall`)}    Remove Caliber completely`);
   console.log('');
 
   if (options.showTokens) {
@@ -864,8 +784,6 @@ export async function initCommand(options: InitOptions) {
     report.markStep('Finished');
     const reportPath = path.join(process.cwd(), '.caliber', 'debug-report.md');
     report.write(reportPath);
-    console.log(
-      chalk.dim(`  Debug report written to ${path.relative(process.cwd(), reportPath)}\n`),
-    );
+    console.log(chalk.dim(`  Debug report written to ${path.relative(process.cwd(), reportPath)}\n`));
   }
 }

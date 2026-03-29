@@ -50,14 +50,18 @@ export function trackInitScoreRegression(oldScore: number, newScore: number): vo
   trackEvent('init_score_regression', { old_score: oldScore, new_score: newScore });
 }
 
+export function trackInitCompleted(path: 'sync-only' | 'full-generation', score: number): void {
+  trackEvent('init_completed', { path, score });
+}
+
 // --- Other command events ---
 
 export function trackRegenerateCompleted(action: string, durationMs: number): void {
   trackEvent('regenerate_completed', { action, duration_ms: durationMs });
 }
 
-export function trackRefreshCompleted(changesCount: number, durationMs: number): void {
-  trackEvent('refresh_completed', { changes_count: changesCount, duration_ms: durationMs });
+export function trackRefreshCompleted(changesCount: number, durationMs: number, trigger?: 'hook' | 'manual' | 'ci'): void {
+  trackEvent('refresh_completed', { changes_count: changesCount, duration_ms: durationMs, trigger: trigger ?? 'manual' });
 }
 
 export function trackScoreComputed(score: number, agent?: string[]): void {
@@ -74,6 +78,10 @@ export function trackSkillsInstalled(count: number): void {
 
 export function trackUndoExecuted(): void {
   trackEvent('undo_executed');
+}
+
+export function trackUninstallExecuted(): void {
+  trackEvent('uninstall_executed');
 }
 
 export function trackInitLearnEnabled(enabled: boolean): void {

@@ -2,7 +2,8 @@ import { PostHog } from 'posthog-node';
 import chalk from 'chalk';
 import {
   getMachineId,
-  getGitEmailHash,
+  getGitEmailInfo,
+  getRepoHash,
   isTelemetryDisabled,
   wasNoticeShown,
   markNoticeShown,
@@ -12,6 +13,7 @@ const POSTHOG_KEY = 'phc_XXrV0pSX4s2QVxVoOaeuyXDvtlRwPAjovt1ttMGVMPp';
 
 let client: PostHog | null = null;
 let distinctId: string | null = null;
+let superProperties: Record<string, unknown> = {};
 
 export function initTelemetry(): void {
   if (isTelemetryDisabled()) return;
@@ -35,12 +37,19 @@ export function initTelemetry(): void {
     markNoticeShown();
   }
 
-  // Identify user
-  const gitEmailHash = getGitEmailHash();
+  const { hash: gitEmailHash, domain: emailDomain } = getGitEmailInfo();
+  const repoHash = getRepoHash();
+
+  superProperties = {
+    ...(repoHash ? { repo_hash: repoHash } : {}),
+    ...(emailDomain ? { email_domain: emailDomain } : {}),
+  };
+
   client.identify({
     distinctId: machineId,
     properties: {
       ...(gitEmailHash ? { git_email_hash: gitEmailHash } : {}),
+      ...(emailDomain ? { email_domain: emailDomain } : {}),
     },
   });
 }
@@ -50,7 +59,7 @@ export function trackEvent(name: string, properties?: Record<string, unknown>): 
   client.capture({
     distinctId,
     event: name,
-    properties: properties ?? {},
+    properties: { ...superProperties, ...properties },
   });
 }
 

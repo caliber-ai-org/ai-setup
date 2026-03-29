@@ -24,6 +24,8 @@ import {
 import { insightsCommand } from './commands/insights.js';
 import { sourcesListCommand, sourcesAddCommand, sourcesRemoveCommand } from './commands/sources.js';
 import { publishCommand } from './commands/publish.js';
+import { bootstrapCommand } from './commands/bootstrap.js';
+import { uninstallCommand } from './commands/uninstall.js';
 import { setTelemetryDisabled } from './telemetry/config.js';
 import { initTelemetry, trackEvent } from './telemetry/index.js';
 import { checkPendingNotifications } from './lib/notifications.js';
@@ -47,9 +49,11 @@ program
 function tracked<T extends (...args: any[]) => any>(commandName: string, handler: T): T {
   const wrapper = async (...args: Parameters<T>) => {
     const start = Date.now();
+    const isCI = !!(process.env.CI || process.env.GITHUB_ACTIONS);
     trackEvent('command_started', {
       command: commandName,
       cli_version: pkg.version,
+      is_ci: isCI,
     });
     try {
       await handler(...args);
@@ -119,9 +123,20 @@ program
   .action(tracked('init', initCommand));
 
 program
+  .command('bootstrap')
+  .description('Install agent skills (/setup-caliber, /find-skills, /save-learning) without running init')
+  .action(tracked('bootstrap', bootstrapCommand));
+
+program
   .command('undo')
   .description('Revert all config changes made by Caliber')
   .action(tracked('undo', undoCommand));
+
+program
+  .command('uninstall')
+  .description('Remove all Caliber resources from this project')
+  .option('--force', 'Skip confirmation prompt')
+  .action(tracked('uninstall', (options) => uninstallCommand(options)));
 
 program
   .command('status')
