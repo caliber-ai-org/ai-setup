@@ -15,10 +15,12 @@ interface RefreshDiff {
 interface ExistingDocs {
   claudeMd?: string;
   readmeMd?: string;
-  claudeSettings?: Record<string, unknown>;
+  agentsMd?: string;
   claudeSkills?: Array<{ filename: string; content: string }>;
   cursorrules?: string;
   cursorRules?: Array<{ filename: string; content: string }>;
+  copilotInstructions?: string;
+  copilotInstructionFiles?: Array<{ filename: string; content: string }>;
 }
 
 interface ProjectContext {
@@ -37,6 +39,7 @@ interface RefreshResponse {
   updatedDocs: {
     claudeMd?: string | null;
     readmeMd?: string | null;
+    agentsMd?: string | null;
     cursorrules?: string | null;
     cursorRules?: Array<{ filename: string; content: string }> | null;
     claudeSkills?: Array<{ filename: string; content: string }> | null;
@@ -58,10 +61,19 @@ export async function refreshDocs(
   const prompt = buildRefreshPrompt(diff, existingDocs, projectContext, learnedSection, sources);
   const fastModel = getFastModel();
 
+  const docCount = [
+    existingDocs.claudeMd,
+    existingDocs.readmeMd,
+    existingDocs.agentsMd,
+    existingDocs.cursorrules,
+    existingDocs.copilotInstructions,
+  ].filter(Boolean).length + (existingDocs.cursorRules?.length ?? 0) + (existingDocs.claudeSkills?.length ?? 0);
+  const maxTokens = Math.min(32768, Math.max(8192, docCount * 4096));
+
   const raw = await llmCall({
     system: REFRESH_SYSTEM_PROMPT,
     prompt,
-    maxTokens: 16384,
+    maxTokens,
     ...(fastModel ? { model: fastModel } : {}),
   });
 
@@ -128,6 +140,20 @@ function buildRefreshPrompt(
     for (const rule of existingDocs.cursorRules) {
       parts.push(`\n[.cursor/rules/${rule.filename}]`);
       parts.push(rule.content);
+    }
+  }
+  if (existingDocs.agentsMd) {
+    parts.push('\n[AGENTS.md]');
+    parts.push(existingDocs.agentsMd);
+  }
+  if (existingDocs.copilotInstructions) {
+    parts.push('\n[.github/copilot-instructions.md]');
+    parts.push(existingDocs.copilotInstructions);
+  }
+  if (existingDocs.copilotInstructionFiles?.length) {
+    for (const file of existingDocs.copilotInstructionFiles) {
+      parts.push(`\n[.github/instructions/${file.filename}]`);
+      parts.push(file.content);
     }
   }
 

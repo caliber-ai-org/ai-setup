@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { appendPreCommitBlock, appendLearningsBlock } from '../pre-commit-block.js';
+import { appendManagedBlocks } from '../pre-commit-block.js';
 
 interface CodexConfig {
   agentsMd: string;
@@ -10,7 +10,7 @@ interface CodexConfig {
 export function writeCodexConfig(config: CodexConfig): string[] {
   const written: string[] = [];
 
-  fs.writeFileSync('AGENTS.md', appendLearningsBlock(appendPreCommitBlock(config.agentsMd)));
+  fs.writeFileSync('AGENTS.md', appendManagedBlocks(config.agentsMd, 'codex'));
   written.push('AGENTS.md');
 
   if (config.skills?.length) {

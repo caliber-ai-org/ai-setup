@@ -1,10 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import { appendPreCommitBlock, appendLearningsBlock, appendSyncBlock } from './pre-commit-block.js';
+import { appendManagedBlocks } from './pre-commit-block.js';
 
 interface RefreshDocs {
   claudeMd?: string | null;
   readmeMd?: string | null;
+  agentsMd?: string | null;
   cursorrules?: string | null;
   cursorRules?: Array<{ filename: string; content: string }> | null;
   claudeSkills?: Array<{ filename: string; content: string }> | null;
@@ -16,13 +17,18 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
   const written: string[] = [];
 
   if (docs.claudeMd) {
-    fs.writeFileSync('CLAUDE.md', appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(docs.claudeMd))));
+    fs.writeFileSync('CLAUDE.md', appendManagedBlocks(docs.claudeMd, 'claude'));
     written.push('CLAUDE.md');
   }
 
   if (docs.readmeMd) {
     fs.writeFileSync('README.md', docs.readmeMd);
     written.push('README.md');
+  }
+
+  if (docs.agentsMd) {
+    fs.writeFileSync('AGENTS.md', appendManagedBlocks(docs.agentsMd, 'codex'));
+    written.push('AGENTS.md');
   }
 
   if (docs.cursorrules) {
@@ -50,7 +56,7 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
 
   if (docs.copilotInstructions) {
     fs.mkdirSync('.github', { recursive: true });
-    fs.writeFileSync(path.join('.github', 'copilot-instructions.md'), appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions))));
+    fs.writeFileSync(path.join('.github', 'copilot-instructions.md'), appendManagedBlocks(docs.copilotInstructions, 'copilot'));
     written.push('.github/copilot-instructions.md');
   }
 

@@ -56,6 +56,80 @@ describe('pre-commit-block', () => {
       const second = appendPreCommitBlock(first);
       expect(second).toBe(first);
     });
+
+    it('uses /setup-caliber fallback for claude platform (default)', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# My Project');
+
+      expect(result).toContain('Run /setup-caliber to get set up');
+    });
+
+    it('uses skill file fallback for codex platform', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# My Project', 'codex');
+
+      expect(result).toContain('.agents/skills/setup-caliber/SKILL.md');
+      expect(result).not.toContain('/setup-caliber to get set up');
+    });
+
+    it('uses inline install fallback for copilot platform', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# My Project', 'copilot');
+
+      expect(result).toContain('npm install -g @rely-ai/caliber');
+      expect(result).toContain('caliber hooks --install');
+      expect(result).not.toContain('/setup-caliber to get set up');
+    });
+  });
+
+  describe('appendSyncBlock', () => {
+    it('uses /setup-caliber for claude platform (default)', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendSyncBlock } = await import('../pre-commit-block.js');
+      const result = appendSyncBlock('# My Project');
+
+      expect(result).toContain('/setup-caliber');
+      expect(result).toContain('configure everything automatically');
+    });
+
+    it('uses skill file reference for codex platform', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendSyncBlock } = await import('../pre-commit-block.js');
+      const result = appendSyncBlock('# My Project', 'codex');
+
+      expect(result).toContain('.agents/skills/setup-caliber/SKILL.md');
+    });
+
+    it('uses inline install instructions for copilot platform', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendSyncBlock } = await import('../pre-commit-block.js');
+      const result = appendSyncBlock('# My Project', 'copilot');
+
+      expect(result).toContain('npm install -g @rely-ai/caliber');
+      expect(result).toContain('caliber hooks --install');
+      expect(result).toContain('caliber refresh');
+    });
   });
 
   describe('getCursorPreCommitRule', () => {
@@ -78,6 +152,19 @@ describe('pre-commit-block', () => {
 
       expect(rule.content).toContain('caliber refresh');
       expect(rule.content).not.toContain('npx');
+    });
+  });
+
+  describe('getCursorSetupRule', () => {
+    it('returns a setup discovery rule', async () => {
+      const { getCursorSetupRule } = await import('../pre-commit-block.js');
+      const rule = getCursorSetupRule();
+
+      expect(rule.filename).toBe('caliber-setup.mdc');
+      expect(rule.content).toContain('alwaysApply: true');
+      expect(rule.content).toContain('SYNC_ACTIVE');
+      expect(rule.content).toContain('NO_SYNC');
+      expect(rule.content).toContain('.cursor/skills/setup-caliber/SKILL.md');
     });
   });
 });

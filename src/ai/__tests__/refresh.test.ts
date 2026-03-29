@@ -118,7 +118,7 @@ describe('refreshDocs', () => {
     expect(prompt).not.toContain('--- Unstaged Changes ---');
   });
 
-  it('uses maxTokens of 16384', async () => {
+  it('scales maxTokens based on doc count', async () => {
     mockedLlmCall.mockResolvedValue('{}');
     mockedParseJson.mockReturnValue({
       updatedDocs: {},
@@ -127,8 +127,11 @@ describe('refreshDocs', () => {
     });
 
     await refreshDocs(baseDiff, {}, baseContext);
+    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(8192);
 
-    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(16384);
+    mockedLlmCall.mockClear();
+    await refreshDocs(baseDiff, { claudeMd: '# test', agentsMd: '# agents', copilotInstructions: '# copilot' }, baseContext);
+    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(12288);
   });
 
   it('passes CALIBER_FAST_MODEL as model override when set', async () => {

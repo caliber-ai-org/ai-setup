@@ -141,8 +141,9 @@ export async function initCommand(options: InitOptions) {
   if (options.agent) {
     targetAgent = options.agent;
   } else if (options.autoApprove) {
-    targetAgent = ['claude'];
-    log(options.verbose, 'Auto-approve: defaulting to claude agent');
+    const detected = detectAgents(process.cwd());
+    targetAgent = detected.length > 0 ? detected : ['claude'];
+    log(options.verbose, `Auto-approve: using ${targetAgent.join(', ')}`);
   } else {
     const detected = detectAgents(process.cwd());
     targetAgent = await promptAgent(detected.length > 0 ? detected : undefined);
@@ -243,8 +244,8 @@ export async function initCommand(options: InitOptions) {
 
   if (skipGeneration) {
     // Write managed blocks into config files so agents know about Caliber
-    const { appendPreCommitBlock, appendLearningsBlock, appendSyncBlock,
-            getCursorPreCommitRule, getCursorLearningsRule, getCursorSyncRule } = await import('../writers/pre-commit-block.js');
+    const { appendManagedBlocks,
+            getCursorPreCommitRule, getCursorLearningsRule, getCursorSyncRule, getCursorSetupRule } = await import('../writers/pre-commit-block.js');
 
     // CLAUDE.md — create or append managed blocks
     const claudeMdPath = 'CLAUDE.md';
@@ -253,7 +254,7 @@ export async function initCommand(options: InitOptions) {
     if (!claudeContent) {
       claudeContent = `# ${path.basename(process.cwd())}\n`;
     }
-    const updatedClaude = appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(claudeContent)));
+    const updatedClaude = appendManagedBlocks(claudeContent, 'claude');
     if (updatedClaude !== claudeContent || !fs.existsSync(claudeMdPath)) {
       fs.writeFileSync(claudeMdPath, updatedClaude);
       console.log(`  ${chalk.green('✓')} CLAUDE.md — added Caliber sync instructions`);
@@ -263,7 +264,7 @@ export async function initCommand(options: InitOptions) {
     if (targetAgent.includes('cursor')) {
       const rulesDir = path.join('.cursor', 'rules');
       if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
-      for (const rule of [getCursorPreCommitRule(), getCursorLearningsRule(), getCursorSyncRule()]) {
+      for (const rule of [getCursorPreCommitRule(), getCursorLearningsRule(), getCursorSyncRule(), getCursorSetupRule()]) {
         fs.writeFileSync(path.join(rulesDir, rule.filename), rule.content);
       }
       console.log(`  ${chalk.green('✓')} Cursor rules — added Caliber sync rules`);
@@ -278,7 +279,7 @@ export async function initCommand(options: InitOptions) {
         fs.mkdirSync('.github', { recursive: true });
         copilotContent = `# ${path.basename(process.cwd())}\n`;
       }
-      const updatedCopilot = appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(copilotContent)));
+      const updatedCopilot = appendManagedBlocks(copilotContent, 'copilot');
       if (updatedCopilot !== copilotContent) {
         fs.writeFileSync(copilotPath, updatedCopilot);
         console.log(`  ${chalk.green('✓')} Copilot instructions — added Caliber sync instructions`);

@@ -1,6 +1,20 @@
 import fs from 'fs';
 import path from 'path';
 import { PERSONAL_LEARNINGS_FILE } from '../constants.js';
+import { BUILTIN_SKILL_NAMES } from '../lib/builtin-skills.js';
+import {
+  getCursorPreCommitRule,
+  getCursorLearningsRule,
+  getCursorSyncRule,
+  getCursorSetupRule,
+} from '../writers/pre-commit-block.js';
+
+const MANAGED_CURSOR_RULES = new Set([
+  getCursorPreCommitRule().filename,
+  getCursorLearningsRule().filename,
+  getCursorSyncRule().filename,
+  getCursorSetupRule().filename,
+]);
 
 export function readExistingConfigs(dir: string) {
   const configs: {
@@ -14,6 +28,8 @@ export function readExistingConfigs(dir: string) {
     cursorSkills?: Array<{ name: string; filename: string; content: string }>;
     claudeMcpServers?: Record<string, unknown>;
     cursorMcpServers?: Record<string, unknown>;
+    copilotInstructions?: string;
+    copilotInstructionFiles?: Array<{ filename: string; content: string }>;
     personalLearnings?: string;
   } = {};
 
@@ -52,6 +68,7 @@ export function readExistingConfigs(dir: string) {
       const entries = fs.readdirSync(skillsDir);
       const skills: Array<{ filename: string; content: string }> = [];
       for (const entry of entries) {
+        if (BUILTIN_SKILL_NAMES.has(entry)) continue;
         const entryPath = path.join(skillsDir, entry);
         const skillMdPath = path.join(entryPath, 'SKILL.md');
         if (fs.statSync(entryPath).isDirectory() && fs.existsSync(skillMdPath)) {
@@ -76,7 +93,7 @@ export function readExistingConfigs(dir: string) {
   const cursorRulesDir = path.join(dir, '.cursor', 'rules');
   if (fs.existsSync(cursorRulesDir)) {
     try {
-      const files = fs.readdirSync(cursorRulesDir).filter(f => f.endsWith('.mdc'));
+      const files = fs.readdirSync(cursorRulesDir).filter(f => f.endsWith('.mdc') && !MANAGED_CURSOR_RULES.has(f));
       configs.cursorRules = files.map(f => ({
         filename: f,
         content: fs.readFileSync(path.join(cursorRulesDir, f), 'utf-8'),
@@ -91,7 +108,7 @@ export function readExistingConfigs(dir: string) {
   if (fs.existsSync(cursorSkillsDir)) {
     try {
       const slugs = fs.readdirSync(cursorSkillsDir).filter(f => {
-        return fs.statSync(path.join(cursorSkillsDir, f)).isDirectory();
+        return fs.statSync(path.join(cursorSkillsDir, f)).isDirectory() && !BUILTIN_SKILL_NAMES.has(f);
       });
       configs.cursorSkills = slugs
         .filter(slug => fs.existsSync(path.join(cursorSkillsDir, slug, 'SKILL.md')))
@@ -126,6 +143,26 @@ export function readExistingConfigs(dir: string) {
       if (cursorMcpJson.mcpServers) {
         configs.cursorMcpServers = cursorMcpJson.mcpServers;
       }
+    } catch {
+      // ignore
+    }
+  }
+
+  // .github/copilot-instructions.md
+  const copilotPath = path.join(dir, '.github', 'copilot-instructions.md');
+  if (fs.existsSync(copilotPath)) {
+    configs.copilotInstructions = fs.readFileSync(copilotPath, 'utf-8');
+  }
+
+  // .github/instructions/*.instructions.md
+  const instructionsDir = path.join(dir, '.github', 'instructions');
+  if (fs.existsSync(instructionsDir)) {
+    try {
+      const files = fs.readdirSync(instructionsDir).filter(f => f.endsWith('.md'));
+      configs.copilotInstructionFiles = files.map(f => ({
+        filename: f,
+        content: fs.readFileSync(path.join(instructionsDir, f), 'utf-8'),
+      }));
     } catch {
       // ignore
     }

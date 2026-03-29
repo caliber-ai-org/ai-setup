@@ -184,20 +184,37 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "HOOK_ACTIVE" || ech
   caliber hooks --install
   \`\`\`
 
-### Step 3: Check if agent configs exist
+### Step 3: Detect agents and check if configs exist
 
+First, detect which coding agents are configured in this project:
+\`\`\`bash
+AGENTS=""
+[ -d .claude ] && AGENTS="claude"
+[ -d .cursor ] && AGENTS="\${AGENTS:+\$AGENTS,}cursor"
+[ -d .agents ] || [ -f AGENTS.md ] && AGENTS="\${AGENTS:+\$AGENTS,}codex"
+[ -f .github/copilot-instructions.md ] && AGENTS="\${AGENTS:+\$AGENTS,}github-copilot"
+echo "DETECTED_AGENTS=\${AGENTS:-none}"
+\`\`\`
+
+If no agents are detected, ask the user which coding agents they use (Claude Code, Cursor, Codex, GitHub Copilot).
+Build the agent list from their answer as a comma-separated string (e.g. "claude,cursor").
+
+Then check if agent configs exist:
 \`\`\`bash
 echo "CLAUDE_MD=$([ -f CLAUDE.md ] && echo exists || echo missing)"
 echo "CURSOR_RULES=$([ -d .cursor/rules ] && ls .cursor/rules/*.mdc 2>/dev/null | wc -l | tr -d ' ' || echo 0)"
 echo "AGENTS_MD=$([ -f AGENTS.md ] && echo exists || echo missing)"
+echo "COPILOT=$([ -f .github/copilot-instructions.md ] && echo exists || echo missing)"
 \`\`\`
 
-- If configs exist → Tell the user which configs are present. Move to Step 4.
+- If configs exist for the detected agents → Tell the user which configs are present. Move to Step 4.
 - If configs are missing → Tell the user: "No agent configs found. I'll generate them now."
+  Use the detected or user-selected agent list:
   \`\`\`bash
-  caliber init --auto-approve
+  caliber init --auto-approve --agent <comma-separated-agents>
   \`\`\`
-  This generates CLAUDE.md, Cursor rules, AGENTS.md, and skills for all detected agents.
+  For example: \`caliber init --auto-approve --agent claude,cursor\`
+  This generates CLAUDE.md, Cursor rules, AGENTS.md, skills, and sync infrastructure for the specified agents.
 
 ### Step 4: Check if configs are fresh
 

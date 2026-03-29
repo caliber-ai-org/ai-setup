@@ -311,6 +311,11 @@ CONSERVATIVE UPDATE means:
 - NEVER remove code blocks, backtick references, or architecture paths unless the diff deleted them
 - NEVER replace specific paths/commands with generic prose
 
+Cross-agent sync:
+- When a change affects CLAUDE.md, apply the same semantic update to AGENTS.md and copilot instructions if they exist
+- Each file uses its own format and conventions — do NOT copy content verbatim between them
+- The goal is consistency: all agent config files should reflect the same project state after refresh
+
 Quality constraints (the output is scored deterministically):
 - CLAUDE.md / AGENTS.md: MUST stay under 400 lines. If the diff adds content, trim the least important lines elsewhere.
 - Keep 3+ code blocks with executable commands — do not remove code blocks
@@ -319,16 +324,17 @@ Quality constraints (the output is scored deterministically):
 - Preserve the existing structure (headings, bullet style, formatting)
 
 Managed content:
-- Keep managed blocks (<!-- caliber:managed --> ... <!-- /caliber:managed -->) intact
-- Keep context sync blocks (<!-- caliber:managed:sync --> ... <!-- /caliber:managed:sync -->) intact
+- All blocks between <!-- caliber:managed:* --> and <!-- /caliber:managed:* --> are managed by Caliber — copy them verbatim, do NOT modify their contents
+- This includes: pre-commit, sync, and learnings blocks
 - Do NOT modify CALIBER_LEARNINGS.md — it is managed separately
-- Preserve any references to CALIBER_LEARNINGS.md in CLAUDE.md
+- Preserve any references to CALIBER_LEARNINGS.md
 
 Return a JSON object with this exact shape:
 {
   "updatedDocs": {
     "claudeMd": "<updated content or null>",
     "readmeMd": "<updated content or null>",
+    "agentsMd": "<updated content or null>",
     "cursorrules": "<updated content or null>",
     "cursorRules": [{"filename": "name.mdc", "content": "..."}] or null,
     "claudeSkills": [{"filename": "name.md", "content": "..."}] or null,
