@@ -5,15 +5,19 @@ import { flushTelemetry } from './telemetry/index.js';
 import { acquireLock, releaseLock } from './lib/lock.js';
 import { restoreTerminal } from './lib/terminal.js';
 
+let signalCleanupDone = false;
+
+function signalCleanup(code: number) {
+  if (signalCleanupDone) return;
+  signalCleanupDone = true;
+  restoreTerminal();
+  releaseLock();
+  process.exit(code);
+}
+
 process.on('exit', restoreTerminal);
-process.on('SIGINT', () => {
-  restoreTerminal();
-  process.exit(130);
-});
-process.on('SIGTERM', () => {
-  restoreTerminal();
-  process.exit(143);
-});
+process.on('SIGINT', () => signalCleanup(130));
+process.on('SIGTERM', () => signalCleanup(143));
 
 acquireLock();
 
