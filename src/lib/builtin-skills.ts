@@ -191,9 +191,9 @@ First, detect which coding agents are configured in this project:
 \`\`\`bash
 AGENTS=""
 [ -d .claude ] && AGENTS="claude"
-[ -d .cursor ] && AGENTS="\${AGENTS:+\$AGENTS,}cursor"
-[ -d .agents ] || [ -f AGENTS.md ] && AGENTS="\${AGENTS:+\$AGENTS,}codex"
-[ -f .github/copilot-instructions.md ] && AGENTS="\${AGENTS:+\$AGENTS,}github-copilot"
+[ -d .cursor ] && AGENTS="\${AGENTS:+$AGENTS,}cursor"
+[ -d .agents ] || [ -f AGENTS.md ] && AGENTS="\${AGENTS:+$AGENTS,}codex"
+[ -f .github/copilot-instructions.md ] && AGENTS="\${AGENTS:+$AGENTS,}github-copilot"
 echo "DETECTED_AGENTS=\${AGENTS:-none}"
 \`\`\`
 

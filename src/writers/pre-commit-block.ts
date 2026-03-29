@@ -117,7 +117,7 @@ export function getCursorLearningsRule(): { filename: string; content: string } 
 const SYNC_BLOCK_START = '<!-- caliber:managed:sync -->';
 const SYNC_BLOCK_END = '<!-- /caliber:managed:sync -->';
 
-function getSyncSetupInstruction(platform: ConfigPlatform, bin: string): string {
+function getSyncSetupInstruction(platform: ConfigPlatform): string {
   switch (platform) {
     case 'claude':
       return `If the pre-commit hook is not set up, run \`/setup-caliber\` to configure everything automatically.`;
@@ -140,7 +140,7 @@ function getSyncBlock(platform: ConfigPlatform = 'claude'): string {
 
 This project uses [Caliber](https://github.com/caliber-ai-org/ai-setup) to keep AI agent configs in sync across Claude Code, Cursor, Copilot, and Codex.
 Configs update automatically before each commit via \`${bin} refresh\`.
-${getSyncSetupInstruction(platform, bin)}
+${getSyncSetupInstruction(platform)}
 ${SYNC_BLOCK_END}`;
 }
 

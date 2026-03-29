@@ -49,7 +49,7 @@ import {
 
 import { detectAgents, promptAgent, promptReviewAction, refineLoop } from './init-prompts.js';
 import type { TargetAgent } from './init-prompts.js';
-import { formatProjectPreview, formatWhatChanged, printSetupSummary, displayTokenUsage } from './init-display.js';
+import { formatWhatChanged, printSetupSummary, displayTokenUsage } from './init-display.js';
 import { isFirstRun, summarizeSetup, ensurePermissions, writeErrorLog, evaluateDismissals } from './init-helpers.js';
 import { recordScore } from '../scoring/history.js';
 
@@ -228,7 +228,7 @@ export async function initCommand(options: InitOptions) {
   console.log('');
 
   // Compute baseline score silently (for regression check and delta display later)
-  let baselineScore = computeLocalScore(process.cwd(), targetAgent);
+  const baselineScore = computeLocalScore(process.cwd(), targetAgent);
   log(options.verbose, `Baseline score: ${baselineScore.score}/100`);
 
   if (report) {
@@ -325,9 +325,6 @@ export async function initCommand(options: InitOptions) {
     console.log(chalk.dim('  Run ') + title(`${bin} init --force`) + chalk.dim(' anytime to generate or improve configs.\n'));
     return;
   }
-
-  const allFailingChecks = baselineScore.checks.filter(c => !c.passed && c.maxPoints > 0);
-  const llmFixableChecks = allFailingChecks.filter(c => !NON_LLM_CHECKS.has(c.id));
 
   // Generation phase (part of Step 2)
 
