@@ -9,8 +9,11 @@ interface RefreshDocs {
   cursorrules?: string | null;
   cursorRules?: Array<{ filename: string; content: string }> | null;
   claudeSkills?: Array<{ filename: string; content: string }> | null;
+  cursorSkills?: Array<{ name: string; content: string }> | null;
   copilotInstructions?: string | null;
   copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
+  codexSkills?: Array<{ name: string; content: string }> | null;
+  opencodeSkills?: Array<{ name: string; content: string }> | null;
 }
 
 export function writeRefreshDocs(docs: RefreshDocs): string[] {
@@ -54,9 +57,39 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
     }
   }
 
+  if (docs.cursorSkills) {
+    for (const skill of docs.cursorSkills) {
+      const skillDir = path.join('.cursor', 'skills', skill.name);
+      if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
+      written.push(`.cursor/skills/${skill.name}/SKILL.md`);
+    }
+  }
+
+  if (docs.codexSkills) {
+    for (const skill of docs.codexSkills) {
+      const skillDir = path.join('.agents', 'skills', skill.name);
+      if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
+      written.push(`.agents/skills/${skill.name}/SKILL.md`);
+    }
+  }
+
+  if (docs.opencodeSkills) {
+    for (const skill of docs.opencodeSkills) {
+      const skillDir = path.join('.opencode', 'skills', skill.name);
+      if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
+      written.push(`.opencode/skills/${skill.name}/SKILL.md`);
+    }
+  }
+
   if (docs.copilotInstructions) {
     fs.mkdirSync('.github', { recursive: true });
-    fs.writeFileSync(path.join('.github', 'copilot-instructions.md'), appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions)));
+    fs.writeFileSync(
+      path.join('.github', 'copilot-instructions.md'),
+      appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions)),
+    );
     written.push('.github/copilot-instructions.md');
   }
 

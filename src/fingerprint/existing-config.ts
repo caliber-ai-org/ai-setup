@@ -12,6 +12,10 @@ export function readExistingConfigs(dir: string) {
     cursorrules?: string;
     cursorRules?: Array<{ filename: string; content: string }>;
     cursorSkills?: Array<{ name: string; filename: string; content: string }>;
+    copilotInstructions?: string;
+    copilotInstructionFiles?: Array<{ filename: string; content: string }>;
+    codexSkills?: Array<{ name: string; filename: string; content: string }>;
+    opencodeSkills?: Array<{ name: string; filename: string; content: string }>;
     claudeMcpServers?: Record<string, unknown>;
     cursorMcpServers?: Record<string, unknown>;
     personalLearnings?: string;
@@ -55,7 +59,10 @@ export function readExistingConfigs(dir: string) {
         const entryPath = path.join(skillsDir, entry);
         const skillMdPath = path.join(entryPath, 'SKILL.md');
         if (fs.statSync(entryPath).isDirectory() && fs.existsSync(skillMdPath)) {
-          skills.push({ filename: `${entry}/SKILL.md`, content: fs.readFileSync(skillMdPath, 'utf-8') });
+          skills.push({
+            filename: `${entry}/SKILL.md`,
+            content: fs.readFileSync(skillMdPath, 'utf-8'),
+          });
         } else if (entry.endsWith('.md')) {
           skills.push({ filename: entry, content: fs.readFileSync(entryPath, 'utf-8') });
         }
@@ -76,8 +83,8 @@ export function readExistingConfigs(dir: string) {
   const cursorRulesDir = path.join(dir, '.cursor', 'rules');
   if (fs.existsSync(cursorRulesDir)) {
     try {
-      const files = fs.readdirSync(cursorRulesDir).filter(f => f.endsWith('.mdc'));
-      configs.cursorRules = files.map(f => ({
+      const files = fs.readdirSync(cursorRulesDir).filter((f) => f.endsWith('.mdc'));
+      configs.cursorRules = files.map((f) => ({
         filename: f,
         content: fs.readFileSync(path.join(cursorRulesDir, f), 'utf-8'),
       }));
@@ -90,16 +97,80 @@ export function readExistingConfigs(dir: string) {
   const cursorSkillsDir = path.join(dir, '.cursor', 'skills');
   if (fs.existsSync(cursorSkillsDir)) {
     try {
-      const slugs = fs.readdirSync(cursorSkillsDir).filter(f => {
+      const slugs = fs.readdirSync(cursorSkillsDir).filter((f) => {
         return fs.statSync(path.join(cursorSkillsDir, f)).isDirectory();
       });
       configs.cursorSkills = slugs
-        .filter(slug => fs.existsSync(path.join(cursorSkillsDir, slug, 'SKILL.md')))
-        .map(name => ({
+        .filter((slug) => fs.existsSync(path.join(cursorSkillsDir, slug, 'SKILL.md')))
+        .map((name) => ({
           name,
           filename: 'SKILL.md',
           content: fs.readFileSync(path.join(cursorSkillsDir, name, 'SKILL.md'), 'utf-8'),
         }));
+    } catch {
+      // ignore
+    }
+  }
+
+  // .github/copilot-instructions.md
+  const copilotPath = path.join(dir, '.github', 'copilot-instructions.md');
+  if (fs.existsSync(copilotPath)) {
+    configs.copilotInstructions = fs.readFileSync(copilotPath, 'utf-8');
+  }
+
+  // .github/instructions/*.instructions.md
+  const copilotInstructionsDir = path.join(dir, '.github', 'instructions');
+  if (fs.existsSync(copilotInstructionsDir)) {
+    try {
+      const files = fs
+        .readdirSync(copilotInstructionsDir)
+        .filter((f) => f.endsWith('.instructions.md'));
+      if (files.length > 0) {
+        configs.copilotInstructionFiles = files.map((f) => ({
+          filename: f,
+          content: fs.readFileSync(path.join(copilotInstructionsDir, f), 'utf-8'),
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // .agents/skills/*/SKILL.md (Codex skills)
+  const codexSkillsDir = path.join(dir, '.agents', 'skills');
+  if (fs.existsSync(codexSkillsDir)) {
+    try {
+      const slugs = fs.readdirSync(codexSkillsDir).filter((f) => {
+        return fs.statSync(path.join(codexSkillsDir, f)).isDirectory();
+      });
+      const skills = slugs
+        .filter((slug) => fs.existsSync(path.join(codexSkillsDir, slug, 'SKILL.md')))
+        .map((name) => ({
+          name,
+          filename: 'SKILL.md',
+          content: fs.readFileSync(path.join(codexSkillsDir, name, 'SKILL.md'), 'utf-8'),
+        }));
+      if (skills.length > 0) configs.codexSkills = skills;
+    } catch {
+      // ignore
+    }
+  }
+
+  // .opencode/skills/*/SKILL.md (OpenCode skills)
+  const opencodeSkillsDir = path.join(dir, '.opencode', 'skills');
+  if (fs.existsSync(opencodeSkillsDir)) {
+    try {
+      const slugs = fs.readdirSync(opencodeSkillsDir).filter((f) => {
+        return fs.statSync(path.join(opencodeSkillsDir, f)).isDirectory();
+      });
+      const skills = slugs
+        .filter((slug) => fs.existsSync(path.join(opencodeSkillsDir, slug, 'SKILL.md')))
+        .map((name) => ({
+          name,
+          filename: 'SKILL.md',
+          content: fs.readFileSync(path.join(opencodeSkillsDir, name, 'SKILL.md'), 'utf-8'),
+        }));
+      if (skills.length > 0) configs.opencodeSkills = skills;
     } catch {
       // ignore
     }
@@ -135,7 +206,10 @@ export function readExistingConfigs(dir: string) {
   if (fs.existsSync(PERSONAL_LEARNINGS_FILE)) {
     try {
       const content = fs.readFileSync(PERSONAL_LEARNINGS_FILE, 'utf-8');
-      const bullets = content.split('\n').filter(l => l.startsWith('- ')).join('\n');
+      const bullets = content
+        .split('\n')
+        .filter((l) => l.startsWith('- '))
+        .join('\n');
       if (bullets) configs.personalLearnings = bullets;
     } catch {
       // ignore — personal learnings are optional

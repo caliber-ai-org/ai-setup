@@ -46,8 +46,8 @@ function writeSettings(settings: ClaudeSettings): void {
 }
 
 function findHookIndex(sessionEnd: HookMatcher[]): number {
-  return sessionEnd.findIndex(entry =>
-    entry.hooks?.some(h => isCaliberCommand(h.command, REFRESH_TAIL))
+  return sessionEnd.findIndex((entry) =>
+    entry.hooks?.some((h) => isCaliberCommand(h.command, REFRESH_TAIL)),
   );
 }
 
@@ -125,8 +125,8 @@ const STOP_HOOK_SCRIPT_PATH = path.join('.claude', 'hooks', 'caliber-check-sync.
 const STOP_HOOK_DESCRIPTION = 'Caliber: offer setup if not configured';
 
 function hasStopHook(matchers: HookMatcher[]): boolean {
-  return matchers.some(entry =>
-    entry.hooks?.some(h => h.description === STOP_HOOK_DESCRIPTION)
+  return matchers.some((entry) =>
+    entry.hooks?.some((h) => h.description === STOP_HOOK_DESCRIPTION),
   );
 }
 
@@ -149,11 +149,13 @@ export function installStopHook(): { installed: boolean; alreadyInstalled: boole
   }
   (settings.hooks.Stop as HookMatcher[]).push({
     matcher: '',
-    hooks: [{
-      type: 'command',
-      command: STOP_HOOK_SCRIPT_PATH,
-      description: STOP_HOOK_DESCRIPTION,
-    }],
+    hooks: [
+      {
+        type: 'command',
+        command: STOP_HOOK_SCRIPT_PATH,
+        description: STOP_HOOK_DESCRIPTION,
+      },
+    ],
   });
 
   writeSettings(settings);
@@ -166,8 +168,8 @@ export function removeStopHook(): { removed: boolean; notFound: boolean } {
 
   if (!Array.isArray(stop)) return { removed: false, notFound: true };
 
-  const idx = stop.findIndex(entry =>
-    entry.hooks?.some(h => h.description === STOP_HOOK_DESCRIPTION)
+  const idx = stop.findIndex((entry) =>
+    entry.hooks?.some((h) => h.description === STOP_HOOK_DESCRIPTION),
   );
   if (idx === -1) return { removed: false, notFound: true };
 
@@ -177,7 +179,11 @@ export function removeStopHook(): { removed: boolean; notFound: boolean } {
 
   writeSettings(settings);
 
-  try { fs.unlinkSync(STOP_HOOK_SCRIPT_PATH); } catch { /* best effort */ }
+  try {
+    fs.unlinkSync(STOP_HOOK_SCRIPT_PATH);
+  } catch {
+    /* best effort */
+  }
 
   return { removed: true, notFound: false };
 }
@@ -203,14 +209,17 @@ if ${guard}; then
   echo "\\033[2mcaliber: refreshing docs...\\033[0m"
   ${invoke} refresh 2>/dev/null || true
   ${invoke} learn finalize 2>/dev/null || true
-  git diff --name-only -- CLAUDE.md .claude/ .cursor/ AGENTS.md CALIBER_LEARNINGS.md 2>/dev/null | xargs git add 2>/dev/null || true
+  git diff --name-only -- CLAUDE.md .claude/ .cursor/ AGENTS.md CALIBER_LEARNINGS.md .github/ .agents/ .opencode/ 2>/dev/null | xargs git add 2>/dev/null || true
 fi
 ${PRECOMMIT_END}`;
 }
 
 function getGitHooksDir(): string | null {
   try {
-    const gitDir = execSync('git rev-parse --git-dir', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const gitDir = execSync('git rev-parse --git-dir', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
     return path.join(gitDir, 'hooks');
   } catch {
     return null;
