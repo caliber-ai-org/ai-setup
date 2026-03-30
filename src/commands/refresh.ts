@@ -102,7 +102,8 @@ export function collectFilesToWrite(
   dir: string = '.',
 ): string[] {
   const files: string[] = [];
-  const p = (relPath: string): string => (dir === '.' ? relPath : path.join(dir, relPath));
+  const p = (relPath: string): string =>
+    (dir === '.' ? relPath : path.join(dir, relPath)).replace(/\\/g, '/');
   if (updatedDocs.agentsMd) files.push(p('AGENTS.md'));
   if (updatedDocs.claudeMd) files.push(p('CLAUDE.md'));
   if (updatedDocs.readmeMd) files.push(p('README.md'));

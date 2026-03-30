@@ -14,7 +14,8 @@ interface RefreshDocs {
 
 export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[] {
   const written: string[] = [];
-  const p = (relPath: string): string => (dir === '.' ? relPath : path.join(dir, relPath));
+  const p = (relPath: string): string =>
+    (dir === '.' ? relPath : path.join(dir, relPath)).replace(/\\/g, '/');
   const ensureParent = (filePath: string): void => {
     const parent = path.dirname(filePath);
     if (parent !== '.' && !fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });

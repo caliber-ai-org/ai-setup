@@ -77,7 +77,7 @@ function walkForConfigs(
     if (entry.name.startsWith('.') || IGNORE_DIRS.has(entry.name)) continue;
 
     const fullPath = path.join(currentDir, entry.name);
-    const relPath = path.relative(baseDir, fullPath);
+    const relPath = path.relative(baseDir, fullPath).replace(/\\/g, '/');
 
     if (hasConfigFiles(fullPath)) {
       result.push(relPath);

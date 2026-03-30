@@ -115,33 +115,27 @@ describe('writeRefreshDocs', () => {
   });
 
   describe('dir parameter', () => {
-    const norm = (paths: string[]) => paths.map((p) => p.replace(/\\/g, '/'));
-
     it('prefixes CLAUDE.md path with dir', () => {
-      const written = norm(writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend'));
+      const written = writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend');
       expect(written).toContain('packages/frontend/CLAUDE.md');
     });
 
     it('prefixes AGENTS.md path with dir', () => {
-      const written = norm(writeRefreshDocs({ agentsMd: '# Agents' }, 'packages/backend'));
+      const written = writeRefreshDocs({ agentsMd: '# Agents' }, 'packages/backend');
       expect(written).toContain('packages/backend/AGENTS.md');
     });
 
     it('prefixes cursor rules paths with dir', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      const written = norm(
-        writeRefreshDocs(
-          { cursorRules: [{ filename: 'test.mdc', content: 'rule' }] },
-          'packages/api',
-        ),
+      const written = writeRefreshDocs(
+        { cursorRules: [{ filename: 'test.mdc', content: 'rule' }] },
+        'packages/api',
       );
       expect(written).toContain('packages/api/.cursor/rules/test.mdc');
     });
 
     it('prefixes copilot instructions path with dir', () => {
-      const written = norm(
-        writeRefreshDocs({ copilotInstructions: '# Copilot' }, 'packages/frontend'),
-      );
+      const written = writeRefreshDocs({ copilotInstructions: '# Copilot' }, 'packages/frontend');
       expect(written).toContain('packages/frontend/.github/copilot-instructions.md');
     });
 

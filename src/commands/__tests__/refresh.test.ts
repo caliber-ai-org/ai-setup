@@ -80,7 +80,7 @@ describe('collectFilesToWrite', () => {
         copilotInstructions: '# Copilot',
       },
       'packages/frontend',
-    ).map((p) => p.replace(/\\/g, '/'));
+    );
     expect(files).toContain('packages/frontend/CLAUDE.md');
     expect(files).toContain('packages/frontend/.cursorrules');
     expect(files).toContain('packages/frontend/.cursor/rules/test.mdc');
