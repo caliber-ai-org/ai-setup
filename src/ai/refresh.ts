@@ -50,8 +50,16 @@ export async function refreshDocs(
   projectContext: ProjectContext,
   learnedSection?: string | null,
   sources?: SourceSummary[],
+  scope?: string,
 ): Promise<RefreshResponse> {
-  const prompt = buildRefreshPrompt(diff, existingDocs, projectContext, learnedSection, sources);
+  const prompt = buildRefreshPrompt(
+    diff,
+    existingDocs,
+    projectContext,
+    learnedSection,
+    sources,
+    scope,
+  );
   const fastModel = getFastModel();
 
   const raw = await llmCall({
@@ -70,8 +78,16 @@ function buildRefreshPrompt(
   projectContext: ProjectContext,
   learnedSection?: string | null,
   sources?: SourceSummary[],
+  scope?: string,
 ): string {
   const parts: string[] = [];
+
+  if (scope) {
+    parts.push(`You are updating docs for the \`${scope}\` subdirectory of a monorepo.`);
+    parts.push('Only include changes relevant to files under this directory.');
+    parts.push('The changed files list has been filtered to this directory already.');
+    parts.push('Ignore diff content for files outside this directory.\n');
+  }
 
   parts.push('Update documentation based on the following code changes.\n');
 

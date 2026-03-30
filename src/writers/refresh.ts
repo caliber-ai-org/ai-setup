@@ -12,53 +12,64 @@ interface RefreshDocs {
   copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
 }
 
-export function writeRefreshDocs(docs: RefreshDocs): string[] {
+export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[] {
   const written: string[] = [];
+  const p = (relPath: string): string => (dir === '.' ? relPath : path.join(dir, relPath));
+  const ensureParent = (filePath: string): void => {
+    const parent = path.dirname(filePath);
+    if (parent !== '.' && !fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+  };
 
   if (docs.agentsMd) {
-    fs.writeFileSync('AGENTS.md', appendManagedBlocks(docs.agentsMd, 'codex'));
-    written.push('AGENTS.md');
+    const filePath = p('AGENTS.md');
+    ensureParent(filePath);
+    fs.writeFileSync(filePath, appendManagedBlocks(docs.agentsMd, 'codex'));
+    written.push(filePath);
   }
 
   if (docs.claudeMd) {
-    fs.writeFileSync('CLAUDE.md', appendManagedBlocks(docs.claudeMd));
-    written.push('CLAUDE.md');
+    const filePath = p('CLAUDE.md');
+    ensureParent(filePath);
+    fs.writeFileSync(filePath, appendManagedBlocks(docs.claudeMd));
+    written.push(filePath);
   }
 
   if (docs.readmeMd) {
-    fs.writeFileSync('README.md', docs.readmeMd);
-    written.push('README.md');
+    const filePath = p('README.md');
+    ensureParent(filePath);
+    fs.writeFileSync(filePath, docs.readmeMd);
+    written.push(filePath);
   }
 
   if (docs.cursorrules) {
-    fs.writeFileSync('.cursorrules', docs.cursorrules);
-    written.push('.cursorrules');
+    const filePath = p('.cursorrules');
+    ensureParent(filePath);
+    fs.writeFileSync(filePath, docs.cursorrules);
+    written.push(filePath);
   }
 
   if (docs.cursorRules) {
-    const rulesDir = path.join('.cursor', 'rules');
+    const rulesDir = p(path.join('.cursor', 'rules'));
     if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
     for (const rule of docs.cursorRules) {
       fs.writeFileSync(path.join(rulesDir, rule.filename), rule.content);
-      written.push(`.cursor/rules/${rule.filename}`);
+      written.push(p(path.join('.cursor', 'rules', rule.filename)));
     }
   }
 
   if (docs.copilotInstructions) {
-    fs.mkdirSync('.github', { recursive: true });
-    fs.writeFileSync(
-      path.join('.github', 'copilot-instructions.md'),
-      appendManagedBlocks(docs.copilotInstructions, 'copilot'),
-    );
-    written.push('.github/copilot-instructions.md');
+    const filePath = p(path.join('.github', 'copilot-instructions.md'));
+    ensureParent(filePath);
+    fs.writeFileSync(filePath, appendManagedBlocks(docs.copilotInstructions, 'copilot'));
+    written.push(filePath);
   }
 
   if (docs.copilotInstructionFiles) {
-    const instructionsDir = path.join('.github', 'instructions');
-    fs.mkdirSync(instructionsDir, { recursive: true });
+    const instructionsDir = p(path.join('.github', 'instructions'));
+    if (!fs.existsSync(instructionsDir)) fs.mkdirSync(instructionsDir, { recursive: true });
     for (const file of docs.copilotInstructionFiles) {
       fs.writeFileSync(path.join(instructionsDir, file.filename), file.content);
-      written.push(`.github/instructions/${file.filename}`);
+      written.push(p(path.join('.github', 'instructions', file.filename)));
     }
   }
 

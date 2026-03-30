@@ -113,4 +113,42 @@ describe('writeRefreshDocs', () => {
     expect(content).toContain('caliber:managed:sync');
     expect(content).toContain('/setup-caliber');
   });
+
+  describe('dir parameter', () => {
+    it('prefixes CLAUDE.md path with dir', () => {
+      const written = writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend');
+      expect(written).toContain('packages/frontend/CLAUDE.md');
+    });
+
+    it('prefixes AGENTS.md path with dir', () => {
+      const written = writeRefreshDocs({ agentsMd: '# Agents' }, 'packages/backend');
+      expect(written).toContain('packages/backend/AGENTS.md');
+    });
+
+    it('prefixes cursor rules paths with dir', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      const written = writeRefreshDocs(
+        { cursorRules: [{ filename: 'test.mdc', content: 'rule' }] },
+        'packages/api',
+      );
+      expect(written).toContain('packages/api/.cursor/rules/test.mdc');
+    });
+
+    it('prefixes copilot instructions path with dir', () => {
+      const written = writeRefreshDocs({ copilotInstructions: '# Copilot' }, 'packages/frontend');
+      expect(written).toContain('packages/frontend/.github/copilot-instructions.md');
+    });
+
+    it('uses root paths when dir is "."', () => {
+      const written = writeRefreshDocs({ claudeMd: '# Root' }, '.');
+      expect(written).toContain('CLAUDE.md');
+    });
+
+    it('creates parent directories for subdirectory writes', () => {
+      writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend');
+      expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith('packages/frontend', {
+        recursive: true,
+      });
+    });
+  });
 });
