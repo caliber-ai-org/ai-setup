@@ -134,7 +134,8 @@ export function checkExistence(dir: string): Check[] {
   // 3. Skills exist (.claude/skills/ or .agents/skills/)
   const claudeSkills = countFiles(join(dir, '.claude', 'skills'), /\.(md|SKILL\.md)$/);
   const codexSkills = countFiles(join(dir, '.agents', 'skills'), /SKILL\.md$/);
-  const skillCount = claudeSkills.length + codexSkills.length;
+  const opencodeSkills = countFiles(join(dir, '.opencode', 'skills'), /SKILL\.md$/);
+  const skillCount = claudeSkills.length + codexSkills.length + opencodeSkills.length;
   const skillBase = skillCount >= 1 ? POINTS_SKILLS_EXIST : 0;
   const skillBonus = Math.min((skillCount - 1) * POINTS_SKILLS_BONUS_PER_EXTRA, POINTS_SKILLS_BONUS_CAP);
   const skillPoints = skillCount >= 1 ? skillBase + Math.max(0, skillBonus) : 0;

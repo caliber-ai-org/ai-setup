@@ -68,7 +68,7 @@ function filterChecksForTarget(checks: Check[], target: TargetAgent): Check[] {
     if (CODEX_ONLY_CHECKS.has(c.id)) return target.includes('codex') || target.includes('opencode');
     if (COPILOT_ONLY_CHECKS.has(c.id)) return target.includes('github-copilot');
     if (BOTH_ONLY_CHECKS.has(c.id)) return target.includes('claude') && target.includes('cursor');
-    if (NON_CODEX_CHECKS.has(c.id)) return !target.includes('codex');
+    if (NON_CODEX_CHECKS.has(c.id)) return !target.includes('codex') && !target.includes('opencode');
     if (CLAUDE_OR_CODEX_CHECKS.has(c.id)) return target.includes('claude') || target.includes('codex') || target.includes('opencode');
     return true;
   });
