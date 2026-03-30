@@ -85,7 +85,7 @@ function discoverGitRepos(parentDir: string): string[] {
   return repos.sort();
 }
 
-function collectFilesToWrite(updatedDocs: Record<string, unknown>): string[] {
+export function collectFilesToWrite(updatedDocs: Record<string, unknown>): string[] {
   const files: string[] = [];
   if (updatedDocs.agentsMd) files.push('AGENTS.md');
   if (updatedDocs.claudeMd) files.push('CLAUDE.md');
@@ -342,6 +342,7 @@ export async function refreshCommand(options: RefreshOptions) {
         await refreshSingleRepo(repo, { ...options, label: repoName });
       } catch (err) {
         if (err instanceof Error && err.message === '__exit__') continue;
+        writeRefreshError(err);
         log(
           quiet,
           chalk.yellow(
