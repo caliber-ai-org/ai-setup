@@ -22,9 +22,10 @@ describe('readExistingConfigs', () => {
       return false;
     });
 
-    vi.mocked(fs.readdirSync).mockReturnValue(['testing', 'deployment'] as any);
-
-    vi.mocked(fs.statSync).mockReturnValue({ isDirectory: () => true } as fs.Stats);
+    vi.mocked(fs.readdirSync).mockReturnValue([
+      { name: 'testing', isDirectory: () => true },
+      { name: 'deployment', isDirectory: () => true },
+    ] as any);
 
     vi.mocked(fs.readFileSync).mockImplementation(((p: unknown) => {
       const s = String(p);

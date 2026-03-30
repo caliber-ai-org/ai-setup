@@ -147,10 +147,17 @@ function buildRefreshPrompt(
       parts.push(rule.content);
     }
   }
-  if (existingDocs.cursorSkills?.length) {
-    for (const skill of existingDocs.cursorSkills) {
+  const skillSources: Array<{ skills?: Array<{ name: string; content: string }>; prefix: string }> =
+    [
+      { skills: existingDocs.cursorSkills, prefix: '.cursor/skills' },
+      { skills: existingDocs.codexSkills, prefix: '.agents/skills' },
+      { skills: existingDocs.opencodeSkills, prefix: '.opencode/skills' },
+    ];
+  for (const { skills, prefix } of skillSources) {
+    if (!skills?.length) continue;
+    for (const skill of skills) {
       if (BUILTIN_SKILL_NAMES.has(skill.name)) continue;
-      parts.push(`\n[.cursor/skills/${skill.name}/SKILL.md]`);
+      parts.push(`\n[${prefix}/${skill.name}/SKILL.md]`);
       parts.push(skill.content);
     }
   }
@@ -162,20 +169,6 @@ function buildRefreshPrompt(
     for (const file of existingDocs.copilotInstructionFiles) {
       parts.push(`\n[.github/instructions/${file.filename}]`);
       parts.push(file.content);
-    }
-  }
-  if (existingDocs.codexSkills?.length) {
-    for (const skill of existingDocs.codexSkills) {
-      if (BUILTIN_SKILL_NAMES.has(skill.name)) continue;
-      parts.push(`\n[.agents/skills/${skill.name}/SKILL.md]`);
-      parts.push(skill.content);
-    }
-  }
-  if (existingDocs.opencodeSkills?.length) {
-    for (const skill of existingDocs.opencodeSkills) {
-      if (BUILTIN_SKILL_NAMES.has(skill.name)) continue;
-      parts.push(`\n[.opencode/skills/${skill.name}/SKILL.md]`);
-      parts.push(skill.content);
     }
   }
 

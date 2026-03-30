@@ -16,6 +16,19 @@ interface RefreshDocs {
   opencodeSkills?: Array<{ name: string; content: string }> | null;
 }
 
+function writeSkillFiles(
+  skills: Array<{ name: string; content: string }>,
+  baseDir: string,
+  written: string[],
+): void {
+  for (const skill of skills) {
+    const skillDir = path.join(baseDir, skill.name);
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
+    written.push(`${baseDir}/${skill.name}/SKILL.md`);
+  }
+}
+
 export function writeRefreshDocs(docs: RefreshDocs): string[] {
   const written: string[] = [];
 
@@ -57,32 +70,9 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
     }
   }
 
-  if (docs.cursorSkills) {
-    for (const skill of docs.cursorSkills) {
-      const skillDir = path.join('.cursor', 'skills', skill.name);
-      if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true });
-      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
-      written.push(`.cursor/skills/${skill.name}/SKILL.md`);
-    }
-  }
-
-  if (docs.codexSkills) {
-    for (const skill of docs.codexSkills) {
-      const skillDir = path.join('.agents', 'skills', skill.name);
-      if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true });
-      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
-      written.push(`.agents/skills/${skill.name}/SKILL.md`);
-    }
-  }
-
-  if (docs.opencodeSkills) {
-    for (const skill of docs.opencodeSkills) {
-      const skillDir = path.join('.opencode', 'skills', skill.name);
-      if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true });
-      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
-      written.push(`.opencode/skills/${skill.name}/SKILL.md`);
-    }
-  }
+  if (docs.cursorSkills) writeSkillFiles(docs.cursorSkills, '.cursor/skills', written);
+  if (docs.codexSkills) writeSkillFiles(docs.codexSkills, '.agents/skills', written);
+  if (docs.opencodeSkills) writeSkillFiles(docs.opencodeSkills, '.opencode/skills', written);
 
   if (docs.copilotInstructions) {
     fs.mkdirSync('.github', { recursive: true });

@@ -3,7 +3,6 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { isGitRepo } from '../fingerprint/git.js';
-import { readExistingConfigs } from '../fingerprint/existing-config.js';
 import { collectDiff } from '../lib/git-diff.js';
 import { readState, writeState, getCurrentHeadSha } from '../lib/state.js';
 import { writeRefreshDocs } from '../writers/refresh.js';
@@ -48,7 +47,10 @@ function discoverGitRepos(parentDir: string): string[] {
 
 const REFRESH_COOLDOWN_MS = 30_000;
 
-async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { label?: string }): Promise<void> {
+async function refreshSingleRepo(
+  repoDir: string,
+  options: RefreshOptions & { label?: string },
+): Promise<void> {
   const quiet = !!options.quiet;
   const prefix = options.label ? `${chalk.bold(options.label)} ` : '';
 
@@ -59,7 +61,10 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
   if (state?.lastRefreshTimestamp) {
     const elapsed = Date.now() - new Date(state.lastRefreshTimestamp).getTime();
     if (elapsed < REFRESH_COOLDOWN_MS && elapsed > 0) {
-      log(quiet, chalk.dim(`${prefix}Skipped — last refresh was ${Math.round(elapsed / 1000)}s ago.`));
+      log(
+        quiet,
+        chalk.dim(`${prefix}Skipped — last refresh was ${Math.round(elapsed / 1000)}s ago.`),
+      );
       return;
     }
   }
@@ -77,9 +82,9 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
 
   const spinner = quiet ? null : ora(`${prefix}Analyzing changes...`).start();
 
-  const existingDocs = readExistingConfigs(repoDir);
   const learnedSection = readLearnedSection();
   const fingerprint = await collectFingerprint(repoDir);
+  const existingDocs = fingerprint.existingConfigs;
   const projectContext = {
     languages: fingerprint.languages,
     frameworks: fingerprint.frameworks,
@@ -102,14 +107,27 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
 
   let response;
   try {
-    response = await refreshDocs(diffPayload, existingDocs, projectContext, learnedSection, sourcesPayload);
+    response = await refreshDocs(
+      diffPayload,
+      existingDocs,
+      projectContext,
+      learnedSection,
+      sourcesPayload,
+    );
   } catch (firstErr) {
-    const isTransient = firstErr instanceof Error &&
-      TRANSIENT_ERRORS.some(e => firstErr.message.toLowerCase().includes(e.toLowerCase()));
+    const isTransient =
+      firstErr instanceof Error &&
+      TRANSIENT_ERRORS.some((e) => firstErr.message.toLowerCase().includes(e.toLowerCase()));
     if (!isTransient) throw firstErr;
     // Retry once on transient LLM failure — refresh runs from hooks, silent failure means stale docs
     try {
-      response = await refreshDocs(diffPayload, existingDocs, projectContext, learnedSection, sourcesPayload);
+      response = await refreshDocs(
+        diffPayload,
+        existingDocs,
+        projectContext,
+        learnedSection,
+        sourcesPayload,
+      );
     } catch {
       spinner?.fail(`${prefix}Refresh failed after retry`);
       throw firstErr;
@@ -150,7 +168,7 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
   }
 
   const written = writeRefreshDocs(response.updatedDocs);
-  const trigger = quiet ? 'hook' as const : 'manual' as const;
+  const trigger = quiet ? ('hook' as const) : ('manual' as const);
   trackRefreshCompleted(written.length, Date.now(), trigger);
 
   // Quality gate: check for score regression
@@ -160,12 +178,18 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
     for (const [filePath, content] of preRefreshContents) {
       const fullPath = path.resolve(repoDir, filePath);
       if (content === null) {
-        try { fs.unlinkSync(fullPath); } catch { /* file may not exist */ }
+        try {
+          fs.unlinkSync(fullPath);
+        } catch {
+          /* file may not exist */
+        }
       } else {
         fs.writeFileSync(fullPath, content);
       }
     }
-    spinner?.warn(`${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`);
+    spinner?.warn(
+      `${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`,
+    );
     log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
     if (currentSha) {
       writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
@@ -207,7 +231,11 @@ export async function refreshCommand(options: RefreshOptions) {
     const config = loadConfig();
     if (!config) {
       if (quiet) return;
-      console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')(`${resolveCaliber()} config`) + chalk.red(' (e.g. choose Cursor) or set an API key.'));
+      console.log(
+        chalk.red('No LLM provider configured. Run ') +
+          chalk.hex('#83D1EB')(`${resolveCaliber()} config`) +
+          chalk.red(' (e.g. choose Cursor) or set an API key.'),
+      );
       throw new Error('__exit__');
     }
 
@@ -222,7 +250,9 @@ export async function refreshCommand(options: RefreshOptions) {
     const repos = discoverGitRepos(process.cwd());
     if (repos.length === 0) {
       if (quiet) return;
-      console.log(chalk.red('Not inside a git repository and no git repos found in child directories.'));
+      console.log(
+        chalk.red('Not inside a git repository and no git repos found in child directories.'),
+      );
       throw new Error('__exit__');
     }
 
@@ -236,7 +266,12 @@ export async function refreshCommand(options: RefreshOptions) {
         await refreshSingleRepo(repo, { ...options, label: repoName });
       } catch (err) {
         if (err instanceof Error && err.message === '__exit__') continue;
-        log(quiet, chalk.yellow(`${repoName}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`));
+        log(
+          quiet,
+          chalk.yellow(
+            `${repoName}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`,
+          ),
+        );
       }
     }
     process.chdir(originalDir);
