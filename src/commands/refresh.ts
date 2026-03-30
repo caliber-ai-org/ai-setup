@@ -192,12 +192,6 @@ async function refreshDir(
     return { written: [] };
   }
 
-  const state = readState();
-  const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
-  // TODO: For subdirectories, infra checks (hooks, permissions) will fail since
-  // they only exist at root. Consider adding skipInfraChecks for dir != "."
-  const preScore = computeLocalScore(absDir, targetAgent);
-
   const allFilesToWrite = collectFilesToWrite(response.updatedDocs, dir);
   const preRefreshContents = new Map<string, string | null>();
   for (const filePath of allFilesToWrite) {
@@ -209,32 +203,41 @@ async function refreshDir(
     }
   }
 
+  // Quality gate: skip for subdirectories — infra checks (hooks, permissions)
+  // only exist at root and would produce artificially low scores.
+  const state = readState();
+  const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
+  const runQualityGate = dir === '.';
+  const preScore = runQualityGate ? computeLocalScore(absDir, targetAgent) : null;
+
   const written = writeRefreshDocs(response.updatedDocs, dir);
   const trigger = quiet ? ('hook' as const) : ('manual' as const);
   trackRefreshCompleted(written.length, Date.now(), trigger);
 
-  const postScore = computeLocalScore(absDir, targetAgent);
-  if (postScore.score < preScore.score) {
-    for (const [filePath, content] of preRefreshContents) {
-      const fullPath = path.resolve(repoDir, filePath);
-      if (content === null) {
-        try {
-          fs.unlinkSync(fullPath);
-        } catch {
-          /* file may not exist */
+  if (runQualityGate && preScore) {
+    const postScore = computeLocalScore(absDir, targetAgent);
+    if (postScore.score < preScore.score) {
+      for (const [filePath, content] of preRefreshContents) {
+        const fullPath = path.resolve(repoDir, filePath);
+        if (content === null) {
+          try {
+            fs.unlinkSync(fullPath);
+          } catch {
+            /* file may not exist */
+          }
+        } else {
+          fs.writeFileSync(fullPath, content);
         }
-      } else {
-        fs.writeFileSync(fullPath, content);
       }
+      spinner?.warn(
+        `${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`,
+      );
+      log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
+      return { written: [] };
     }
-    spinner?.warn(
-      `${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`,
-    );
-    log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
-    return { written: [] };
+    recordScore(postScore, 'refresh');
   }
 
-  recordScore(postScore, 'refresh');
   spinner?.succeed(`${prefix}Updated ${written.length} doc${written.length === 1 ? '' : 's'}`);
 
   for (const file of written) {
@@ -286,6 +289,7 @@ async function refreshSingleRepo(
     await refreshDir(repoDir, '.', diff, options);
   } else {
     log(quiet, chalk.dim(`${prefix}Found configs in ${configDirs.length} directories\n`));
+    let hadFailure = false;
     for (const dir of configDirs) {
       const scopedDiff = scopeDiffToDir(diff, dir, configDirs);
       if (!scopedDiff.hasChanges) continue;
@@ -293,6 +297,7 @@ async function refreshSingleRepo(
       try {
         await refreshDir(repoDir, dir, scopedDiff, { ...options, label: dirLabel });
       } catch (err) {
+        hadFailure = true;
         log(
           quiet,
           chalk.yellow(
@@ -300,6 +305,10 @@ async function refreshSingleRepo(
           ),
         );
       }
+    }
+    if (hadFailure) {
+      // Don't update state SHA — failed dirs need to be retried on next run
+      return;
     }
   }
 
