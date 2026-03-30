@@ -56,12 +56,16 @@ describe('refreshDocs', () => {
       docsUpdated: [],
     });
 
-    await refreshDocs({
-      ...baseDiff,
-      committed: 'committed diff',
-      staged: 'staged diff',
-      unstaged: 'unstaged diff',
-    }, {}, baseContext);
+    await refreshDocs(
+      {
+        ...baseDiff,
+        committed: 'committed diff',
+        staged: 'staged diff',
+        unstaged: 'unstaged diff',
+      },
+      {},
+      baseContext,
+    );
 
     const prompt = mockedLlmCall.mock.calls[0][0].prompt;
     expect(prompt).toContain('--- Committed Changes ---');
@@ -80,13 +84,17 @@ describe('refreshDocs', () => {
       docsUpdated: [],
     });
 
-    await refreshDocs(baseDiff, {
-      claudeMd: '# My CLAUDE.md',
-      readmeMd: '# README',
-      cursorrules: 'cursor rules content',
-      claudeSkills: [{ filename: 'test.md', content: 'skill content' }],
-      cursorRules: [{ filename: 'rule.mdc', content: 'rule content' }],
-    }, baseContext);
+    await refreshDocs(
+      baseDiff,
+      {
+        claudeMd: '# My CLAUDE.md',
+        readmeMd: '# README',
+        cursorrules: 'cursor rules content',
+        claudeSkills: [{ filename: 'test.md', content: 'skill content' }],
+        cursorRules: [{ filename: 'rule.mdc', content: 'rule content' }],
+      },
+      baseContext,
+    );
 
     const prompt = mockedLlmCall.mock.calls[0][0].prompt;
     expect(prompt).toContain('[CLAUDE.md]');
@@ -105,12 +113,16 @@ describe('refreshDocs', () => {
       docsUpdated: [],
     });
 
-    await refreshDocs({
-      ...baseDiff,
-      committed: '',
-      staged: '',
-      unstaged: '',
-    }, {}, baseContext);
+    await refreshDocs(
+      {
+        ...baseDiff,
+        committed: '',
+        staged: '',
+        unstaged: '',
+      },
+      {},
+      baseContext,
+    );
 
     const prompt = mockedLlmCall.mock.calls[0][0].prompt;
     expect(prompt).not.toContain('--- Committed Changes ---');
@@ -118,7 +130,7 @@ describe('refreshDocs', () => {
     expect(prompt).not.toContain('--- Unstaged Changes ---');
   });
 
-  it('uses maxTokens of 16384', async () => {
+  it('uses dynamic maxTokens based on doc count (min 8192)', async () => {
     mockedLlmCall.mockResolvedValue('{}');
     mockedParseJson.mockReturnValue({
       updatedDocs: {},
@@ -127,8 +139,33 @@ describe('refreshDocs', () => {
     });
 
     await refreshDocs(baseDiff, {}, baseContext);
+    // 0 docs → max(8192, 0*4096) = 8192
+    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(8192);
+  });
 
-    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(16384);
+  it('scales maxTokens with doc count', async () => {
+    mockedLlmCall.mockResolvedValue('{}');
+    mockedParseJson.mockReturnValue({
+      updatedDocs: {},
+      changesSummary: '',
+      docsUpdated: [],
+    });
+
+    await refreshDocs(
+      baseDiff,
+      {
+        claudeMd: '# Project',
+        agentsMd: '# Agents',
+        copilotInstructions: '# Copilot',
+        claudeSkills: [
+          { filename: 's1/SKILL.md', content: '' },
+          { filename: 's2/SKILL.md', content: '' },
+        ],
+      },
+      baseContext,
+    );
+    // 3 markdown docs + 2 skills = 5 → max(8192, 5*4096) = 20480
+    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(20480);
   });
 
   it('passes CALIBER_FAST_MODEL as model override when set', async () => {

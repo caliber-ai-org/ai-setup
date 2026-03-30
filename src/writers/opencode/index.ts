@@ -15,7 +15,10 @@ export function writeOpencodeConfig(
   const written: string[] = [];
 
   if (!agentsMdAlreadyWritten) {
-    fs.writeFileSync('AGENTS.md', appendLearningsBlock(appendPreCommitBlock(config.agentsMd)));
+    fs.writeFileSync(
+      'AGENTS.md',
+      appendLearningsBlock(appendPreCommitBlock(config.agentsMd, 'codex')),
+    );
     written.push('AGENTS.md');
   }
 

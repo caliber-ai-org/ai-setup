@@ -64,10 +64,26 @@ export async function refreshDocs(
   const prompt = buildRefreshPrompt(diff, existingDocs, projectContext, learnedSection, sources);
   const fastModel = getFastModel();
 
+  const docCount =
+    [
+      existingDocs.claudeMd,
+      existingDocs.agentsMd,
+      existingDocs.readmeMd,
+      existingDocs.copilotInstructions,
+      existingDocs.cursorrules,
+    ].filter(Boolean).length +
+    (existingDocs.claudeSkills?.length ?? 0) +
+    (existingDocs.cursorRules?.length ?? 0) +
+    (existingDocs.cursorSkills?.length ?? 0) +
+    (existingDocs.copilotInstructionFiles?.length ?? 0) +
+    (existingDocs.codexSkills?.length ?? 0) +
+    (existingDocs.opencodeSkills?.length ?? 0);
+  const maxTokens = Math.min(32768, Math.max(8192, docCount * 4096));
+
   const raw = await llmCall({
     system: REFRESH_SYSTEM_PROMPT,
     prompt,
-    maxTokens: 16384,
+    maxTokens,
     ...(fastModel ? { model: fastModel } : {}),
   });
 

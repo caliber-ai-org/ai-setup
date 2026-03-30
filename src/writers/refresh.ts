@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { appendPreCommitBlock, appendLearningsBlock } from './pre-commit-block.js';
+import { appendManagedBlocks } from './pre-commit-block.js';
 
 interface RefreshDocs {
   agentsMd?: string | null;
@@ -33,15 +33,12 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
   const written: string[] = [];
 
   if (docs.agentsMd) {
-    fs.writeFileSync(
-      'AGENTS.md',
-      appendLearningsBlock(appendPreCommitBlock(docs.agentsMd, 'codex')),
-    );
+    fs.writeFileSync('AGENTS.md', appendManagedBlocks(docs.agentsMd, 'codex'));
     written.push('AGENTS.md');
   }
 
   if (docs.claudeMd) {
-    fs.writeFileSync('CLAUDE.md', appendLearningsBlock(appendPreCommitBlock(docs.claudeMd)));
+    fs.writeFileSync('CLAUDE.md', appendManagedBlocks(docs.claudeMd));
     written.push('CLAUDE.md');
   }
 
@@ -81,7 +78,7 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
     fs.mkdirSync('.github', { recursive: true });
     fs.writeFileSync(
       path.join('.github', 'copilot-instructions.md'),
-      appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions, 'copilot')),
+      appendManagedBlocks(docs.copilotInstructions, 'copilot'),
     );
     written.push('.github/copilot-instructions.md');
   }

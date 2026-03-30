@@ -12,7 +12,10 @@ export function writeGithubCopilotConfig(config: CopilotConfig): string[] {
 
   if (config.instructions) {
     fs.mkdirSync('.github', { recursive: true });
-    fs.writeFileSync(path.join('.github', 'copilot-instructions.md'), appendLearningsBlock(appendPreCommitBlock(config.instructions)));
+    fs.writeFileSync(
+      path.join('.github', 'copilot-instructions.md'),
+      appendLearningsBlock(appendPreCommitBlock(config.instructions, 'copilot')),
+    );
     written.push('.github/copilot-instructions.md');
   }
 

@@ -97,17 +97,31 @@ describe('writeRefreshDocs', () => {
     expect(written).toContain('.opencode/skills/deploy/SKILL.md');
   });
 
-  it('writes AGENTS.md with codex platform block', () => {
+  it('writes AGENTS.md with all managed blocks (codex platform)', () => {
     const written = writeRefreshDocs({
       agentsMd: '# Agents\n\nProject instructions.\n',
     });
     expect(written).toContain('AGENTS.md');
     const content = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
     expect(content).toContain('caliber:managed:pre-commit');
+    expect(content).toContain('caliber:managed:learnings');
+    expect(content).toContain('caliber:managed:sync');
     expect(content).toContain('.agents/skills/setup-caliber/SKILL.md');
   });
 
-  it('writes copilot instructions with copilot platform block', () => {
+  it('writes CLAUDE.md with all managed blocks', () => {
+    const written = writeRefreshDocs({
+      claudeMd: '# Project\n\nContent.\n',
+    });
+    expect(written).toContain('CLAUDE.md');
+    const content = vi.mocked(fs.writeFileSync).mock.calls[0][1] as string;
+    expect(content).toContain('caliber:managed:pre-commit');
+    expect(content).toContain('caliber:managed:learnings');
+    expect(content).toContain('caliber:managed:sync');
+    expect(content).toContain('/setup-caliber');
+  });
+
+  it('writes copilot instructions with all managed blocks (copilot platform)', () => {
     const written = writeRefreshDocs({
       copilotInstructions: '# Copilot\n\nInstructions.\n',
     });
@@ -116,6 +130,9 @@ describe('writeRefreshDocs', () => {
       .mocked(fs.writeFileSync)
       .mock.calls.find((c) => String(c[0]).includes('copilot-instructions'));
     const content = call![1] as string;
+    expect(content).toContain('caliber:managed:pre-commit');
+    expect(content).toContain('caliber:managed:learnings');
+    expect(content).toContain('caliber:managed:sync');
     expect(content).toContain('/setup-caliber');
   });
 });
