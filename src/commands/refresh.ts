@@ -3,7 +3,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { isGitRepo } from '../fingerprint/git.js';
-import { collectDiff } from '../lib/git-diff.js';
+import { collectDiff, scopeDiffToDir, type DiffResult } from '../lib/git-diff.js';
 import { readState, writeState, getCurrentHeadSha } from '../lib/state.js';
 import { writeRefreshDocs } from '../writers/refresh.js';
 import { collectFingerprint } from '../fingerprint/index.js';
@@ -19,6 +19,7 @@ import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
 import { computeLocalScore, detectTargetAgent } from '../scoring/index.js';
 import { recordScore } from '../scoring/history.js';
 import { CALIBER_DIR, REFRESH_LAST_ERROR_FILE } from '../constants.js';
+import { discoverConfigDirs } from '../lib/config-discovery.js';
 
 function writeRefreshError(error: unknown): void {
   try {
@@ -96,25 +97,185 @@ function discoverGitRepos(parentDir: string): string[] {
   return repos.sort();
 }
 
-export function collectFilesToWrite(updatedDocs: Record<string, unknown>): string[] {
+export function collectFilesToWrite(
+  updatedDocs: Record<string, unknown>,
+  dir: string = '.',
+): string[] {
   const files: string[] = [];
-  if (updatedDocs.agentsMd) files.push('AGENTS.md');
-  if (updatedDocs.claudeMd) files.push('CLAUDE.md');
-  if (updatedDocs.readmeMd) files.push('README.md');
-  if (updatedDocs.cursorrules) files.push('.cursorrules');
+  const p = (relPath: string): string =>
+    (dir === '.' ? relPath : path.join(dir, relPath)).replace(/\\/g, '/');
+  if (updatedDocs.agentsMd) files.push(p('AGENTS.md'));
+  if (updatedDocs.claudeMd) files.push(p('CLAUDE.md'));
+  if (updatedDocs.readmeMd) files.push(p('README.md'));
+  if (updatedDocs.cursorrules) files.push(p('.cursorrules'));
   if (Array.isArray(updatedDocs.cursorRules)) {
     for (const r of updatedDocs.cursorRules as Array<{ filename: string }>)
-      files.push(`.cursor/rules/${r.filename}`);
+      files.push(p(`.cursor/rules/${r.filename}`));
   }
-  if (updatedDocs.copilotInstructions) files.push('.github/copilot-instructions.md');
+  if (updatedDocs.copilotInstructions) files.push(p('.github/copilot-instructions.md'));
   if (Array.isArray(updatedDocs.copilotInstructionFiles)) {
     for (const f of updatedDocs.copilotInstructionFiles as Array<{ filename: string }>)
-      files.push(`.github/instructions/${f.filename}`);
+      files.push(p(`.github/instructions/${f.filename}`));
   }
   return files;
 }
 
 const REFRESH_COOLDOWN_MS = 30_000;
+
+async function refreshDir(
+  repoDir: string,
+  dir: string,
+  diff: DiffResult,
+  options: RefreshOptions & { label?: string },
+): Promise<{ written: string[] }> {
+  const quiet = !!options.quiet;
+  const prefix = options.label ? `${chalk.bold(options.label)} ` : '';
+  const absDir = dir === '.' ? repoDir : path.resolve(repoDir, dir);
+  const scope = dir === '.' ? undefined : dir;
+
+  const spinner = quiet ? null : ora(`${prefix}Analyzing changes...`).start();
+
+  const learnedSection = readLearnedSection();
+  const fingerprint = await collectFingerprint(absDir);
+  const existingDocs = fingerprint.existingConfigs;
+  const projectContext = {
+    languages: fingerprint.languages,
+    frameworks: fingerprint.frameworks,
+    packageName: fingerprint.packageName,
+    fileTree: fingerprint.fileTree,
+  };
+
+  const workspaces = getDetectedWorkspaces(absDir);
+  const sources = resolveAllSources(absDir, [], workspaces);
+
+  const diffPayload = {
+    committed: diff.committedDiff,
+    staged: diff.stagedDiff,
+    unstaged: diff.unstagedDiff,
+    changedFiles: diff.changedFiles,
+    summary: diff.summary,
+  };
+  const sourcesPayload = sources.length > 0 ? sources : undefined;
+
+  let response;
+  try {
+    response = await refreshDocs(
+      diffPayload,
+      existingDocs,
+      projectContext,
+      learnedSection,
+      sourcesPayload,
+      scope,
+    );
+  } catch (firstErr) {
+    const isTransient =
+      firstErr instanceof Error &&
+      TRANSIENT_ERRORS.some((e) => firstErr.message.toLowerCase().includes(e.toLowerCase()));
+    if (!isTransient) throw firstErr;
+    // Retry once — refresh runs from hooks, silent failure means stale docs
+    try {
+      response = await refreshDocs(
+        diffPayload,
+        existingDocs,
+        projectContext,
+        learnedSection,
+        sourcesPayload,
+        scope,
+      );
+    } catch {
+      spinner?.fail(`${prefix}Refresh failed after retry`);
+      throw firstErr;
+    }
+  }
+
+  if (!response.docsUpdated || response.docsUpdated.length === 0) {
+    spinner?.succeed(`${prefix}No doc updates needed`);
+    return { written: [] };
+  }
+
+  if (options.dryRun) {
+    spinner?.info(`${prefix}Dry run — would update:`);
+    for (const doc of response.docsUpdated) {
+      console.log(`  ${chalk.yellow('~')} ${doc}`);
+    }
+    if (response.changesSummary) {
+      console.log(chalk.dim(`\n  ${response.changesSummary}`));
+    }
+    return { written: [] };
+  }
+
+  const allFilesToWrite = collectFilesToWrite(response.updatedDocs, dir);
+  const preRefreshContents = new Map<string, string | null>();
+  for (const filePath of allFilesToWrite) {
+    const fullPath = path.resolve(repoDir, filePath);
+    try {
+      preRefreshContents.set(filePath, fs.readFileSync(fullPath, 'utf-8'));
+    } catch {
+      preRefreshContents.set(filePath, null);
+    }
+  }
+
+  // Quality gate: skip for subdirectories — infra checks (hooks, permissions)
+  // only exist at root and would produce artificially low scores.
+  const state = readState();
+  const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
+  const runQualityGate = dir === '.';
+  const preScore = runQualityGate ? computeLocalScore(absDir, targetAgent) : null;
+
+  const written = writeRefreshDocs(response.updatedDocs, dir);
+  const trigger = quiet ? ('hook' as const) : ('manual' as const);
+  trackRefreshCompleted(written.length, Date.now(), trigger);
+
+  if (runQualityGate && preScore) {
+    const postScore = computeLocalScore(absDir, targetAgent);
+    if (postScore.score < preScore.score) {
+      for (const [filePath, content] of preRefreshContents) {
+        const fullPath = path.resolve(repoDir, filePath);
+        if (content === null) {
+          try {
+            fs.unlinkSync(fullPath);
+          } catch {
+            /* file may not exist */
+          }
+        } else {
+          fs.writeFileSync(fullPath, content);
+        }
+      }
+      spinner?.warn(
+        `${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`,
+      );
+      log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
+      return { written: [] };
+    }
+    recordScore(postScore, 'refresh');
+  }
+
+  spinner?.succeed(`${prefix}Updated ${written.length} doc${written.length === 1 ? '' : 's'}`);
+
+  const fileChangesMap = new Map(
+    (response.fileChanges || []).map((fc: { file: string; description: string }) => [
+      fc.file,
+      fc.description,
+    ]),
+  );
+
+  for (const file of written) {
+    const desc = fileChangesMap.get(file);
+    const suffix = desc ? chalk.dim(` — ${desc}`) : '';
+    log(quiet, `  ${chalk.green('✓')} ${file}${suffix}`);
+  }
+
+  const agents = detectSyncedAgents(written);
+  if (agents.length > 1) {
+    log(quiet, chalk.cyan(`\n  ${agents.length} agent formats in sync (${agents.join(', ')})`));
+  }
+
+  if (response.changesSummary) {
+    log(quiet, chalk.dim(`\n  ${response.changesSummary}`));
+  }
+
+  return { written };
+}
 
 async function refreshSingleRepo(
   repoDir: string,
@@ -127,7 +288,6 @@ async function refreshSingleRepo(
   const lastSha = state?.lastRefreshSha ?? null;
   const currentSha = getCurrentHeadSha();
 
-  // Rate-limit: skip if last refresh was within cooldown AND HEAD hasn't changed
   if (state?.lastRefreshTimestamp && lastSha && currentSha === lastSha) {
     const elapsed = Date.now() - new Date(state.lastRefreshTimestamp).getTime();
     if (elapsed < REFRESH_COOLDOWN_MS && elapsed > 0) {
@@ -149,145 +309,33 @@ async function refreshSingleRepo(
     return;
   }
 
-  const spinner = quiet ? null : ora(`${prefix}Analyzing changes...`).start();
+  const configDirs = discoverConfigDirs(repoDir);
 
-  const learnedSection = readLearnedSection();
-  const fingerprint = await collectFingerprint(repoDir);
-  const existingDocs = fingerprint.existingConfigs;
-  const projectContext = {
-    languages: fingerprint.languages,
-    frameworks: fingerprint.frameworks,
-    packageName: fingerprint.packageName,
-    fileTree: fingerprint.fileTree,
-  };
-
-  // Resolve sources for context
-  const workspaces = getDetectedWorkspaces(repoDir);
-  const sources = resolveAllSources(repoDir, [], workspaces);
-
-  const diffPayload = {
-    committed: diff.committedDiff,
-    staged: diff.stagedDiff,
-    unstaged: diff.unstagedDiff,
-    changedFiles: diff.changedFiles,
-    summary: diff.summary,
-  };
-  const sourcesPayload = sources.length > 0 ? sources : undefined;
-
-  let response;
-  try {
-    response = await refreshDocs(
-      diffPayload,
-      existingDocs,
-      projectContext,
-      learnedSection,
-      sourcesPayload,
-    );
-  } catch (firstErr) {
-    const isTransient =
-      firstErr instanceof Error &&
-      TRANSIENT_ERRORS.some((e) => firstErr.message.toLowerCase().includes(e.toLowerCase()));
-    if (!isTransient) throw firstErr;
-    // Retry once on transient LLM failure — refresh runs from hooks, silent failure means stale docs
-    try {
-      response = await refreshDocs(
-        diffPayload,
-        existingDocs,
-        projectContext,
-        learnedSection,
-        sourcesPayload,
-      );
-    } catch {
-      spinner?.fail(`${prefix}Refresh failed after retry`);
-      throw firstErr;
-    }
-  }
-
-  if (!response.docsUpdated || response.docsUpdated.length === 0) {
-    spinner?.succeed(`${prefix}No doc updates needed`);
-    if (currentSha) {
-      writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
-    }
-    return;
-  }
-
-  if (options.dryRun) {
-    spinner?.info(`${prefix}Dry run — would update:`);
-    for (const doc of response.docsUpdated) {
-      console.log(`  ${chalk.yellow('~')} ${doc}`);
-    }
-    if (response.changesSummary) {
-      console.log(chalk.dim(`\n  ${response.changesSummary}`));
-    }
-    return;
-  }
-
-  // Quality gate: snapshot pre-refresh score
-  const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
-  const preScore = computeLocalScore(repoDir, targetAgent);
-
-  // Snapshot ALL files that writeRefreshDocs will touch (not just docsUpdated)
-  // so the revert covers skill files the LLM didn't enumerate
-  const allFilesToWrite = collectFilesToWrite(response.updatedDocs);
-  const preRefreshContents = new Map<string, string | null>();
-  for (const filePath of allFilesToWrite) {
-    const fullPath = path.resolve(repoDir, filePath);
-    try {
-      preRefreshContents.set(filePath, fs.readFileSync(fullPath, 'utf-8'));
-    } catch {
-      preRefreshContents.set(filePath, null);
-    }
-  }
-
-  const written = writeRefreshDocs(response.updatedDocs);
-  const trigger = quiet ? ('hook' as const) : ('manual' as const);
-  trackRefreshCompleted(written.length, Date.now(), trigger);
-
-  // Quality gate: check for score regression
-  const postScore = computeLocalScore(repoDir, targetAgent);
-  if (postScore.score < preScore.score) {
-    for (const [filePath, content] of preRefreshContents) {
-      const fullPath = path.resolve(repoDir, filePath);
-      if (content === null) {
-        try {
-          fs.unlinkSync(fullPath);
-        } catch {
-          /* file may not exist */
-        }
-      } else {
-        fs.writeFileSync(fullPath, content);
+  if (configDirs.length <= 1) {
+    await refreshDir(repoDir, '.', diff, options);
+  } else {
+    log(quiet, chalk.dim(`${prefix}Found configs in ${configDirs.length} directories\n`));
+    let hadFailure = false;
+    for (const dir of configDirs) {
+      const scopedDiff = scopeDiffToDir(diff, dir, configDirs);
+      if (!scopedDiff.hasChanges) continue;
+      const dirLabel = dir === '.' ? 'root' : dir;
+      try {
+        await refreshDir(repoDir, dir, scopedDiff, { ...options, label: dirLabel });
+      } catch (err) {
+        hadFailure = true;
+        log(
+          quiet,
+          chalk.yellow(
+            `  ${dirLabel}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`,
+          ),
+        );
       }
     }
-    spinner?.warn(
-      `${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`,
-    );
-    log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
-    if (currentSha) {
-      writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
+    if (hadFailure) {
+      // Don't update state SHA — failed dirs need to be retried on next run
+      return;
     }
-    return;
-  }
-
-  recordScore(postScore, 'refresh');
-  spinner?.succeed(`${prefix}Updated ${written.length} doc${written.length === 1 ? '' : 's'}`);
-
-  const fileChangesMap = new Map(
-    (response.fileChanges || []).map((fc) => [fc.file, fc.description]),
-  );
-
-  for (const file of written) {
-    const desc = fileChangesMap.get(file);
-    const suffix = desc ? chalk.dim(` — ${desc}`) : '';
-    log(quiet, `  ${chalk.green('✓')} ${file}${suffix}`);
-  }
-
-  const agents = detectSyncedAgents(written);
-  if (agents.length > 1) {
-    log(quiet, chalk.cyan(`\n  ${agents.length} agent formats in sync (${agents.join(', ')})`));
-  }
-
-  if (response.changesSummary) {
-    log(quiet, chalk.dim(`\n  ${response.changesSummary}`));
   }
 
   const builtinWritten = ensureBuiltinSkills();

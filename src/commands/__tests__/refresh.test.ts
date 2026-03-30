@@ -70,4 +70,25 @@ describe('collectFilesToWrite', () => {
       '.github/instructions/ts.instructions.md',
     ]);
   });
+
+  it('prefixes all paths with dir when dir is provided', () => {
+    const files = collectFilesToWrite(
+      {
+        claudeMd: '# Pkg',
+        cursorrules: 'rules',
+        cursorRules: [{ filename: 'test.mdc', content: '' }],
+        copilotInstructions: '# Copilot',
+      },
+      'packages/frontend',
+    );
+    expect(files).toContain('packages/frontend/CLAUDE.md');
+    expect(files).toContain('packages/frontend/.cursorrules');
+    expect(files).toContain('packages/frontend/.cursor/rules/test.mdc');
+    expect(files).toContain('packages/frontend/.github/copilot-instructions.md');
+  });
+
+  it('returns root paths when dir is "."', () => {
+    const files = collectFilesToWrite({ claudeMd: '# Root' }, '.');
+    expect(files).toContain('CLAUDE.md');
+  });
 });

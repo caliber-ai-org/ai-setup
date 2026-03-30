@@ -104,3 +104,38 @@ export function collectDiff(lastSha: string | null): DiffResult {
 
   return { hasChanges, committedDiff, stagedDiff, unstagedDiff, changedFiles, summary };
 }
+
+export function scopeDiffToDir(diff: DiffResult, dir: string, allConfigDirs: string[]): DiffResult {
+  if (dir === '.') {
+    const otherDirs = allConfigDirs.filter((d) => d !== '.');
+    if (otherDirs.length === 0) return diff;
+
+    const changedFiles = diff.changedFiles.filter(
+      (f) => !otherDirs.some((d) => f.startsWith(`${d}/`)),
+    );
+    // hasChanges based on scoped changedFiles only — diff text is unfiltered
+    // and may contain hunks for other dirs. The LLM scoping instruction handles that.
+    const hasChanges = changedFiles.length > 0;
+
+    return {
+      ...diff,
+      changedFiles,
+      hasChanges,
+      summary: hasChanges ? `${changedFiles.length} files changed` : 'no changes',
+    };
+  }
+
+  const prefix = `${dir}/`;
+  const changedFiles = diff.changedFiles
+    .filter((f) => f.startsWith(prefix))
+    .map((f) => f.slice(prefix.length));
+
+  const hasChanges = changedFiles.length > 0;
+
+  return {
+    ...diff,
+    changedFiles,
+    hasChanges,
+    summary: hasChanges ? `${changedFiles.length} files changed` : 'no changes',
+  };
+}
