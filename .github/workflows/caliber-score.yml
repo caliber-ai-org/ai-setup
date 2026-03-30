@@ -8,6 +8,10 @@ permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: caliber-score-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   score:
     runs-on: ubuntu-latest
@@ -32,7 +36,7 @@ jobs:
           set -e
 
           if [ $EXIT_CODE -ne 0 ] || ! echo "$RESULT" | jq empty 2>/dev/null; then
-            RESULT=$(npx @rely-ai/caliber@latest score --json --agent claude 2>/dev/null) || RESULT='{"score":0,"grade":"?"}'
+            RESULT=$(npx @rely-ai/caliber@latest score --json --agent claude 2>/dev/null)
           fi
 
           SCORE=$(echo "$RESULT" | jq -r '.current.score // .score // 0')
