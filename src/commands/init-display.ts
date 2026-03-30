@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs';
-import { getUsageSummary } from '../llm/index.js';
+import { getUsageSummary, loadConfig } from '../llm/index.js';
+import { isSeatBased } from '../llm/types.js';
 import type { Fingerprint } from '../fingerprint/index.js';
 
 export function formatProjectPreview(fingerprint: Fingerprint): string {
@@ -151,7 +152,7 @@ export function printSetupSummary(setup: Record<string, unknown>) {
   const opencode = setup.opencode as Record<string, unknown> | undefined;
 
   if (opencode) {
-    if (opencode.agentsMd && !(codex?.agentsMd)) {
+    if (opencode.agentsMd && !codex?.agentsMd) {
       const icon = fs.existsSync('AGENTS.md') ? chalk.yellow('~') : chalk.green('+');
       const desc = getDescription('AGENTS.md');
       console.log(`  ${icon} ${chalk.bold('AGENTS.md')} ${chalk.dim('(OpenCode)')}`);
@@ -238,7 +239,10 @@ export function displayTokenUsage(): void {
     return;
   }
 
-  console.log(chalk.bold('  Token usage:\n'));
+  const config = loadConfig();
+  const isEstimated = config != null && isSeatBased(config.provider);
+  const label = isEstimated ? 'Estimated token usage:' : 'Token usage:';
+  console.log(chalk.bold(`  ${label}\n`));
   let totalIn = 0;
   let totalOut = 0;
   for (const m of summary) {
@@ -258,6 +262,9 @@ export function displayTokenUsage(): void {
     console.log(
       `    ${chalk.dim('Total')}: ${totalIn.toLocaleString()} in / ${totalOut.toLocaleString()} out`,
     );
+  }
+  if (isEstimated) {
+    console.log(chalk.dim('  (Estimated from character count)'));
   }
   console.log('');
 }

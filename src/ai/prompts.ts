@@ -54,6 +54,7 @@ const SKILL_FORMAT_RULES = `All skills follow the OpenSkills standard (agentskil
 
 Skill field requirements:
 - "name": kebab-case (lowercase letters, numbers, hyphens only). Becomes the directory name.
+- "name" MUST NOT be any of these reserved names (they are managed by Caliber automatically): "setup-caliber", "find-skills", "save-learning". Do NOT generate skills with these names.
 - "description": MUST include WHAT it does + WHEN to use it with specific trigger phrases. Example: "Manages database migrations. Use when user says 'run migration', 'create migration', 'db schema change', or modifies files in db/migrations/."
 - "content": markdown body only — do NOT include YAML frontmatter, it is generated from name+description.
 
@@ -99,7 +100,7 @@ Note: Permissions, hooks, freshness tracking, and OpenSkills frontmatter are sco
 README.md is provided for context only — do NOT include a readmeMd field in your output.`;
 
 const OUTPUT_SIZE_CONSTRAINTS = `OUTPUT SIZE CONSTRAINTS — these are critical:
-- CLAUDE.md / AGENTS.md: MUST be under 150 lines for maximum score. Aim for 100-140 lines. Be concise — commands, architecture overview, and key conventions. Use bullet points and tables, not prose.
+- CLAUDE.md / AGENTS.md: MUST be under 400 lines for maximum score. Aim for 200-350 lines. Be thorough — commands, architecture overview, key conventions, data flow, and important patterns. Use bullet points and tables, not prose.
 
 Pack project references densely in architecture sections — use inline paths, not prose paragraphs:
 GOOD: **Entry**: \`src/bin.ts\` → \`src/cli.ts\` · **LLM** (\`src/llm/\`): \`anthropic.ts\` · \`vertex.ts\` · \`openai-compat.ts\`
@@ -242,7 +243,7 @@ Structure:
 5. "## Common Issues" (required) — specific error messages and their fixes. Not "check your config" but "If you see 'Connection refused on port 5432': 1. Verify postgres is running: docker ps | grep postgres 2. Check .env has correct DATABASE_URL"
 
 Rules:
-- Max 150 lines. Focus on actionable instructions, not documentation prose.
+- Max 400 lines. Focus on actionable instructions, not documentation prose.
 - Study existing code in the project context to extract the real patterns being used. A skill for "create API route" should show the exact file structure, imports, error handling, and naming that existing routes use.
 - Be specific and actionable. GOOD: "Run \`pnpm test -- --filter=api\` to verify". BAD: "Validate the data before proceeding."
 - Never use ambiguous language. Instead of "handle errors properly", write "Wrap the DB call in try/catch. On failure, return { error: string, code: number } matching the ErrorResponse type in \`src/types.ts\`."
@@ -301,7 +302,7 @@ Rules:
 - Update the "fileDescriptions" to reflect any changes you make.
 
 Quality constraints — your changes are scored, so do not break these:
-- CLAUDE.md / AGENTS.md: MUST stay under 150 lines. If adding content, remove less important lines to stay within budget. Do not refuse the user's request — make the change and trim elsewhere.
+- CLAUDE.md / AGENTS.md: MUST stay under 400 lines. If adding content, remove less important lines to stay within budget. Do not refuse the user's request — make the change and trim elsewhere.
 - Avoid vague instructions ("follow best practices", "write clean code", "ensure quality").
 - Do NOT add directory tree listings in code blocks.
 - Do NOT remove existing code blocks — they contribute to the executable content score.
@@ -326,7 +327,7 @@ CONSERVATIVE UPDATE means:
 - NEVER replace specific paths/commands with generic prose
 
 Quality constraints (the output is scored deterministically):
-- CLAUDE.md / AGENTS.md: MUST stay under 150 lines. If the diff adds content, trim the least important lines elsewhere.
+- CLAUDE.md / AGENTS.md: MUST stay under 400 lines. If the diff adds content, trim the least important lines elsewhere.
 - Keep 3+ code blocks with executable commands — do not remove code blocks
 - Every file path, command, and identifier must be in backticks
 - ONLY reference file paths that exist in the provided file tree — do NOT invent paths
@@ -339,6 +340,7 @@ Cross-agent sync:
 
 Managed content:
 - Keep managed blocks (<!-- caliber:managed --> ... <!-- /caliber:managed -->) intact
+- Keep context sync blocks (<!-- caliber:managed:sync --> ... <!-- /caliber:managed:sync -->) intact
 - Do NOT modify CALIBER_LEARNINGS.md — it is managed separately
 - Preserve any references to CALIBER_LEARNINGS.md in CLAUDE.md
 
@@ -354,8 +356,11 @@ Return a JSON object with this exact shape:
     "copilotInstructionFiles": [{"filename": "name.instructions.md", "content": "..."}] or null
   },
   "changesSummary": "<1-2 sentence summary of what was updated and why>",
+  "fileChanges": [{"file": "CLAUDE.md", "description": "added new API routes, updated build commands"}],
   "docsUpdated": ["CLAUDE.md", "README.md"]
 }
+
+The "fileChanges" array MUST include one entry per file that was updated (non-null in updatedDocs). Each entry describes what specifically changed in that file — be concrete (e.g. "added auth middleware section" not "updated docs").
 
 Respond with ONLY the JSON object, no markdown fences or extra text.`;
 

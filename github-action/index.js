@@ -3,6 +3,9 @@ const https = require('https');
 
 const VALID_AGENTS = new Set(['claude', 'cursor', 'codex', 'github-copilot']);
 
+const MANAGED_FILES = ['CLAUDE.md', 'AGENTS.md', '.cursorrules', '.cursor/', '.claude/', '.github/copilot-instructions.md', '.github/instructions/', 'CALIBER_LEARNINGS.md'];
+const CALIBER_PKG = '@rely-ai/caliber@latest';
+
 // --- GitHub Actions helpers (no @actions/core dependency) ---
 
 function getInput(name) {
@@ -107,9 +110,144 @@ function buildComment(result, baseResult, agent) {
   return lines.join('\n');
 }
 
+// --- Agent format detection ---
+
+function detectAgentFormats(changedFiles) {
+  const formats = [];
+  const joined = changedFiles.join(' ');
+  if (joined.includes('CLAUDE.md') || joined.includes('.claude/')) formats.push({ name: 'Claude Code', file: 'CLAUDE.md', status: 'updated' });
+  if (joined.includes('.cursor/') || joined.includes('.cursorrules')) formats.push({ name: 'Cursor', file: '.cursor/rules/', status: 'updated' });
+  if (joined.includes('copilot-instructions') || joined.includes('.github/instructions/')) formats.push({ name: 'Copilot', file: '.github/copilot-instructions.md', status: 'updated' });
+  if (joined.includes('AGENTS.md') || joined.includes('.agents/')) formats.push({ name: 'Codex', file: 'AGENTS.md', status: 'updated' });
+  return formats;
+}
+
+// --- Sync mode ---
+
+async function runSync(token) {
+  const branchPrefix = getInput('sync-branch-prefix') || 'caliber/sync';
+  const repo = process.env.GITHUB_REPOSITORY;
+  if (!repo) {
+    setFailed('GITHUB_REPOSITORY not set');
+    return;
+  }
+
+  // Determine default branch from the event payload or API, not GITHUB_REF_NAME (which is the current ref)
+  let defaultBranch = 'main';
+  try {
+    const repoInfo = await githubApi('GET', `/repos/${repo}`, null, token);
+    if (repoInfo.data && repoInfo.data.default_branch) {
+      defaultBranch = repoInfo.data.default_branch;
+    }
+  } catch { /* fall back to 'main' */ }
+
+  // Ensure we're on the default branch for sync mode
+  try {
+    execFileSync('git', ['checkout', defaultBranch], { stdio: 'pipe' });
+  } catch {
+    console.log(`Warning: Could not checkout ${defaultBranch}`);
+  }
+
+  // Run caliber refresh
+  try {
+    execFileSync('npx', ['--yes', CALIBER_PKG, 'refresh', '--quiet'], {
+      encoding: 'utf-8',
+      timeout: 300000,
+      env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
+    });
+  } catch (err) {
+    console.log(`Refresh failed: ${err.message}`);
+    return;
+  }
+
+  const changes = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf-8' }).trim();
+  if (!changes) {
+    console.log('No config changes detected — all agent formats are up to date.');
+    return;
+  }
+
+  const changedFiles = changes.split('\n').filter(Boolean);
+  const formats = detectAgentFormats(changedFiles);
+  const date = new Date().toISOString().slice(0, 10);
+  const syncBranch = `${branchPrefix}-${date}`;
+
+  // Configure git
+  execFileSync('git', ['config', 'user.name', 'caliber[bot]']);
+  execFileSync('git', ['config', 'user.email', 'caliber-bot@users.noreply.github.com']);
+
+  // Create sync branch from current state (carries uncommitted refresh changes)
+  try {
+    execFileSync('git', ['branch', '-D', syncBranch], { stdio: 'pipe' });
+  } catch { /* branch may not exist locally */ }
+  execFileSync('git', ['checkout', '-b', syncBranch]);
+
+  try {
+    execFileSync('git', ['add', ...MANAGED_FILES], { stdio: 'pipe' });
+  } catch { /* some files may not exist */ }
+
+  // Check if there's anything staged to commit
+  const staged = execFileSync('git', ['diff', '--cached', '--name-only'], { encoding: 'utf-8' }).trim();
+  if (!staged) {
+    console.log('No config files to commit after staging.');
+    return;
+  }
+
+  const formatNames = formats.map(f => f.name).join(', ') || 'agent configs';
+  execFileSync('git', ['commit', '-m', `[caliber] sync ${formatNames}`]);
+
+  try {
+    execFileSync('git', ['push', '--force', 'origin', syncBranch]);
+  } catch (err) {
+    console.log(`Failed to push sync branch: ${err.message}`);
+    return;
+  }
+
+  // Check for existing open sync PR
+  if (token) {
+    try {
+      const existingPRs = await githubApi('GET', `/repos/${repo}/pulls?head=${repo.split('/')[0]}:${syncBranch}&state=open`, null, token);
+      if (existingPRs.data && existingPRs.data.length > 0) {
+        const prUrl = existingPRs.data[0].html_url;
+        console.log(`Updated existing sync PR: ${prUrl}`);
+        setOutput('sync-pr', prUrl);
+        return;
+      }
+    } catch { /* continue to create new PR */ }
+
+    // Create new PR
+    const body = formats.length > 0
+      ? `Caliber automatically synced the following agent configs with latest code changes:\n\n${formats.map(f => `- **${f.name}** (\`${f.file}\`)`).join('\n')}\n\nMerge this PR to keep all AI agents up to date with the codebase.`
+      : 'Caliber refreshed agent configuration files.';
+
+    try {
+      const pr = await githubApi('POST', `/repos/${repo}/pulls`, {
+        title: `[caliber] Sync agent configs (${date})`,
+        body,
+        head: syncBranch,
+        base: defaultBranch,
+      }, token);
+
+      if (pr.data && pr.data.html_url) {
+        console.log(`Created sync PR: ${pr.data.html_url}`);
+        setOutput('sync-pr', pr.data.html_url);
+      }
+    } catch (err) {
+      console.log(`Failed to create PR: ${err.message}`);
+    }
+  }
+}
+
 // --- Main ---
 
 async function run() {
+  const mode = getInput('mode') || 'score';
+
+  if (mode === 'sync') {
+    const token = getInput('github-token');
+    await runSync(token);
+    return;
+  }
+
   const agent = getInput('agent') || 'claude';
   if (!VALID_AGENTS.has(agent)) {
     setFailed(`Invalid agent "${agent}". Must be one of: ${[...VALID_AGENTS].join(', ')}`);
@@ -123,7 +261,7 @@ async function run() {
   // Run caliber score
   let resultJson;
   try {
-    const output = execFileSync('npx', ['--yes', '@rely-ai/caliber@latest', 'score', '--json', '--quiet', '--agent', agent], {
+    const output = execFileSync('npx', ['--yes', CALIBER_PKG, 'score', '--json', '--quiet', '--agent', agent], {
       encoding: 'utf-8',
       timeout: 120000,
       env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
@@ -159,7 +297,7 @@ async function run() {
           try {
             if (!/^[\w\.\-\/]+$/.test(baseBranch)) throw new Error('Invalid base branch name');
             const baseOutput = execFileSync(
-              'npx', ['--yes', '@rely-ai/caliber@latest', 'score', '--json', '--quiet', '--agent', agent, '--compare', `origin/${baseBranch}`],
+              'npx', ['--yes', CALIBER_PKG, 'score', '--json', '--quiet', '--agent', agent, '--compare', `origin/${baseBranch}`],
               { encoding: 'utf-8', timeout: 120000, env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' } },
             );
             const parsed = JSON.parse(baseOutput.trim());
@@ -206,7 +344,7 @@ async function run() {
   // Auto-refresh
   if (autoRefresh) {
     try {
-      execFileSync('npx', ['--yes', '@rely-ai/caliber@latest', 'refresh', '--quiet'], {
+      execFileSync('npx', ['--yes', CALIBER_PKG, 'refresh', '--quiet'], {
         encoding: 'utf-8',
         timeout: 300000,
         env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
@@ -214,14 +352,18 @@ async function run() {
 
       const changes = execFileSync('git', ['diff', '--name-only'], { encoding: 'utf-8' }).trim();
       if (changes) {
+        const changedFiles = changes.split('\n').filter(Boolean);
+        const formats = detectAgentFormats(changedFiles);
+        const formatNames = formats.map(f => f.name).join(', ') || 'agent configs';
+
         execFileSync('git', ['config', 'user.name', 'caliber[bot]']);
         execFileSync('git', ['config', 'user.email', 'caliber-bot@users.noreply.github.com']);
         try {
-          execFileSync('git', ['add', 'CLAUDE.md', 'AGENTS.md', '.cursorrules', '.cursor/', '.claude/', 'CALIBER_LEARNINGS.md'], { stdio: 'pipe' });
+          execFileSync('git', ['add', ...MANAGED_FILES], { stdio: 'pipe' });
         } catch { /* some files may not exist */ }
-        execFileSync('git', ['commit', '-m', '[caliber] auto-refresh agent configs']);
+        execFileSync('git', ['commit', '-m', `[caliber] sync ${formatNames}`]);
         execFileSync('git', ['push']);
-        console.log('Auto-refreshed and committed config changes.');
+        console.log(`Synced ${formats.length} agent format${formats.length === 1 ? '' : 's'}: ${formatNames}`);
       } else {
         console.log('No config changes to commit.');
       }

@@ -260,7 +260,7 @@ describe('config', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
 
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ provider: 'openai', model: 'gpt-4.1', apiKey: 'sk-test' }) as any,
+        JSON.stringify({ provider: 'openai', model: 'gpt-5.4-mini', apiKey: 'sk-test' }) as any,
       );
       const config = loadConfig();
       expect(config?.provider).toBe('openai');
@@ -270,7 +270,7 @@ describe('config', () => {
       expect(loadConfig()).toBeNull();
     });
 
-    it('env vars take priority over config file', () => {
+    it('config file takes priority over env vars', () => {
       process.env.OPENAI_API_KEY = 'sk-from-env';
       vi.mocked(fs.existsSync).mockReturnValue(true);
 
@@ -281,6 +281,15 @@ describe('config', () => {
           apiKey: 'sk-from-file',
         }) as any,
       );
+      const config = loadConfig();
+      expect(config?.provider).toBe('anthropic');
+      expect(config?.apiKey).toBe('sk-from-file');
+    });
+
+    it('falls back to env vars when no config file exists', () => {
+      process.env.OPENAI_API_KEY = 'sk-from-env';
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
       const config = loadConfig();
       expect(config?.provider).toBe('openai');
       expect(config?.apiKey).toBe('sk-from-env');
@@ -330,8 +339,8 @@ describe('config', () => {
 
   describe('getFastModel', () => {
     it('returns CALIBER_FAST_MODEL when set', () => {
-      process.env.CALIBER_FAST_MODEL = 'gpt-4.1-mini';
-      expect(getFastModel()).toBe('gpt-4.1-mini');
+      process.env.CALIBER_FAST_MODEL = 'gpt-5.4-mini';
+      expect(getFastModel()).toBe('gpt-5.4-mini');
     });
 
     it('falls back to ANTHROPIC_SMALL_FAST_MODEL', () => {
@@ -340,9 +349,9 @@ describe('config', () => {
     });
 
     it('prefers CALIBER_FAST_MODEL over ANTHROPIC_SMALL_FAST_MODEL', () => {
-      process.env.CALIBER_FAST_MODEL = 'gpt-4.1-mini';
+      process.env.CALIBER_FAST_MODEL = 'gpt-5.4-mini';
       process.env.ANTHROPIC_SMALL_FAST_MODEL = 'claude-haiku-4-5';
-      expect(getFastModel()).toBe('gpt-4.1-mini');
+      expect(getFastModel()).toBe('gpt-5.4-mini');
     });
 
     it('returns undefined when neither is set and no provider configured', () => {
@@ -361,7 +370,7 @@ describe('config', () => {
 
     it('returns provider default for openai', () => {
       process.env.OPENAI_API_KEY = 'sk-openai-test';
-      expect(getFastModel()).toBe('gpt-4.1-mini');
+      expect(getFastModel()).toBe('gpt-5.4-mini');
     });
 
     it('returns cursor fast model default', () => {
@@ -383,7 +392,7 @@ describe('config', () => {
     it('ignores ANTHROPIC_SMALL_FAST_MODEL for openai provider', () => {
       process.env.OPENAI_API_KEY = 'sk-test';
       process.env.ANTHROPIC_SMALL_FAST_MODEL = 'claude-haiku-4-5';
-      expect(getFastModel()).toBe('gpt-4.1-mini');
+      expect(getFastModel()).toBe('gpt-5.4-mini');
     });
 
     it('config file fastModel overrides provider default', () => {
@@ -421,7 +430,7 @@ describe('config', () => {
     it('has defaults for API providers only', () => {
       expect(DEFAULT_FAST_MODELS.anthropic).toBe('claude-haiku-4-5-20251001');
       expect(DEFAULT_FAST_MODELS.vertex).toBe('claude-haiku-4-5-20251001');
-      expect(DEFAULT_FAST_MODELS.openai).toBe('gpt-4.1-mini');
+      expect(DEFAULT_FAST_MODELS.openai).toBe('gpt-5.4-mini');
       expect(DEFAULT_FAST_MODELS.cursor).toBe('gpt-5.3-codex-fast');
       expect(DEFAULT_FAST_MODELS['claude-cli']).toBeUndefined();
     });

@@ -65,6 +65,17 @@ interface RefreshOptions {
   dryRun?: boolean;
 }
 
+function detectSyncedAgents(writtenFiles: string[]): string[] {
+  const agents: string[] = [];
+  const joined = writtenFiles.join(' ');
+  if (joined.includes('CLAUDE.md') || joined.includes('.claude/')) agents.push('Claude Code');
+  if (joined.includes('.cursor/') || joined.includes('.cursorrules')) agents.push('Cursor');
+  if (joined.includes('copilot-instructions') || joined.includes('.github/instructions/'))
+    agents.push('Copilot');
+  if (joined.includes('AGENTS.md') || joined.includes('.agents/')) agents.push('Codex');
+  return agents;
+}
+
 function log(quiet: boolean, ...args: unknown[]) {
   if (!quiet) console.log(...args);
 }
@@ -240,8 +251,22 @@ async function refreshDir(
 
   spinner?.succeed(`${prefix}Updated ${written.length} doc${written.length === 1 ? '' : 's'}`);
 
+  const fileChangesMap = new Map(
+    (response.fileChanges || []).map((fc: { file: string; description: string }) => [
+      fc.file,
+      fc.description,
+    ]),
+  );
+
   for (const file of written) {
-    log(quiet, `  ${chalk.green('✓')} ${file}`);
+    const desc = fileChangesMap.get(file);
+    const suffix = desc ? chalk.dim(` — ${desc}`) : '';
+    log(quiet, `  ${chalk.green('✓')} ${file}${suffix}`);
+  }
+
+  const agents = detectSyncedAgents(written);
+  if (agents.length > 1) {
+    log(quiet, chalk.cyan(`\n  ${agents.length} agent formats in sync (${agents.join(', ')})`));
   }
 
   if (response.changesSummary) {

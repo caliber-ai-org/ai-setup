@@ -1,3 +1,30 @@
+## v1.37.1 (2026-03-30)
+
+### Bug Fixes
+
+- reduce wasteful LLM calls in init flow (#108)
+
+## v1.37.0 (2026-03-30)
+
+### Features
+
+- redesign init flow — sync infrastructure first, optional generation
+- continuous context sync — visible refresh, agent installer skill, GitHub Action sync mode
+
+### Bug Fixes
+
+- remove dead code from init rebase (lint errors)
+- make GitHub Action sync mode work correctly in CI
+- tell users about /setup-caliber skill after installing sync infrastructure
+- protect builtin skills from LLM overwrite, align hook git-add paths
+- improve init messaging — sync-first positioning, clearer prompts and summary
+
+## v1.36.1 (2026-03-30)
+
+### Bug Fixes
+
+- scoring fairness, provider priority, and onboarding clarity (#106)
+
 ## v1.36.0 (2026-03-30)
 
 ### Features

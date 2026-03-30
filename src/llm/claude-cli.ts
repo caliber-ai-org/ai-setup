@@ -1,6 +1,14 @@
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
-import type { LLMProvider, LLMCallOptions, LLMStreamOptions, LLMStreamCallbacks, LLMConfig } from './types.js';
+import type {
+  LLMProvider,
+  LLMCallOptions,
+  LLMStreamOptions,
+  LLMStreamCallbacks,
+  LLMConfig,
+} from './types.js';
 import { parseSeatBasedError } from './seat-based-errors.js';
+import { trackUsage } from './usage.js';
+import { estimateTokens } from './utils.js';
 
 const CLAUDE_CLI_BIN = 'claude';
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -42,23 +50,32 @@ export class ClaudeCliProvider implements LLMProvider {
 
   async call(options: LLMCallOptions): Promise<string> {
     const combined = this.buildCombinedPrompt(options);
-    return this.runClaudePrint(combined, options.model);
+    const result = await this.runClaudePrint(combined, options.model);
+    trackUsage(options.model || this.defaultModel, {
+      inputTokens: estimateTokens(combined),
+      outputTokens: estimateTokens(result),
+    });
+    return result;
   }
 
   async stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void> {
     const combined = this.buildCombinedPrompt(options);
+    const inputEstimate = estimateTokens(combined);
     const args = ['-p'];
     if (options.model) args.push('--model', options.model);
     const child = spawnClaude(args);
     child.stdin!.end(combined);
 
     let settled = false;
+    let outputChars = 0;
     const chunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
 
     child.stdout!.on('data', (chunk: Buffer) => {
       chunks.push(chunk);
-      callbacks.onText(chunk.toString('utf-8'));
+      const text = chunk.toString('utf-8');
+      outputChars += text.length;
+      callbacks.onText(text);
     });
 
     child.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
@@ -69,8 +86,8 @@ export class ClaudeCliProvider implements LLMProvider {
         settled = true;
         callbacks.onError(
           new Error(
-            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`
-          )
+            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`,
+          ),
         );
       }
     }, this.timeoutMs);
@@ -88,6 +105,11 @@ export class ClaudeCliProvider implements LLMProvider {
       if (settled) return;
       settled = true;
       if (code === 0) {
+        const model = options.model || this.defaultModel;
+        trackUsage(model, {
+          inputTokens: inputEstimate,
+          outputTokens: Math.ceil(outputChars / 4),
+        });
         callbacks.onEnd({ stopReason: 'end_turn' });
       } else {
         const stderr = Buffer.concat(stderrChunks).toString('utf-8').trim();
@@ -159,8 +181,8 @@ export class ClaudeCliProvider implements LLMProvider {
         child.kill('SIGTERM');
         reject(
           new Error(
-            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`
-          )
+            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`,
+          ),
         );
       }, this.timeoutMs);
     });
@@ -170,7 +192,8 @@ export class ClaudeCliProvider implements LLMProvider {
 /** Whether the Claude Code CLI is on PATH (user has installed it and can run `claude -p`). */
 export function isClaudeCliAvailable(): boolean {
   try {
-    const cmd = process.platform === 'win32' ? `where ${CLAUDE_CLI_BIN}` : `which ${CLAUDE_CLI_BIN}`;
+    const cmd =
+      process.platform === 'win32' ? `where ${CLAUDE_CLI_BIN}` : `which ${CLAUDE_CLI_BIN}`;
     execSync(cmd, { stdio: 'ignore' });
     return true;
   } catch {

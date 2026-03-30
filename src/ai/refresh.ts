@@ -17,6 +17,8 @@ interface ExistingDocs {
   agentsMd?: string;
   claudeMd?: string;
   readmeMd?: string;
+  claudeSettings?: Record<string, unknown>;
+  claudeSkills?: Array<{ filename: string; content: string }>;
   cursorrules?: string;
   cursorRules?: Array<{ filename: string; content: string }>;
   copilotInstructions?: string;
@@ -30,6 +32,11 @@ interface ProjectContext {
   fileTree?: string[];
 }
 
+interface FileChangeSummary {
+  file: string;
+  description: string;
+}
+
 interface RefreshResponse {
   updatedDocs: {
     agentsMd?: string | null;
@@ -37,10 +44,12 @@ interface RefreshResponse {
     readmeMd?: string | null;
     cursorrules?: string | null;
     cursorRules?: Array<{ filename: string; content: string }> | null;
+    claudeSkills?: Array<{ filename: string; content: string }> | null;
     copilotInstructions?: string | null;
     copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
   };
   changesSummary: string;
+  fileChanges?: FileChangeSummary[];
   docsUpdated: string[];
 }
 
@@ -137,6 +146,12 @@ function buildRefreshPrompt(
   if (existingDocs.cursorrules) {
     parts.push('\n[.cursorrules]');
     parts.push(existingDocs.cursorrules);
+  }
+  if (existingDocs.claudeSkills?.length) {
+    for (const skill of existingDocs.claudeSkills) {
+      parts.push(`\n[.claude/skills/${skill.filename}]`);
+      parts.push(skill.content);
+    }
   }
   if (existingDocs.cursorRules?.length) {
     for (const rule of existingDocs.cursorRules) {

@@ -16,7 +16,7 @@ vi.mock('../../llm/config.js', () => ({
   DEFAULT_MODELS: {
     anthropic: 'claude-sonnet-4-6',
     vertex: 'claude-sonnet-4-6',
-    openai: 'gpt-4.1',
+    openai: 'gpt-5.4-mini',
     cursor: 'default',
     'claude-cli': 'default',
   },
@@ -47,7 +47,7 @@ describe('runInteractiveProviderSetup', () => {
     expect(config.model).toBe('default');
     expect(config.apiKey).toBeUndefined();
     expect(mockWriteConfigFile).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'claude-cli', model: 'default' })
+      expect.objectContaining({ provider: 'claude-cli', model: 'default' }),
     );
   });
 
@@ -61,7 +61,7 @@ describe('runInteractiveProviderSetup', () => {
     expect(config.model).toBe('default');
     expect(config.apiKey).toBeUndefined();
     expect(mockWriteConfigFile).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'cursor', model: 'default' })
+      expect.objectContaining({ provider: 'cursor', model: 'default' }),
     );
   });
 
@@ -74,7 +74,7 @@ describe('runInteractiveProviderSetup', () => {
     expect(config.provider).toBe('cursor');
     expect(config.model).toBe('auto');
     expect(mockWriteConfigFile).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'cursor', model: 'auto' })
+      expect.objectContaining({ provider: 'cursor', model: 'auto' }),
     );
   });
 
@@ -104,7 +104,9 @@ describe('runInteractiveProviderSetup', () => {
     mockSelect.mockResolvedValue('openai');
     mockQuestion
       .mockImplementationOnce((_q: string, cb: (answer: string) => void) => cb('sk-openai-test'))
-      .mockImplementationOnce((_q: string, cb: (answer: string) => void) => cb('http://localhost:11434/v1'))
+      .mockImplementationOnce((_q: string, cb: (answer: string) => void) =>
+        cb('http://localhost:11434/v1'),
+      )
       .mockImplementationOnce((_q: string, cb: (answer: string) => void) => cb(''));
 
     const config = await runInteractiveProviderSetup();
@@ -112,7 +114,7 @@ describe('runInteractiveProviderSetup', () => {
     expect(config.provider).toBe('openai');
     expect(config.apiKey).toBe('sk-openai-test');
     expect(config.baseUrl).toBe('http://localhost:11434/v1');
-    expect(config.model).toBe('gpt-4.1');
+    expect(config.model).toBe('gpt-5.4-mini');
   });
 
   it('throws __exit__ when openai API key is empty', async () => {
@@ -151,7 +153,7 @@ describe('runInteractiveProviderSetup', () => {
     await runInteractiveProviderSetup({ selectMessage: 'Pick your provider' });
 
     expect(mockSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Pick your provider' })
+      expect.objectContaining({ message: 'Pick your provider' }),
     );
   });
 
@@ -162,7 +164,7 @@ describe('runInteractiveProviderSetup', () => {
     await runInteractiveProviderSetup();
 
     expect(mockSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ message: 'Select LLM provider' })
+      expect.objectContaining({ message: 'Select LLM provider' }),
     );
   });
 });
