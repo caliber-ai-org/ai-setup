@@ -2,7 +2,11 @@ import type { Fingerprint } from '../fingerprint/index.js';
 import { getProvider, llmJsonCall, TRANSIENT_ERRORS } from '../llm/index.js';
 import { getFastModel, getMaxPromptTokens } from '../llm/config.js';
 import { estimateTokens } from '../llm/utils.js';
-import { CORE_GENERATION_PROMPT, GENERATION_SYSTEM_PROMPT, SKILL_GENERATION_PROMPT } from './prompts.js';
+import {
+  CORE_GENERATION_PROMPT,
+  GENERATION_SYSTEM_PROMPT,
+  SKILL_GENERATION_PROMPT,
+} from './prompts.js';
 import { extractAllDeps } from '../utils/dependencies.js';
 import { formatSourcesForPrompt } from '../fingerprint/sources.js';
 
@@ -33,7 +37,7 @@ const MAX_RETRIES = 5;
 
 function isTransientError(error: Error): boolean {
   const msg = error.message.toLowerCase();
-  return TRANSIENT_ERRORS.some(e => msg.includes(e.toLowerCase()));
+  return TRANSIENT_ERRORS.some((e) => msg.includes(e.toLowerCase()));
 }
 
 export interface FailingCheckFix {
@@ -61,17 +65,42 @@ export async function generateSetup(
   currentScore?: number,
   passingChecks?: PassingCheck[],
   options?: { skipSkills?: boolean; forceTargetedFix?: boolean },
-): Promise<{ setup: Record<string, unknown> | null; explanation?: string; raw?: string; stopReason?: string }> {
-  const isTargetedFix = (failingChecks && failingChecks.length > 0 && currentScore !== undefined && currentScore >= 95)
-    || options?.forceTargetedFix;
+): Promise<{
+  setup: Record<string, unknown> | null;
+  explanation?: string;
+  raw?: string;
+  stopReason?: string;
+}> {
+  const isTargetedFix =
+    (failingChecks &&
+      failingChecks.length > 0 &&
+      currentScore !== undefined &&
+      currentScore >= 95) ||
+    options?.forceTargetedFix;
 
   // Targeted fix mode uses the old monolithic prompt (it needs full skill content for minimal edits)
   if (isTargetedFix) {
-    return generateMonolithic(fingerprint, targetAgent, prompt, callbacks, failingChecks, currentScore, passingChecks);
+    return generateMonolithic(
+      fingerprint,
+      targetAgent,
+      prompt,
+      callbacks,
+      failingChecks,
+      currentScore,
+      passingChecks,
+    );
   }
 
   // Phase 1: Generate core docs (CLAUDE.md, AGENTS.md, cursor rules, skill topics)
-  const coreResult = await generateCore(fingerprint, targetAgent, prompt, callbacks, failingChecks, currentScore, passingChecks);
+  const coreResult = await generateCore(
+    fingerprint,
+    targetAgent,
+    prompt,
+    callbacks,
+    failingChecks,
+    currentScore,
+    passingChecks,
+  );
 
   if (!coreResult.setup) {
     return coreResult;
@@ -97,8 +126,8 @@ export async function generateSetup(
 
   const skillResults = await Promise.allSettled(
     skillTopics.map(({ platform, topic }) =>
-      generateSkill(skillContext, topic, fastModel).then(skill => ({ platform, skill }))
-    )
+      generateSkill(skillContext, topic, fastModel).then((skill) => ({ platform, skill })),
+    ),
   );
 
   const { failed: failedCount } = mergeSkillResults(skillResults, setup);
@@ -125,11 +154,12 @@ function mergeSkillResults(
       platformObj.skills = skills;
       setup[platform] = platformObj;
 
-      const skillPath = platform === 'codex'
-        ? `.agents/skills/${skill.name}/SKILL.md`
-        : platform === 'opencode'
-          ? `.opencode/skills/${skill.name}/SKILL.md`
-          : `.${platform}/skills/${skill.name}/SKILL.md`;
+      const skillPath =
+        platform === 'codex'
+          ? `.agents/skills/${skill.name}/SKILL.md`
+          : platform === 'opencode'
+            ? `.opencode/skills/${skill.name}/SKILL.md`
+            : `.${platform}/skills/${skill.name}/SKILL.md`;
       const descriptions = (setup.fileDescriptions ?? {}) as Record<string, string>;
       descriptions[skillPath] = skill.description.slice(0, 80);
       setup.fileDescriptions = descriptions;
@@ -141,6 +171,8 @@ function mergeSkillResults(
 
   return { succeeded, failed };
 }
+
+const MAX_SKILL_TOPICS = 5;
 
 function collectSkillTopics(
   setup: Record<string, unknown>,
@@ -159,7 +191,6 @@ function collectSkillTopics(
         topics.push({ platform, topic });
       }
     } else {
-      // Fallback: generate default skill topics from detected stack
       const defaults = getDefaultSkillTopics(fingerprint);
       for (const topic of defaults) {
         topics.push({ platform, topic });
@@ -172,13 +203,21 @@ function collectSkillTopics(
     }
   }
 
-  return topics;
+  return topics.slice(0, MAX_SKILL_TOPICS);
 }
 
 function getDefaultSkillTopics(fingerprint: Fingerprint): SkillTopic[] {
   const topics: SkillTopic[] = [
-    { name: 'development-workflow', description: 'Development setup and common workflows. Use when starting development, running the project, or setting up the environment.' },
-    { name: 'testing-guide', description: 'Testing patterns and commands. Use when writing tests, running test suites, or debugging test failures.' },
+    {
+      name: 'development-workflow',
+      description:
+        'Development setup and common workflows. Use when starting development, running the project, or setting up the environment.',
+    },
+    {
+      name: 'testing-guide',
+      description:
+        'Testing patterns and commands. Use when writing tests, running test suites, or debugging test failures.',
+    },
   ];
 
   if (fingerprint.frameworks.length > 0) {
@@ -189,19 +228,26 @@ function getDefaultSkillTopics(fingerprint: Fingerprint): SkillTopic[] {
   } else {
     topics.push({
       name: 'code-conventions',
-      description: 'Code style, patterns, and project conventions. Use when reviewing code or making architectural decisions.',
+      description:
+        'Code style, patterns, and project conventions. Use when reviewing code or making architectural decisions.',
     });
   }
 
   return topics;
 }
 
-function buildSkillContext(fingerprint: Fingerprint, setup: Record<string, unknown>, allDeps: string[]): string {
+function buildSkillContext(
+  fingerprint: Fingerprint,
+  setup: Record<string, unknown>,
+  allDeps: string[],
+): string {
   const parts: string[] = [];
 
   if (fingerprint.packageName) parts.push(`Project: ${fingerprint.packageName}`);
-  if (fingerprint.languages.length > 0) parts.push(`Languages: ${fingerprint.languages.join(', ')}`);
-  if (fingerprint.frameworks.length > 0) parts.push(`Frameworks: ${fingerprint.frameworks.join(', ')}`);
+  if (fingerprint.languages.length > 0)
+    parts.push(`Languages: ${fingerprint.languages.join(', ')}`);
+  if (fingerprint.frameworks.length > 0)
+    parts.push(`Frameworks: ${fingerprint.frameworks.join(', ')}`);
 
   // Include the generated CLAUDE.md so skills are consistent
   const claude = setup.claude as Record<string, unknown> | undefined;
@@ -229,7 +275,11 @@ function buildSkillContext(fingerprint: Fingerprint, setup: Record<string, unkno
   return parts.join('\n');
 }
 
-async function generateSkill(context: string, topic: SkillTopic, model?: string): Promise<GeneratedSkill> {
+async function generateSkill(
+  context: string,
+  topic: SkillTopic,
+  model?: string,
+): Promise<GeneratedSkill> {
   const prompt = `PROJECT CONTEXT:\n${context}\n\nSKILL TO GENERATE:\nName: ${topic.name}\nDescription: ${topic.description}\n\nGenerate the skill content following the instructions in the system prompt.`;
 
   const result = await llmJsonCall<GeneratedSkill>({
@@ -251,7 +301,12 @@ async function generateSkill(context: string, topic: SkillTopic, model?: string)
   };
 }
 
-type GenerationResult = { setup: Record<string, unknown> | null; explanation?: string; raw?: string; stopReason?: string };
+type GenerationResult = {
+  setup: Record<string, unknown> | null;
+  explanation?: string;
+  raw?: string;
+  stopReason?: string;
+};
 
 interface StreamGenerationConfig {
   systemPrompt: string;
@@ -270,8 +325,8 @@ async function streamGeneration(config: StreamGenerationConfig): Promise<Generat
     attempt++;
 
     const maxTokensForAttempt = Math.min(
-      config.baseMaxTokens + (attempt * config.tokenIncrement),
-      config.maxTokensCap
+      config.baseMaxTokens + attempt * config.tokenIncrement,
+      config.maxTokensCap,
     );
 
     return new Promise((resolve) => {
@@ -281,89 +336,107 @@ async function streamGeneration(config: StreamGenerationConfig): Promise<Generat
       let sentStatuses = 0;
       let stopReason: string | null = null;
 
-      provider.stream(
-        {
-          system: config.systemPrompt,
-          prompt: config.userMessage,
-          maxTokens: maxTokensForAttempt,
-        },
-        {
-          onText: (text) => {
-            if (!inJson) {
-              preJsonBuffer += text;
-              const lines = preJsonBuffer.split('\n');
-              const completedLines = lines.slice(0, -1);
-              for (let i = sentStatuses; i < completedLines.length; i++) {
-                const trimmed = completedLines[i].trim();
-                if (trimmed.startsWith('STATUS:')) {
-                  const status = trimmed.slice(7).trim();
-                  if (status && config.callbacks) config.callbacks.onStatus(status);
-                } else if (trimmed && config.callbacks?.onContent) {
-                  config.callbacks.onContent(trimmed);
+      provider
+        .stream(
+          {
+            system: config.systemPrompt,
+            prompt: config.userMessage,
+            maxTokens: maxTokensForAttempt,
+          },
+          {
+            onText: (text) => {
+              if (!inJson) {
+                preJsonBuffer += text;
+                const lines = preJsonBuffer.split('\n');
+                const completedLines = lines.slice(0, -1);
+                for (let i = sentStatuses; i < completedLines.length; i++) {
+                  const trimmed = completedLines[i].trim();
+                  if (trimmed.startsWith('STATUS:')) {
+                    const status = trimmed.slice(7).trim();
+                    if (status && config.callbacks) config.callbacks.onStatus(status);
+                  } else if (trimmed && config.callbacks?.onContent) {
+                    config.callbacks.onContent(trimmed);
+                  }
+                }
+                sentStatuses = completedLines.length;
+
+                const jsonStartMatch = preJsonBuffer.match(
+                  /(?:^|\n)\s*(?:```json\s*\n\s*)?\{(?=\s*")/,
+                );
+                if (jsonStartMatch) {
+                  const matchIndex = preJsonBuffer.indexOf('{', jsonStartMatch.index!);
+                  inJson = true;
+                  jsonContent = preJsonBuffer.slice(matchIndex);
+                }
+              } else {
+                jsonContent += text;
+              }
+            },
+            onEnd: (meta) => {
+              stopReason = meta?.stopReason ?? null;
+              let setup: Record<string, unknown> | null = null;
+              let jsonToParse = (jsonContent || preJsonBuffer).replace(/```\s*$/g, '').trim();
+
+              if (!jsonContent && preJsonBuffer) {
+                const fallbackMatch = preJsonBuffer.match(
+                  /(?:^|\n)\s*(?:```json\s*\n\s*)?\{(?=\s*")/,
+                );
+                if (fallbackMatch) {
+                  const matchIndex = preJsonBuffer.indexOf('{', fallbackMatch.index!);
+                  jsonToParse = preJsonBuffer
+                    .slice(matchIndex)
+                    .replace(/```\s*$/g, '')
+                    .trim();
                 }
               }
-              sentStatuses = completedLines.length;
 
-              const jsonStartMatch = preJsonBuffer.match(/(?:^|\n)\s*(?:```json\s*\n\s*)?\{(?=\s*")/);
-              if (jsonStartMatch) {
-                const matchIndex = preJsonBuffer.indexOf('{', jsonStartMatch.index!);
-                inJson = true;
-                jsonContent = preJsonBuffer.slice(matchIndex);
+              try {
+                setup = JSON.parse(jsonToParse);
+              } catch {}
+
+              if (!setup && stopReason === 'max_tokens' && attempt < MAX_RETRIES) {
+                if (config.callbacks)
+                  config.callbacks.onStatus(
+                    'Output was truncated, retrying with higher token limit...',
+                  );
+                setTimeout(() => attemptGeneration().then(resolve), 1000);
+                return;
               }
-            } else {
-              jsonContent += text;
-            }
-          },
-          onEnd: (meta) => {
-            stopReason = meta?.stopReason ?? null;
-            let setup: Record<string, unknown> | null = null;
-            let jsonToParse = (jsonContent || preJsonBuffer).replace(/```\s*$/g, '').trim();
 
-            if (!jsonContent && preJsonBuffer) {
-              const fallbackMatch = preJsonBuffer.match(/(?:^|\n)\s*(?:```json\s*\n\s*)?\{(?=\s*")/);
-              if (fallbackMatch) {
-                const matchIndex = preJsonBuffer.indexOf('{', fallbackMatch.index!);
-                jsonToParse = preJsonBuffer.slice(matchIndex).replace(/```\s*$/g, '').trim();
+              let explanation: string | undefined;
+              const explainMatch = preJsonBuffer.match(/EXPLAIN:\s*\n([\s\S]*?)(?=\n\s*(`{3}|\{))/);
+              if (explainMatch) {
+                explanation = explainMatch[1].trim();
               }
-            }
 
-            try {
-              setup = JSON.parse(jsonToParse);
-            } catch {}
-
-            if (!setup && stopReason === 'max_tokens' && attempt < MAX_RETRIES) {
-              if (config.callbacks) config.callbacks.onStatus('Output was truncated, retrying with higher token limit...');
-              setTimeout(() => attemptGeneration().then(resolve), 1000);
-              return;
-            }
-
-            let explanation: string | undefined;
-            const explainMatch = preJsonBuffer.match(/EXPLAIN:\s*\n([\s\S]*?)(?=\n\s*(`{3}|\{))/);
-            if (explainMatch) {
-              explanation = explainMatch[1].trim();
-            }
-
-            if (setup) {
-              if (config.callbacks) config.callbacks.onComplete(setup, explanation);
-              resolve({ setup, explanation, stopReason: stopReason ?? undefined });
-            } else {
-              resolve({ setup: null, explanation, raw: preJsonBuffer, stopReason: stopReason ?? undefined });
-            }
+              if (setup) {
+                if (config.callbacks) config.callbacks.onComplete(setup, explanation);
+                resolve({ setup, explanation, stopReason: stopReason ?? undefined });
+              } else {
+                resolve({
+                  setup: null,
+                  explanation,
+                  raw: preJsonBuffer,
+                  stopReason: stopReason ?? undefined,
+                });
+              }
+            },
+            onError: (error) => {
+              if (isTransientError(error) && attempt < MAX_RETRIES) {
+                if (config.callbacks)
+                  config.callbacks.onStatus('Connection interrupted, retrying...');
+                setTimeout(() => attemptGeneration().then(resolve), 2000);
+                return;
+              }
+              if (config.callbacks) config.callbacks.onError(error.message);
+              resolve({ setup: null, raw: error.message, stopReason: 'error' });
+            },
           },
-          onError: (error) => {
-            if (isTransientError(error) && attempt < MAX_RETRIES) {
-              if (config.callbacks) config.callbacks.onStatus('Connection interrupted, retrying...');
-              setTimeout(() => attemptGeneration().then(resolve), 2000);
-              return;
-            }
-            if (config.callbacks) config.callbacks.onError(error.message);
-            resolve({ setup: null, raw: error.message, stopReason: 'error' });
-          },
-        }
-      ).catch((error: Error) => {
-        if (config.callbacks) config.callbacks.onError(error.message);
-        resolve({ setup: null, raw: error.message, stopReason: 'error' });
-      });
+        )
+        .catch((error: Error) => {
+          if (config.callbacks) config.callbacks.onError(error.message);
+          resolve({ setup: null, raw: error.message, stopReason: 'error' });
+        });
     });
   };
 
@@ -379,7 +452,14 @@ async function generateCore(
   currentScore?: number,
   passingChecks?: PassingCheck[],
 ): Promise<GenerationResult> {
-  const userMessage = buildGeneratePrompt(fingerprint, targetAgent, prompt, failingChecks, currentScore, passingChecks);
+  const userMessage = buildGeneratePrompt(
+    fingerprint,
+    targetAgent,
+    prompt,
+    failingChecks,
+    currentScore,
+    passingChecks,
+  );
   return streamGeneration({
     systemPrompt: CORE_GENERATION_PROMPT,
     userMessage,
@@ -399,7 +479,14 @@ async function generateMonolithic(
   currentScore?: number,
   passingChecks?: PassingCheck[],
 ): Promise<GenerationResult> {
-  const userMessage = buildGeneratePrompt(fingerprint, targetAgent, prompt, failingChecks, currentScore, passingChecks);
+  const userMessage = buildGeneratePrompt(
+    fingerprint,
+    targetAgent,
+    prompt,
+    failingChecks,
+    currentScore,
+    passingChecks,
+  );
   return streamGeneration({
     systemPrompt: GENERATION_SYSTEM_PROMPT,
     userMessage,
@@ -427,8 +514,8 @@ export async function generateSkillsForSetup(
 
   const skillResults = await Promise.allSettled(
     skillTopics.map(({ platform, topic }) =>
-      generateSkill(skillContext, topic, fastModel).then(skill => ({ platform, skill }))
-    )
+      generateSkill(skillContext, topic, fastModel).then((skill) => ({ platform, skill })),
+    ),
   );
 
   const { succeeded, failed } = mergeSkillResults(skillResults, setup);
@@ -450,7 +537,11 @@ function truncate(text: string, maxChars: number): string {
   return text.slice(0, maxChars) + `\n... (truncated at ${maxChars} chars)`;
 }
 
-export function sampleFileTree(fileTree: string[], codeAnalysisPaths: string[], limit: number): string[] {
+export function sampleFileTree(
+  fileTree: string[],
+  codeAnalysisPaths: string[],
+  limit: number,
+): string[] {
   if (fileTree.length <= limit) return fileTree;
 
   const fileTreeSet = new Set(fileTree);
@@ -508,16 +599,23 @@ export function buildGeneratePrompt(
   const existing = fingerprint.existingConfigs;
 
   const hasExistingConfigs = !!(
-    existing.claudeMd || existing.claudeSettings || existing.claudeSkills?.length ||
-    existing.readmeMd || existing.agentsMd ||
-    existing.cursorrules || existing.cursorRules?.length
+    existing.claudeMd ||
+    existing.claudeSettings ||
+    existing.claudeSkills?.length ||
+    existing.readmeMd ||
+    existing.agentsMd ||
+    existing.cursorrules ||
+    existing.cursorRules?.length
   );
 
-  const isTargetedFix = failingChecks && failingChecks.length > 0 && currentScore !== undefined && currentScore >= 95;
+  const isTargetedFix =
+    failingChecks && failingChecks.length > 0 && currentScore !== undefined && currentScore >= 95;
 
   if (isTargetedFix) {
     parts.push(`TARGETED FIX MODE — current score: ${currentScore}/100, target: ${targetAgent}`);
-    parts.push(`\nThe existing config is already high quality. ONLY fix these specific failing checks:\n`);
+    parts.push(
+      `\nThe existing config is already high quality. ONLY fix these specific failing checks:\n`,
+    );
     for (const check of failingChecks) {
       if (check.fix) {
         parts.push(`- **${check.name}**`);
@@ -548,42 +646,62 @@ export function buildGeneratePrompt(
 - For grounding issues: Add references to the listed project directories in the appropriate sections.
 - Every path or name you reference MUST exist in the project — use the file tree provided below.`);
   } else if (hasExistingConfigs) {
-    parts.push(`Audit and improve the existing coding agent configuration for target: ${targetAgent}`);
+    parts.push(
+      `Audit and improve the existing coding agent configuration for target: ${targetAgent}`,
+    );
   } else {
     parts.push(`Generate an initial coding agent configuration for target: ${targetAgent}`);
   }
 
   if (fingerprint.gitRemoteUrl) parts.push(`\nGit remote: ${fingerprint.gitRemoteUrl}`);
   if (fingerprint.packageName) parts.push(`Package name: ${fingerprint.packageName}`);
-  if (fingerprint.languages.length > 0) parts.push(`Languages: ${fingerprint.languages.join(', ')}`);
-  if (fingerprint.frameworks.length > 0) parts.push(`Frameworks: ${fingerprint.frameworks.join(', ')}`);
+  if (fingerprint.languages.length > 0)
+    parts.push(`Languages: ${fingerprint.languages.join(', ')}`);
+  if (fingerprint.frameworks.length > 0)
+    parts.push(`Frameworks: ${fingerprint.frameworks.join(', ')}`);
   if (fingerprint.description) parts.push(`Project description: ${fingerprint.description}`);
   if (fingerprint.fileTree.length > 0) {
-    const caPaths = fingerprint.codeAnalysis?.files.map(f => f.path) ?? [];
+    const caPaths = fingerprint.codeAnalysis?.files.map((f) => f.path) ?? [];
     const tree = sampleFileTree(fingerprint.fileTree, caPaths, LIMITS.FILE_TREE_ENTRIES);
     parts.push(`\nFile tree (${tree.length}/${fingerprint.fileTree.length}):\n${tree.join('\n')}`);
   }
 
-  if (existing.claudeMd) parts.push(`\nExisting CLAUDE.md:\n${truncate(existing.claudeMd, LIMITS.EXISTING_CONFIG_CHARS)}`);
-  if (existing.agentsMd) parts.push(`\nExisting AGENTS.md:\n${truncate(existing.agentsMd, LIMITS.EXISTING_CONFIG_CHARS)}`);
-  if (existing.readmeMd) parts.push(`\nExisting README.md:\n${truncate(existing.readmeMd, LIMITS.EXISTING_CONFIG_CHARS)}`);
+  if (existing.claudeMd)
+    parts.push(
+      `\nExisting CLAUDE.md:\n${truncate(existing.claudeMd, LIMITS.EXISTING_CONFIG_CHARS)}`,
+    );
+  if (existing.agentsMd)
+    parts.push(
+      `\nExisting AGENTS.md:\n${truncate(existing.agentsMd, LIMITS.EXISTING_CONFIG_CHARS)}`,
+    );
+  if (existing.readmeMd)
+    parts.push(
+      `\nExisting README.md:\n${truncate(existing.readmeMd, LIMITS.EXISTING_CONFIG_CHARS)}`,
+    );
 
   if (existing.claudeSkills?.length) {
     parts.push('\n--- Existing Claude Skills ---');
     for (const skill of existing.claudeSkills.slice(0, LIMITS.SKILLS_MAX)) {
-      parts.push(`\n[.claude/skills/${skill.filename}]\n${truncate(skill.content, LIMITS.SKILL_CHARS)}`);
+      parts.push(
+        `\n[.claude/skills/${skill.filename}]\n${truncate(skill.content, LIMITS.SKILL_CHARS)}`,
+      );
     }
     if (existing.claudeSkills.length > LIMITS.SKILLS_MAX) {
       parts.push(`\n(${existing.claudeSkills.length - LIMITS.SKILLS_MAX} more skills omitted)`);
     }
   }
 
-  if (existing.cursorrules) parts.push(`\nExisting .cursorrules:\n${truncate(existing.cursorrules, LIMITS.EXISTING_CONFIG_CHARS)}`);
+  if (existing.cursorrules)
+    parts.push(
+      `\nExisting .cursorrules:\n${truncate(existing.cursorrules, LIMITS.EXISTING_CONFIG_CHARS)}`,
+    );
 
   if (existing.cursorRules?.length) {
     parts.push('\n--- Existing Cursor Rules ---');
     for (const rule of existing.cursorRules.slice(0, LIMITS.RULES_MAX)) {
-      parts.push(`\n[.cursor/rules/${rule.filename}]\n${truncate(rule.content, LIMITS.SKILL_CHARS)}`);
+      parts.push(
+        `\n[.cursor/rules/${rule.filename}]\n${truncate(rule.content, LIMITS.SKILL_CHARS)}`,
+      );
     }
     if (existing.cursorRules.length > LIMITS.RULES_MAX) {
       parts.push(`\n(${existing.cursorRules.length - LIMITS.RULES_MAX} more rules omitted)`);
@@ -593,7 +711,9 @@ export function buildGeneratePrompt(
   if (existing.cursorSkills?.length) {
     parts.push('\n--- Existing Cursor Skills ---');
     for (const skill of existing.cursorSkills.slice(0, LIMITS.SKILLS_MAX)) {
-      parts.push(`\n[.cursor/skills/${skill.name}/SKILL.md]\n${truncate(skill.content, LIMITS.SKILL_CHARS)}`);
+      parts.push(
+        `\n[.cursor/skills/${skill.name}/SKILL.md]\n${truncate(skill.content, LIMITS.SKILL_CHARS)}`,
+      );
     }
     if (existing.cursorSkills.length > LIMITS.SKILLS_MAX) {
       parts.push(`\n(${existing.cursorSkills.length - LIMITS.SKILLS_MAX} more skills omitted)`);
@@ -601,7 +721,9 @@ export function buildGeneratePrompt(
   }
 
   if (existing.personalLearnings) {
-    parts.push(`\n--- Personal Learnings (developer-specific, include in generated configs) ---\n${existing.personalLearnings}`);
+    parts.push(
+      `\n--- Personal Learnings (developer-specific, include in generated configs) ---\n${existing.personalLearnings}`,
+    );
   }
 
   const allDeps = extractAllDeps(process.cwd());
@@ -622,7 +744,8 @@ export function buildGeneratePrompt(
     const codeLines: string[] = [];
     let codeChars = 0;
 
-    const introLine = 'Study these files to extract patterns for skills. Use the exact code patterns you see here.\n';
+    const introLine =
+      'Study these files to extract patterns for skills. Use the exact code patterns you see here.\n';
     codeLines.push(introLine);
     let runningCodeLen = introLine.length;
 
@@ -642,14 +765,16 @@ export function buildGeneratePrompt(
     const includedTokens = Math.ceil(codeChars / 4);
     let header: string;
     if (includedFiles < ca.files.length) {
-      const pct = ca.totalProjectTokens > 0
-        ? Math.round((includedTokens / ca.totalProjectTokens) * 100)
-        : 100;
+      const pct =
+        ca.totalProjectTokens > 0
+          ? Math.round((includedTokens / ca.totalProjectTokens) * 100)
+          : 100;
       header = `\n--- Project Files (trimmed to ~${includedTokens.toLocaleString()}/${ca.totalProjectTokens.toLocaleString()} tokens, ${pct}% of total) ---`;
     } else if (ca.truncated) {
-      const pct = ca.totalProjectTokens > 0
-        ? Math.round((ca.includedTokens / ca.totalProjectTokens) * 100)
-        : 100;
+      const pct =
+        ca.totalProjectTokens > 0
+          ? Math.round((ca.includedTokens / ca.totalProjectTokens) * 100)
+          : 100;
       header = `\n--- Project Files (trimmed to ~${ca.includedTokens.toLocaleString()}/${ca.totalProjectTokens.toLocaleString()} tokens, ${pct}% of total) ---`;
     } else {
       header = `\n--- Project Files (${ca.files.length} files, ~${ca.includedTokens.toLocaleString()} tokens) ---`;

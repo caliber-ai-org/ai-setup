@@ -417,11 +417,14 @@ export async function searchSkills(
     return { results: [], contentMap: new Map() };
   }
 
-  onStatus?.(`Scoring ${newCandidates.length} candidates...`);
   let results: SkillResult[];
   const config = loadConfig();
 
-  if (config) {
+  if (newCandidates.length <= 5) {
+    onStatus?.('Few candidates — skipping scoring');
+    results = newCandidates.map((c) => ({ ...c, score: 70 }));
+  } else if (config) {
+    onStatus?.(`Scoring ${newCandidates.length} candidates...`);
     try {
       const projectContext = buildProjectContext(fingerprint, targetPlatforms);
       results = await scoreWithLLM(newCandidates, projectContext, technologies);
