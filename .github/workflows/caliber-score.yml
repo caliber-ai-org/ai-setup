@@ -31,12 +31,12 @@ jobs:
         id: score
         run: |
           set +e
-          RESULT=$(npx --yes @rely-ai/caliber@latest score --json --compare "origin/${{ github.base_ref }}" --agent claude 2>/dev/null)
+          RESULT=$(npx --yes @rely-ai/caliber@latest score --json --compare "origin/${{ github.base_ref }}" 2>/dev/null)
           EXIT_CODE=$?
           set -e
 
           if [ $EXIT_CODE -ne 0 ] || ! echo "$RESULT" | jq empty 2>/dev/null; then
-            RESULT=$(npx @rely-ai/caliber@latest score --json --agent claude 2>/dev/null)
+            RESULT=$(npx @rely-ai/caliber@latest score --json 2>/dev/null)
           fi
 
           SCORE=$(echo "$RESULT" | jq -r '.current.score // .score // 0')
