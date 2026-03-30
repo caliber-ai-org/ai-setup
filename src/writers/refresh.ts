@@ -33,7 +33,10 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
   const written: string[] = [];
 
   if (docs.agentsMd) {
-    fs.writeFileSync('AGENTS.md', appendLearningsBlock(appendPreCommitBlock(docs.agentsMd)));
+    fs.writeFileSync(
+      'AGENTS.md',
+      appendLearningsBlock(appendPreCommitBlock(docs.agentsMd, 'codex')),
+    );
     written.push('AGENTS.md');
   }
 
@@ -78,7 +81,7 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
     fs.mkdirSync('.github', { recursive: true });
     fs.writeFileSync(
       path.join('.github', 'copilot-instructions.md'),
-      appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions)),
+      appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions, 'copilot')),
     );
     written.push('.github/copilot-instructions.md');
   }

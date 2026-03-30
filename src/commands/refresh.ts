@@ -45,6 +45,39 @@ function discoverGitRepos(parentDir: string): string[] {
   return repos.sort();
 }
 
+function collectFilesToWrite(updatedDocs: Record<string, unknown>): string[] {
+  const files: string[] = [];
+  if (updatedDocs.agentsMd) files.push('AGENTS.md');
+  if (updatedDocs.claudeMd) files.push('CLAUDE.md');
+  if (updatedDocs.readmeMd) files.push('README.md');
+  if (updatedDocs.cursorrules) files.push('.cursorrules');
+  if (Array.isArray(updatedDocs.cursorRules)) {
+    for (const r of updatedDocs.cursorRules as Array<{ filename: string }>)
+      files.push(`.cursor/rules/${r.filename}`);
+  }
+  if (Array.isArray(updatedDocs.claudeSkills)) {
+    for (const s of updatedDocs.claudeSkills as Array<{ filename: string }>)
+      files.push(`.claude/skills/${s.filename}`);
+  }
+  const skillSets: Array<{ key: string; dir: string }> = [
+    { key: 'cursorSkills', dir: '.cursor/skills' },
+    { key: 'codexSkills', dir: '.agents/skills' },
+    { key: 'opencodeSkills', dir: '.opencode/skills' },
+  ];
+  for (const { key, dir } of skillSets) {
+    if (Array.isArray(updatedDocs[key])) {
+      for (const s of updatedDocs[key] as Array<{ name: string }>)
+        files.push(`${dir}/${s.name}/SKILL.md`);
+    }
+  }
+  if (updatedDocs.copilotInstructions) files.push('.github/copilot-instructions.md');
+  if (Array.isArray(updatedDocs.copilotInstructionFiles)) {
+    for (const f of updatedDocs.copilotInstructionFiles as Array<{ filename: string }>)
+      files.push(`.github/instructions/${f.filename}`);
+  }
+  return files;
+}
+
 const REFRESH_COOLDOWN_MS = 30_000;
 
 async function refreshSingleRepo(
@@ -153,12 +186,15 @@ async function refreshSingleRepo(
     return;
   }
 
-  // Quality gate: snapshot pre-refresh score and file contents
+  // Quality gate: snapshot pre-refresh score
   const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
   const preScore = computeLocalScore(repoDir, targetAgent);
-  const filesToWrite = response.docsUpdated || [];
+
+  // Snapshot ALL files that writeRefreshDocs will touch (not just docsUpdated)
+  // so the revert covers skill files the LLM didn't enumerate
+  const allFilesToWrite = collectFilesToWrite(response.updatedDocs);
   const preRefreshContents = new Map<string, string | null>();
-  for (const filePath of filesToWrite) {
+  for (const filePath of allFilesToWrite) {
     const fullPath = path.resolve(repoDir, filePath);
     try {
       preRefreshContents.set(filePath, fs.readFileSync(fullPath, 'utf-8'));
@@ -174,7 +210,6 @@ async function refreshSingleRepo(
   // Quality gate: check for score regression
   const postScore = computeLocalScore(repoDir, targetAgent);
   if (postScore.score < preScore.score) {
-    // Revert: restore pre-refresh file contents
     for (const [filePath, content] of preRefreshContents) {
       const fullPath = path.resolve(repoDir, filePath);
       if (content === null) {
