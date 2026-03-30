@@ -35,7 +35,12 @@ export const theme = {
   radiusSm: 8,
   radiusLg: 16,
 
+  // Semantic extended
+  purple: "#c4b5fd",
+
   // LP signature effects
   terminalGlow: "0 0 80px -20px rgba(249,115,22,0.15)",
   cardGlow: "0 0 40px -10px rgba(249,115,22,0.08)",
+  errorGlow: "0 0 80px -20px rgba(239,68,68,0.2)",
+  successGlow: "0 0 80px -20px rgba(34,197,94,0.15)",
 } as const;

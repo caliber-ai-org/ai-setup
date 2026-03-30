@@ -179,10 +179,10 @@ export const ScoreTransition: React.FC = () => {
         }}
       >
         <div style={{ fontSize: 40, fontFamily: theme.fontSans, color: theme.text, fontWeight: 600 }}>
-          Fully runs on your setup
+          100% local. No code sent anywhere.
         </div>
         <div style={{ fontSize: 28, fontFamily: theme.fontSans, color: theme.textMuted }}>
-          No code sent anywhere. 100% local scoring. No API key needed.
+          No API key needed. Works with your existing AI subscription.
         </div>
       </div>
     </AbsoluteFill>

@@ -1,37 +1,32 @@
 import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { theme } from "./theme";
-import { SkillsShIcon, AwesomeIcon, OpenSkillsIcon } from "./ToolIcons";
+import { SkillsShIcon, AwesomeIcon, OpenSkillsIcon, ClaudeIcon, CursorIcon, CodexIcon, CopilotIcon } from "./ToolIcons";
 
 const buildSteps = [
-  { frame: 20,  icon: "🔍", text: "Scanning Skills.sh registry...", color: theme.brand1 },
-  { frame: 30,  icon: "🔍", text: "Scanning Awesome Claude Code...", color: theme.brand2 },
-  { frame: 40,  icon: "🔍", text: "Scanning SkillsBench...", color: theme.green },
-  { frame: 55,  icon: "⚡", text: "Installed skill: add-api-route", color: theme.brand3 },
-  { frame: 65,  icon: "⚡", text: "Installed skill: drizzle-migrate", color: theme.brand3 },
-  { frame: 75,  icon: "⚡", text: "Installed skill: auth-middleware", color: theme.brand3 },
-  { frame: 85,  icon: "⚡", text: "Installed skill: test-patterns", color: theme.brand3 },
-  { frame: 100, icon: "📝", text: "Generated CLAUDE.md — 847 lines", color: theme.accent },
-  { frame: 112, icon: "📝", text: "Generated .cursor/rules/ — 12 files", color: theme.accent },
-  { frame: 124, icon: "📝", text: "Generated AGENTS.md + copilot-instructions", color: theme.accent },
-  { frame: 138, icon: "🔌", text: "Added MCP: context7 — docs lookup", color: "#c4b5fd" },
-  { frame: 150, icon: "🔌", text: "Added MCP: postgres — database tools", color: "#c4b5fd" },
-  { frame: 165, icon: "🧠", text: "Created CALIBER_LEARNINGS.md — memory", color: theme.green },
-  { frame: 178, icon: "🧠", text: "Indexed 14 sessions → patterns extracted", color: theme.green },
-  { frame: 192, icon: "✓",  text: "Setup complete — 94/100 Grade A", color: theme.green },
+  { frame: 20,  icon: "\uD83D\uDD0D", text: "Scanning registries...", color: theme.brand1 },
+  { frame: 35,  icon: "\u26A1", text: "Installed 4 skills from Skills.sh", color: theme.brand3 },
+  { frame: 52,  icon: "\uD83D\uDCDD", text: "Generated CLAUDE.md — 847 lines", color: theme.accent },
+  { frame: 68,  icon: "\uD83D\uDCDD", text: "Generated .cursor/rules/ — 12 files", color: theme.accent },
+  { frame: 84,  icon: "\uD83D\uDCDD", text: "Generated AGENTS.md + copilot-instructions", color: theme.accent },
+  { frame: 100, icon: "\uD83D\uDD0C", text: "Added MCP: context7 — docs lookup", color: theme.purple },
+  { frame: 115, icon: "\uD83D\uDD0C", text: "Added MCP: postgres — database tools", color: theme.purple },
+  { frame: 132, icon: "\uD83E\uDDE0", text: "Created CALIBER_LEARNINGS.md", color: theme.green },
+  { frame: 150, icon: "\uD83E\uDDE0", text: "Indexed 14 sessions — patterns extracted", color: theme.green },
+  { frame: 170, icon: "\u2713",  text: "Setup complete — 94/100 Grade A", color: theme.green },
 ];
 
 const fileTree = [
-  { name: "CLAUDE.md", indent: 0, appearsAt: 100, status: "new" },
-  { name: ".cursor/", indent: 0, appearsAt: 112, status: "dir" },
-  { name: "rules/", indent: 1, appearsAt: 112, status: "dir" },
-  { name: "api-patterns.mdc", indent: 2, appearsAt: 114, status: "new" },
-  { name: "testing.mdc", indent: 2, appearsAt: 116, status: "new" },
-  { name: "security.mdc", indent: 2, appearsAt: 118, status: "new" },
-  { name: "AGENTS.md", indent: 0, appearsAt: 124, status: "new" },
-  { name: "copilot-instructions.md", indent: 0, appearsAt: 126, status: "new" },
-  { name: ".claude/", indent: 0, appearsAt: 138, status: "dir" },
-  { name: "settings.local.json", indent: 1, appearsAt: 140, status: "mcp" },
-  { name: "CALIBER_LEARNINGS.md", indent: 0, appearsAt: 165, status: "learn" },
+  { name: "CLAUDE.md", indent: 0, appearsAt: 52, status: "new", platform: "claude" as const },
+  { name: ".cursor/", indent: 0, appearsAt: 68, status: "dir", platform: null },
+  { name: "rules/", indent: 1, appearsAt: 68, status: "dir", platform: null },
+  { name: "api-patterns.mdc", indent: 2, appearsAt: 70, status: "new", platform: "cursor" as const },
+  { name: "testing.mdc", indent: 2, appearsAt: 74, status: "new", platform: "cursor" as const },
+  { name: "security.mdc", indent: 2, appearsAt: 78, status: "new", platform: "cursor" as const },
+  { name: "AGENTS.md", indent: 0, appearsAt: 84, status: "new", platform: "codex" as const },
+  { name: "copilot-instructions.md", indent: 0, appearsAt: 88, status: "new", platform: "copilot" as const },
+  { name: ".claude/", indent: 0, appearsAt: 100, status: "dir", platform: null },
+  { name: "settings.local.json", indent: 1, appearsAt: 104, status: "mcp", platform: "claude" as const },
+  { name: "CALIBER_LEARNINGS.md", indent: 0, appearsAt: 132, status: "learn", platform: null },
 ];
 
 const registries = [
@@ -45,15 +40,15 @@ export const PlaybooksScene: React.FC = () => {
 
   const headerOpacity = interpolate(frame, [0, 14], [0, 1], { extrapolateRight: "clamp" });
 
-  const scrollOffset = frame > 110
-    ? interpolate(frame, [110, 192], [0, -200], { extrapolateRight: "clamp" })
+  const scrollOffset = frame > 90
+    ? interpolate(frame, [90, 170], [0, -160], { extrapolateRight: "clamp" })
     : 0;
 
-  const phaseLabel = frame < 50 ? "Scanning registries..."
-    : frame < 95 ? "Installing skills..."
-    : frame < 135 ? "Generating configs..."
-    : frame < 162 ? "Configuring MCPs..."
-    : frame < 192 ? "Building persistent memory..."
+  const phaseLabel = frame < 32 ? "Scanning registries..."
+    : frame < 50 ? "Installing skills..."
+    : frame < 95 ? "Generating configs..."
+    : frame < 128 ? "Configuring MCPs..."
+    : frame < 165 ? "Building persistent memory..."
     : "Setup complete!";
 
   return (
@@ -75,7 +70,7 @@ export const PlaybooksScene: React.FC = () => {
           marginBottom: 12,
         }}
       >
-        Best playbooks, generated for your codebase
+        Best practices, generated for your codebase
       </div>
 
       <div style={{ display: "flex", gap: 20, marginBottom: 24, opacity: headerOpacity }}>
@@ -285,6 +280,14 @@ export const PlaybooksScene: React.FC = () => {
                       {statusBadge}
                     </span>
                   )}
+                  {file.platform && (
+                    <span style={{ marginLeft: file.status === "dir" ? "auto" : 8, opacity: 0.7 }}>
+                      {file.platform === "claude" && <ClaudeIcon size={16} color={theme.brand2} />}
+                      {file.platform === "cursor" && <CursorIcon size={16} color={theme.accent} />}
+                      {file.platform === "codex" && <CodexIcon size={16} color={theme.green} />}
+                      {file.platform === "copilot" && <CopilotIcon size={16} color={theme.purple} />}
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -292,22 +295,22 @@ export const PlaybooksScene: React.FC = () => {
         </div>
       </div>
 
-      {/* Summary pills */}
+      {/* Platform row */}
       <div
         style={{
           position: "absolute",
           bottom: "3%",
           display: "flex",
           alignItems: "center",
-          gap: 28,
-          opacity: interpolate(frame, [198, 212], [0, 1], { extrapolateRight: "clamp" }),
+          gap: 32,
+          opacity: interpolate(frame, [178, 192], [0, 1], { extrapolateRight: "clamp" }),
         }}
       >
         {[
-          { label: "4 Skills", color: theme.brand3 },
-          { label: "5 Config files", color: theme.accent },
-          { label: "2 MCPs", color: "#c4b5fd" },
-          { label: "Persistent memory", color: theme.green },
+          { label: "Claude Code", Icon: ClaudeIcon, color: theme.brand2 },
+          { label: "Cursor", Icon: CursorIcon, color: theme.accent },
+          { label: "Codex", Icon: CodexIcon, color: theme.green },
+          { label: "Copilot", Icon: CopilotIcon, color: theme.purple },
         ].map((item) => (
           <div
             key={item.label}
@@ -321,14 +324,7 @@ export const PlaybooksScene: React.FC = () => {
               border: `1px solid ${item.color}22`,
             }}
           >
-            <div
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 6,
-                backgroundColor: item.color,
-              }}
-            />
+            <item.Icon size={24} color={item.color} />
             <span style={{ fontSize: 26, fontWeight: 600, fontFamily: theme.fontSans, color: item.color }}>
               {item.label}
             </span>

@@ -1,9 +1,9 @@
 import { AbsoluteFill, Sequence, useCurrentFrame, interpolate } from "remotion";
+import { ProblemHook } from "./components/ProblemHook";
 import { ScoreTransition } from "./components/ScoreTransition";
-import { EcosystemHub } from "./components/EcosystemHub";
 import { PlaybooksScene } from "./components/PlaybooksScene";
-import { SyncAnimation } from "./components/SyncAnimation";
-import { ROIStats } from "./components/ROIStats";
+import { LearnRefreshScene } from "./components/LearnRefreshScene";
+import { TeamCTA } from "./components/TeamCTA";
 import { theme } from "./components/theme";
 
 const CrossFade: React.FC<{ children: React.ReactNode; from: number; duration: number }> = ({
@@ -25,13 +25,13 @@ const CrossFade: React.FC<{ children: React.ReactNode; from: number; duration: n
   return <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>;
 };
 
-// 21 seconds = 630 frames @ 30fps
+// 22 seconds = 660 frames @ 30fps
 // Scene breakdown:
-//   0-3.5s    (0-105):     EcosystemHub — Bring your own AI
-//   3.5-7s    (105-210):   ScoreTransition — Fully runs on your setup
-//   7-14.5s   (210-435):   PlaybooksScene — Best playbooks (7.5s hero scene)
-//   14.5-18s  (435-540):   SyncAnimation — Continuous git sync
-//   18-21s    (540-630):   ROI + CTA — Max velocity, min cost
+//   0-3s      (0-90):      ProblemHook — Bad setup = bad agent
+//   3-7s      (90-210):    ScoreTransition — 47→94, local scoring
+//   7-13.5s   (210-405):   PlaybooksScene — caliber init (6.5s hero scene)
+//   13.5-17s  (405-510):   LearnRefreshScene — learn + refresh
+//   17-22s    (510-660):   TeamCTA — one dev sets up, everyone benefits + CTA
 
 export const CaliberDemo: React.FC = () => {
   return (
@@ -45,38 +45,38 @@ export const CaliberDemo: React.FC = () => {
         }}
       />
 
-      {/* 0-3.5s: Ecosystem hub */}
-      <CrossFade from={0} duration={105}>
-        <Sequence from={0} durationInFrames={105}>
-          <EcosystemHub />
+      {/* 0-3s: Problem hook */}
+      <CrossFade from={0} duration={90}>
+        <Sequence from={0} durationInFrames={90}>
+          <ProblemHook />
         </Sequence>
       </CrossFade>
 
-      {/* 3.5-7s: Score */}
-      <CrossFade from={105} duration={105}>
-        <Sequence from={105} durationInFrames={105}>
+      {/* 3-7s: Score */}
+      <CrossFade from={90} duration={120}>
+        <Sequence from={90} durationInFrames={120}>
           <ScoreTransition />
         </Sequence>
       </CrossFade>
 
-      {/* 7-14.5s: Playbooks — the hero scene (7.5s = 225 frames) */}
-      <CrossFade from={210} duration={225}>
-        <Sequence from={210} durationInFrames={225}>
+      {/* 7-13.5s: Playbooks — the hero scene (6.5s = 195 frames) */}
+      <CrossFade from={210} duration={195}>
+        <Sequence from={210} durationInFrames={195}>
           <PlaybooksScene />
         </Sequence>
       </CrossFade>
 
-      {/* 14.5-18s: Continuous git sync */}
-      <CrossFade from={435} duration={105}>
-        <Sequence from={435} durationInFrames={105}>
-          <SyncAnimation />
+      {/* 13.5-17s: Learn + Refresh */}
+      <CrossFade from={405} duration={105}>
+        <Sequence from={405} durationInFrames={105}>
+          <LearnRefreshScene />
         </Sequence>
       </CrossFade>
 
-      {/* 18-21s: ROI + CTA */}
-      <CrossFade from={540} duration={90}>
-        <Sequence from={540} durationInFrames={90}>
-          <ROIStats />
+      {/* 17-22s: Team sync + CTA */}
+      <CrossFade from={510} duration={150}>
+        <Sequence from={510} durationInFrames={150}>
+          <TeamCTA />
         </Sequence>
       </CrossFade>
     </AbsoluteFill>
