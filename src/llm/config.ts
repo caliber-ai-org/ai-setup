@@ -49,12 +49,12 @@ export const DEFAULT_FAST_MODELS: Partial<Record<ProviderType, string>> = {
 };
 
 export function loadConfig(): LLMConfig | null {
-  // 1. Env vars take priority
-  const envConfig = resolveFromEnv();
-  if (envConfig) return envConfig;
+  // 1. Config file takes priority (explicit user choice from `caliber init` / `caliber config`)
+  const fileConfig = readConfigFile();
+  if (fileConfig) return fileConfig;
 
-  // 2. Fall back to config file
-  return readConfigFile();
+  // 2. Fall back to env vars for auto-detection
+  return resolveFromEnv();
 }
 
 export function resolveFromEnv(): LLMConfig | null {
@@ -72,7 +72,8 @@ export function resolveFromEnv(): LLMConfig | null {
       model: process.env.CALIBER_MODEL || DEFAULT_MODELS.vertex,
       vertexProjectId: process.env.VERTEX_PROJECT_ID || process.env.GCP_PROJECT_ID,
       vertexRegion: process.env.VERTEX_REGION || process.env.GCP_REGION || 'us-east5',
-      vertexCredentials: process.env.VERTEX_SA_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      vertexCredentials:
+        process.env.VERTEX_SA_CREDENTIALS || process.env.GOOGLE_APPLICATION_CREDENTIALS,
     };
   }
 
@@ -86,7 +87,10 @@ export function resolveFromEnv(): LLMConfig | null {
   }
 
   // Prefer Cursor seat when explicitly requested (no API key; uses agent acp + agent login)
-  if (process.env.CALIBER_USE_CURSOR_SEAT === '1' || process.env.CALIBER_USE_CURSOR_SEAT === 'true') {
+  if (
+    process.env.CALIBER_USE_CURSOR_SEAT === '1' ||
+    process.env.CALIBER_USE_CURSOR_SEAT === 'true'
+  ) {
     return {
       provider: 'cursor',
       model: process.env.CALIBER_MODEL || DEFAULT_MODELS.cursor,
@@ -109,7 +113,10 @@ export function readConfigFile(): LLMConfig | null {
     if (!fs.existsSync(CONFIG_FILE)) return null;
     const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (!parsed.provider || !['anthropic', 'vertex', 'openai', 'cursor', 'claude-cli'].includes(parsed.provider as string)) {
+    if (
+      !parsed.provider ||
+      !['anthropic', 'vertex', 'openai', 'cursor', 'claude-cli'].includes(parsed.provider as string)
+    ) {
       return null;
     }
     return parsed as unknown as LLMConfig;
@@ -149,8 +156,10 @@ export function getFastModel(): string | undefined {
   const provider = config?.provider;
 
   // ANTHROPIC_SMALL_FAST_MODEL applies to Anthropic/Vertex/Claude CLI (or when no provider is configured)
-  if (process.env.ANTHROPIC_SMALL_FAST_MODEL &&
-      (!provider || provider === 'anthropic' || provider === 'vertex' || provider === 'claude-cli')) {
+  if (
+    process.env.ANTHROPIC_SMALL_FAST_MODEL &&
+    (!provider || provider === 'anthropic' || provider === 'vertex' || provider === 'claude-cli')
+  ) {
     return process.env.ANTHROPIC_SMALL_FAST_MODEL;
   }
 

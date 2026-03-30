@@ -270,7 +270,7 @@ describe('config', () => {
       expect(loadConfig()).toBeNull();
     });
 
-    it('env vars take priority over config file', () => {
+    it('config file takes priority over env vars', () => {
       process.env.OPENAI_API_KEY = 'sk-from-env';
       vi.mocked(fs.existsSync).mockReturnValue(true);
 
@@ -281,6 +281,15 @@ describe('config', () => {
           apiKey: 'sk-from-file',
         }) as any,
       );
+      const config = loadConfig();
+      expect(config?.provider).toBe('anthropic');
+      expect(config?.apiKey).toBe('sk-from-file');
+    });
+
+    it('falls back to env vars when no config file exists', () => {
+      process.env.OPENAI_API_KEY = 'sk-from-env';
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
       const config = loadConfig();
       expect(config?.provider).toBe('openai');
       expect(config?.apiKey).toBe('sk-from-env');
