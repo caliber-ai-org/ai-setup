@@ -31,15 +31,11 @@ jobs:
         id: score
         run: |
           set +e
-          echo "=== Debug: running score --compare ==="
-          RESULT=$(node dist/bin.js score --json --compare "origin/${{ github.base_ref }}" --agent claude 2>&1)
+          RESULT=$(node dist/bin.js score --json --compare "origin/${{ github.base_ref }}" --agent claude 2>/dev/null)
           EXIT_CODE=$?
-          echo "=== Exit code: $EXIT_CODE ==="
-          echo "=== Result: $RESULT ==="
           set -e
 
           if [ $EXIT_CODE -ne 0 ] || ! echo "$RESULT" | jq empty 2>/dev/null; then
-            echo "Score command failed (exit=$EXIT_CODE), running without compare"
             RESULT=$(node dist/bin.js score --json --agent claude 2>/dev/null) || RESULT='{"score":0,"grade":"?"}'
           fi
 
@@ -61,6 +57,7 @@ jobs:
           fi
         env:
           CALIBER_SKIP_UPDATE_CHECK: "1"
+          CALIBER_TELEMETRY_DISABLED: "1"
 
       - name: Comment on PR
         if: always() && github.event_name == 'pull_request'
