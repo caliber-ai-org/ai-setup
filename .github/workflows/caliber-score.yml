@@ -31,12 +31,15 @@ jobs:
         id: score
         run: |
           set +e
-          RESULT=$(node dist/bin.js score --json --compare "origin/${{ github.base_ref }}" --agent claude 2>/dev/null)
+          echo "=== Debug: running score --compare ==="
+          RESULT=$(node dist/bin.js score --json --compare "origin/${{ github.base_ref }}" --agent claude 2>&1)
           EXIT_CODE=$?
+          echo "=== Exit code: $EXIT_CODE ==="
+          echo "=== Result: $RESULT ==="
           set -e
 
           if [ $EXIT_CODE -ne 0 ] || ! echo "$RESULT" | jq empty 2>/dev/null; then
-            echo "Score command failed or returned invalid JSON, running without compare"
+            echo "Score command failed (exit=$EXIT_CODE), running without compare"
             RESULT=$(node dist/bin.js score --json --agent claude 2>/dev/null) || RESULT='{"score":0,"grade":"?"}'
           fi
 
