@@ -71,11 +71,11 @@ export const POINTS_SOURCES_REFERENCED = 3;
 
 /** Token budget thresholds for total config size (all files combined). */
 export const TOKEN_BUDGET_THRESHOLDS = [
-  { maxTokens: 2000, points: 6 },
-  { maxTokens: 3500, points: 5 },
-  { maxTokens: 5000, points: 4 },
-  { maxTokens: 8000, points: 2 },
-  { maxTokens: 12000, points: 1 },
+  { maxTokens: 5000, points: 6 },
+  { maxTokens: 8000, points: 5 },
+  { maxTokens: 12000, points: 4 },
+  { maxTokens: 16000, points: 2 },
+  { maxTokens: 24000, points: 1 },
 ] as const;
 
 /** Code block count thresholds for executable content (graduated). */

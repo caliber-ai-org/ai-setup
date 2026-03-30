@@ -1,5 +1,5 @@
 name: 'Caliber Score'
-description: 'Score your AI agent configuration quality and comment on PRs'
+description: 'Score your AI agent configuration quality, sync configs across agent formats, and comment on PRs'
 branding:
   icon: 'zap'
   color: 'blue'
@@ -17,8 +17,14 @@ inputs:
   auto-refresh:
     description: 'Run caliber refresh and commit updated configs if stale'
     default: 'false'
+  mode:
+    description: 'Action mode: score (default) or sync (creates PR with refreshed configs)'
+    default: 'score'
+  sync-branch-prefix:
+    description: 'Branch prefix for sync PRs'
+    default: 'caliber/sync'
   github-token:
-    description: 'GitHub token for PR comments'
+    description: 'GitHub token for PR comments and sync PRs'
     default: '${{ github.token }}'
 
 outputs:
@@ -28,6 +34,8 @@ outputs:
     description: 'Letter grade (A-F)'
   delta:
     description: 'Score change from base branch (e.g. +5 or -3)'
+  sync-pr:
+    description: 'URL of the sync PR created (sync mode only)'
 
 runs:
   using: 'node20'

@@ -14,7 +14,11 @@ import { hasPreCommitBlock as checkPreCommitBlock } from '../../writers/pre-comm
 
 function hasPreCommitHook(dir: string): boolean {
   try {
-    const gitDir = execSync('git rev-parse --git-dir', { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const gitDir = execSync('git rev-parse --git-dir', {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
     const hookPath = join(gitDir, 'hooks', 'pre-commit');
     const content = readFileOrNull(hookPath);
     return content ? content.includes('caliber') : false;
@@ -40,7 +44,9 @@ export function checkBonus(dir: string): Check[] {
         hasClaudeHooks = true;
         hookSources.push(`Claude Code: ${Object.keys(hooks).join(', ')}`);
       }
-    } catch { /* invalid JSON */ }
+    } catch {
+      /* invalid JSON */
+    }
   }
 
   hasPrecommit = hasPreCommitHook(dir);
@@ -62,15 +68,17 @@ export function checkBonus(dir: string): Check[] {
     maxPoints: POINTS_HOOKS,
     earnedPoints: hasHooks ? POINTS_HOOKS : 0,
     passed: hasHooks,
-    detail: hasHooks
-      ? hookSources.join(', ')
-      : 'No hooks configured',
-    suggestion: hasHooks ? undefined : `Run \`${resolveCaliber()} init\` to add pre-commit instructions`,
-    fix: hasHooks ? undefined : {
-      action: 'install_hooks',
-      data: {},
-      instruction: `Run ${resolveCaliber()} init to add pre-commit refresh instructions to config files.`,
-    },
+    detail: hasHooks ? hookSources.join(', ') : 'No hooks configured',
+    suggestion: hasHooks
+      ? undefined
+      : `Run \`${resolveCaliber()} init\` to add pre-commit instructions`,
+    fix: hasHooks
+      ? undefined
+      : {
+          action: 'install_hooks',
+          data: {},
+          instruction: `Run ${resolveCaliber()} init to add pre-commit refresh instructions to config files.`,
+        },
   });
 
   // 2. AGENTS.md exists (bonus for non-codex targets — codex has its own existence check)
@@ -84,11 +92,13 @@ export function checkBonus(dir: string): Check[] {
     passed: agentsMdExists,
     detail: agentsMdExists ? 'Found at project root' : 'Not found',
     suggestion: agentsMdExists ? undefined : 'Add AGENTS.md — the emerging cross-agent standard',
-    fix: agentsMdExists ? undefined : {
-      action: 'create_file',
-      data: { file: 'AGENTS.md' },
-      instruction: 'Create AGENTS.md with project context for cross-agent compatibility.',
-    },
+    fix: agentsMdExists
+      ? undefined
+      : {
+          action: 'create_file',
+          data: { file: 'AGENTS.md' },
+          instruction: 'Create AGENTS.md with project context for cross-agent compatibility.',
+        },
   });
 
   // 3. Skills use OpenSkills format
@@ -111,37 +121,43 @@ export function checkBonus(dir: string): Check[] {
         totalSkillFiles++;
       }
     }
-  } catch { /* skills dir doesn't exist */ }
+  } catch {
+    /* skills dir doesn't exist */
+  }
 
   const allOpenSkills = totalSkillFiles > 0 && openSkillsCount === totalSkillFiles;
   checks.push({
     id: 'open_skills_format',
     name: 'Skills use OpenSkills format',
     category: 'bonus',
-    maxPoints: POINTS_OPEN_SKILLS_FORMAT,
+    maxPoints: totalSkillFiles > 0 ? POINTS_OPEN_SKILLS_FORMAT : 0,
     earnedPoints: allOpenSkills ? POINTS_OPEN_SKILLS_FORMAT : 0,
-    passed: allOpenSkills,
-    detail: totalSkillFiles === 0
-      ? 'No skills to check'
-      : allOpenSkills
-        ? `All ${totalSkillFiles} skill${totalSkillFiles === 1 ? '' : 's'} use SKILL.md with frontmatter`
-        : `${openSkillsCount}/${totalSkillFiles} use OpenSkills format`,
-    suggestion: totalSkillFiles > 0 && !allOpenSkills
-      ? 'Migrate skills to .claude/skills/{name}/SKILL.md with YAML frontmatter'
-      : undefined,
-    fix: totalSkillFiles > 0 && !allOpenSkills
-      ? {
-          action: 'migrate_skills',
-          data: { openSkills: openSkillsCount, total: totalSkillFiles },
-          instruction: 'Migrate flat skill files to .claude/skills/{name}/SKILL.md with YAML frontmatter.',
-        }
-      : undefined,
+    passed: allOpenSkills || totalSkillFiles === 0,
+    detail:
+      totalSkillFiles === 0
+        ? 'No skills to check'
+        : allOpenSkills
+          ? `All ${totalSkillFiles} skill${totalSkillFiles === 1 ? '' : 's'} use SKILL.md with frontmatter`
+          : `${openSkillsCount}/${totalSkillFiles} use OpenSkills format`,
+    suggestion:
+      totalSkillFiles > 0 && !allOpenSkills
+        ? 'Migrate skills to .claude/skills/{name}/SKILL.md with YAML frontmatter'
+        : undefined,
+    fix:
+      totalSkillFiles > 0 && !allOpenSkills
+        ? {
+            action: 'migrate_skills',
+            data: { openSkills: openSkillsCount, total: totalSkillFiles },
+            instruction:
+              'Migrate flat skill files to .claude/skills/{name}/SKILL.md with YAML frontmatter.',
+          }
+        : undefined,
   });
 
   // 4. Learned content present
   const learningsContent = readFileOrNull(join(dir, 'CALIBER_LEARNINGS.md'));
   const hasLearned = learningsContent
-    ? learningsContent.split('\n').filter(l => l.startsWith('- ')).length > 0
+    ? learningsContent.split('\n').filter((l) => l.startsWith('- ')).length > 0
     : false;
 
   checks.push({
@@ -152,7 +168,9 @@ export function checkBonus(dir: string): Check[] {
     earnedPoints: hasLearned ? POINTS_LEARNED_CONTENT : 0,
     passed: hasLearned,
     detail: hasLearned ? 'Session learnings found in CALIBER_LEARNINGS.md' : 'No learned content',
-    suggestion: hasLearned ? undefined : `Install learning hooks: \`${resolveCaliber()} learn install\``,
+    suggestion: hasLearned
+      ? undefined
+      : `Install learning hooks: \`${resolveCaliber()} learn install\``,
   });
 
   return checks;

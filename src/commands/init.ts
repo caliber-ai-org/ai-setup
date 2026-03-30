@@ -21,7 +21,7 @@ import { isClaudeCliAvailable } from '../llm/claude-cli.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
 import confirm from '@inquirer/confirm';
 import { computeLocalScore } from '../scoring/index.js';
-import { displayScoreDelta } from '../scoring/display.js';
+import { displayScoreDelta, displayScoreSummary } from '../scoring/display.js';
 import { readDismissedChecks, writeDismissedChecks } from '../scoring/dismissed.js';
 import { searchSkills, selectSkills, installSkills } from './recommend.js';
 import type { SkillSearchResult } from './recommend.js';
@@ -98,9 +98,10 @@ export async function initCommand(options: InitOptions) {
     console.log(chalk.dim('  Works across Claude Code, Cursor, Codex, and GitHub Copilot.\n'));
 
     console.log(title.bold('  How it works:\n'));
-    console.log(chalk.dim('  1. Connect    Auto-detect your LLM provider and agents'));
-    console.log(chalk.dim('  2. Build      Install sync, scan your project, generate configs'));
-    console.log(chalk.dim('  3. Done       Review score and start syncing\n'));
+    console.log(chalk.dim('  1. Connect    Link your LLM provider and select your agents'));
+    console.log(chalk.dim('  2. Setup      Detect stack, install sync hooks & skills'));
+    console.log(chalk.dim('  3. Generate   Audit existing config or generate from scratch'));
+    console.log(chalk.dim('  4. Finalize   Review changes and score your setup\n'));
   } else {
     console.log(brand.bold('\n  CALIBER') + chalk.dim('  — setting up continuous sync\n'));
   }
@@ -211,14 +212,16 @@ export async function initCommand(options: InitOptions) {
   trackInitAgentSelected(targetAgent, agentAutoDetected);
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Step 2 — Build (install sync + fingerprint + generate)
+  // Step 2 — Setup (fingerprint + install sync infrastructure)
   // ───────────────────────────────────────────────────────────────────────────
-  console.log(title.bold('  Step 2/3 — Build\n'));
+  console.log(title.bold('  Step 2/4 — Setup\n'));
 
-  // Install sync infrastructure
+  console.log(chalk.dim('  Installing sync infrastructure...\n'));
+
+  // Install pre-commit hook early — sync infrastructure first
   const hookResult = installPreCommitHook();
   if (hookResult.installed) {
-    console.log(`  ${chalk.green('✓')} Pre-commit hook installed`);
+    console.log(`  ${chalk.green('✓')} Pre-commit hook installed — configs sync on every commit`);
   } else if (hookResult.alreadyInstalled) {
     console.log(`  ${chalk.green('✓')} Pre-commit hook — active`);
   }
@@ -226,6 +229,7 @@ export async function initCommand(options: InitOptions) {
   installStopHook();
   console.log(`  ${chalk.green('✓')} Onboarding hook — nudges new team members to set up`);
 
+  // Install builtin skills (setup-caliber, find-skills, save-learning)
   const { ensureBuiltinSkills } = await import('../lib/builtin-skills.js');
   for (const agent of targetAgent) {
     if (agent === 'claude' && !fs.existsSync('.claude'))
@@ -237,7 +241,11 @@ export async function initCommand(options: InitOptions) {
   }
   const skillsWritten = ensureBuiltinSkills();
   if (skillsWritten.length > 0) {
-    console.log(`  ${chalk.green('✓')} Agent skills installed`);
+    console.log(
+      `  ${chalk.green('✓')} Agent skills installed — /setup-caliber, /find-skills, /save-learning`,
+    );
+  } else {
+    console.log(`  ${chalk.green('✓')} Agent skills — already installed`);
   }
 
   // Enable session learning by default
@@ -250,10 +258,21 @@ export async function initCommand(options: InitOptions) {
   }
 
   console.log('');
+  console.log(chalk.dim('  New team members can run /setup-caliber inside their coding agent'));
+  console.log(chalk.dim('  (Claude Code or Cursor) to get set up automatically.\n'));
 
-  // Compute baseline score silently (for regression check and delta display later)
+  // Compute & show initial score
   const baselineScore = computeLocalScore(process.cwd(), targetAgent);
-  log(options.verbose, `Baseline score: ${baselineScore.score}/100`);
+  console.log(chalk.dim('  Current config score:'));
+  displayScoreSummary(baselineScore);
+  if (options.verbose) {
+    for (const c of baselineScore.checks) {
+      log(
+        options.verbose,
+        `  ${c.passed ? '✓' : '✗'} ${c.name}: ${c.earnedPoints}/${c.maxPoints}${c.suggestion ? ` — ${c.suggestion}` : ''}`,
+      );
+    }
+  }
 
   if (report) {
     report.markStep('Baseline scoring');
@@ -286,20 +305,30 @@ export async function initCommand(options: InitOptions) {
 
   const passingCount = baselineScore.checks.filter((c) => c.passed).length;
   const failingCount = baselineScore.checks.filter((c) => !c.passed).length;
-  trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
 
-  // Decide whether to generate configs
-  // First run: always generate (no question). Existing config at 100: skip. Existing config <100: ask to improve.
+  // Ask whether to generate/audit configs
   let skipGeneration = false;
 
-  if (hasExistingConfig && baselineScore.score === 100 && !options.force) {
-    skipGeneration = true;
+  if (hasExistingConfig && baselineScore.score === 100) {
+    trackInitScoreComputed(baselineScore.score, passingCount, failingCount, true);
+    console.log(chalk.bold.green('\n  Your config is already optimal.\n'));
+    skipGeneration = !options.force;
   } else if (hasExistingConfig && !options.force && !options.autoApprove) {
+    trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
     console.log(
-      chalk.dim(`  Config score: ${baselineScore.score}/100 — Caliber can improve this.\n`),
+      chalk.dim('\n  Sync infrastructure is ready. Caliber can also audit your existing'),
     );
-    const improveAnswer = await confirm({ message: 'Improve your existing configs?' });
-    skipGeneration = !improveAnswer;
+    console.log(chalk.dim('  configs and improve them using AI.\n'));
+    const auditAnswer = await promptInput('  Audit and improve your existing config? (Y/n) ');
+    skipGeneration = auditAnswer.toLowerCase() === 'n';
+  } else if (!hasExistingConfig && !options.force && !options.autoApprove) {
+    trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
+    console.log(chalk.dim('\n  Sync infrastructure is ready. Caliber can also generate tailored'));
+    console.log(chalk.dim('  CLAUDE.md, Cursor rules, and Codex configs for your project.\n'));
+    const generateAnswer = await promptInput('  Generate agent configs? (Y/n) ');
+    skipGeneration = generateAnswer.toLowerCase() === 'n';
+  } else {
+    trackInitScoreComputed(baselineScore.score, passingCount, failingCount, false);
   }
 
   if (skipGeneration) {
@@ -382,7 +411,10 @@ export async function initCommand(options: InitOptions) {
     return;
   }
 
-  // Generation phase (part of Step 2)
+  // ───────────────────────────────────────────────────────────────────────────
+  // Step 3 — Generate
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log(title.bold('\n  Step 3/4 — Generate\n'));
 
   const genModelInfo = fastModel
     ? `  Using ${displayModel} for docs, ${fastModel} for skills`
@@ -667,9 +699,9 @@ export async function initCommand(options: InitOptions) {
   );
 
   // ───────────────────────────────────────────────────────────────────────────
-  // Step 3 — Done (Review + Score)
+  // Step 4 — Finalize (Review + Write)
   // ───────────────────────────────────────────────────────────────────────────
-  console.log(title.bold('  Step 3/3 — Done\n'));
+  console.log(title.bold('  Step 4/4 — Finalize\n'));
 
   const setupFiles = collectSetupFiles(generatedSetup, targetAgent);
   const staged = stageFiles(setupFiles, process.cwd());
@@ -894,28 +926,33 @@ export async function initCommand(options: InitOptions) {
 
   console.log(chalk.bold("  What's configured:\n"));
   console.log(
-    `    ${done}  Continuous sync     ${chalk.dim('pre-commit hook keeps all agent configs in sync')}`,
+    `    ${done}  Continuous sync          ${chalk.dim('pre-commit hook keeps all agent configs in sync')}`,
   );
-  console.log(`    ${done}  Config generated    ${chalk.dim(`score: ${afterScore.score}/100`)}`);
   console.log(
-    `    ${done}  Agent skills        ${chalk.dim('/setup-caliber for new team members')}`,
+    `    ${done}  Config generated         ${title(`${bin} score`)} ${chalk.dim('for full breakdown')}`,
+  );
+  console.log(
+    `    ${done}  Agent skills             ${chalk.dim('/setup-caliber for new team members')}`,
   );
   if (hasLearnableAgent) {
-    console.log(`    ${done}  Session learning    ${chalk.dim('learns from your corrections')}`);
+    console.log(
+      `    ${done}  Session learning         ${chalk.dim('agent learns from your feedback')}`,
+    );
   }
   if (communitySkillsInstalled > 0) {
     console.log(
-      `    ${done}  Community skills    ${chalk.dim(`${communitySkillsInstalled} installed for your stack`)}`,
+      `    ${done}  Community skills         ${chalk.dim(`${communitySkillsInstalled} skill${communitySkillsInstalled > 1 ? 's' : ''} installed for your stack`)}`,
     );
   }
 
   console.log(chalk.bold('\n  What happens next:\n'));
-  console.log(chalk.dim('    Every commit syncs your agent configs automatically.'));
-  console.log(chalk.dim('    New team members run /setup-caliber to get set up instantly.\n'));
+  console.log(chalk.dim('    Every commit will automatically sync your agent configs.'));
+  console.log(chalk.dim('    New team members can run /setup-caliber to get set up instantly.\n'));
 
-  console.log(`    ${title(`${bin} score`)}        Full scoring breakdown`);
-  console.log(`    ${title(`${bin} skills`)}       Find community skills`);
-  console.log(`    ${title(`${bin} undo`)}         Revert changes`);
+  console.log(chalk.bold('  Explore:\n'));
+  console.log(`    ${title(`${bin} score`)}        Full scoring breakdown with improvement tips`);
+  console.log(`    ${title(`${bin} skills`)}       Find community skills for your stack`);
+  console.log(`    ${title(`${bin} undo`)}         Revert all changes from this run`);
   console.log(`    ${title(`${bin} uninstall`)}    Remove Caliber completely`);
   console.log('');
 

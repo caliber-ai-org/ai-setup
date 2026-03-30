@@ -24,13 +24,7 @@ const KNOWN_MODELS: Record<ProviderType, string[]> = {
     'claude-opus-4-6@20250605',
     'claude-opus-4-1-20250620',
   ],
-  openai: [
-    'gpt-4.1',
-    'gpt-4.1-mini',
-    'gpt-4o',
-    'gpt-4o-mini',
-    'o3-mini',
-  ],
+  openai: ['gpt-5.4-mini', 'gpt-4o', 'gpt-4o-mini', 'o3-mini'],
   cursor: ['auto', 'composer-1.5'],
   'claude-cli': [],
 };
@@ -47,7 +41,8 @@ export function isModelNotAvailableError(error: Error): boolean {
   if (status === 404 && msg.includes('model')) return true;
 
   // Explicit "model not found / not available" messages
-  if (msg.includes('model') && (msg.includes('not found') || msg.includes('not_found'))) return true;
+  if (msg.includes('model') && (msg.includes('not found') || msg.includes('not_found')))
+    return true;
   if (msg.includes('model') && msg.includes('not available')) return true;
   if (msg.includes('model') && msg.includes('does not exist')) return true;
 
@@ -67,11 +62,14 @@ function filterRelevantModels(models: string[], provider: ProviderType): string[
   switch (provider) {
     case 'anthropic':
     case 'vertex':
-      return models.filter(m => m.startsWith('claude-'));
+      return models.filter((m) => m.startsWith('claude-'));
     case 'openai':
-      return models.filter(m =>
-        m.startsWith('gpt-4') || m.startsWith('gpt-3.5') ||
-        m.startsWith('o1') || m.startsWith('o3')
+      return models.filter(
+        (m) =>
+          m.startsWith('gpt-4') ||
+          m.startsWith('gpt-3.5') ||
+          m.startsWith('o1') ||
+          m.startsWith('o3'),
       );
     case 'cursor':
     case 'claude-cli':
@@ -96,12 +94,18 @@ export async function handleModelNotAvailable(
   // Can't prompt in non-interactive mode
   if (!process.stdin.isTTY) {
     console.error(
-      chalk.red(`Model "${failedModel}" is not available. Run \`${resolveCaliber()} config\` to select a different model.`)
+      chalk.red(
+        `Model "${failedModel}" is not available. Run \`${resolveCaliber()} config\` to select a different model.`,
+      ),
     );
     return null;
   }
 
-  console.log(chalk.yellow(`\n⚠  Model "${failedModel}" is not available on your ${config.provider} deployment.`));
+  console.log(
+    chalk.yellow(
+      `\n⚠  Model "${failedModel}" is not available on your ${config.provider} deployment.`,
+    ),
+  );
 
   // Try to list available models from the provider API
   let models: string[] = [];
@@ -120,10 +124,14 @@ export async function handleModelNotAvailable(
   }
 
   // Remove the model that just failed
-  models = models.filter(m => m !== failedModel);
+  models = models.filter((m) => m !== failedModel);
 
   if (models.length === 0) {
-    console.log(chalk.red(`  No alternative models found. Run \`${resolveCaliber()} config\` to configure manually.`));
+    console.log(
+      chalk.red(
+        `  No alternative models found. Run \`${resolveCaliber()} config\` to configure manually.`,
+      ),
+    );
     return null;
   }
 
@@ -132,7 +140,7 @@ export async function handleModelNotAvailable(
   try {
     selected = await select<string>({
       message: 'Pick an available model',
-      choices: models.map(m => ({ name: m, value: m })),
+      choices: models.map((m) => ({ name: m, value: m })),
     });
   } catch {
     // User cancelled (Ctrl+C)

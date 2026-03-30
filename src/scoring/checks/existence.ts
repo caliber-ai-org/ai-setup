@@ -64,11 +64,14 @@ export function checkExistence(dir: string): Check[] {
     passed: claudeMdExists,
     detail: claudeMdExists ? 'Found at project root' : 'Not found',
     suggestion: claudeMdExists ? undefined : 'Create a CLAUDE.md with project context and commands',
-    fix: claudeMdExists ? undefined : {
-      action: 'create_file',
-      data: { file: 'CLAUDE.md' },
-      instruction: 'Create CLAUDE.md with project context, commands, architecture, and conventions.',
-    },
+    fix: claudeMdExists
+      ? undefined
+      : {
+          action: 'create_file',
+          data: { file: 'CLAUDE.md' },
+          instruction:
+            'Create CLAUDE.md with project context, commands, architecture, and conventions.',
+        },
   });
 
   // 2. .cursorrules or .cursor/rules/ exists
@@ -88,11 +91,13 @@ export function checkExistence(dir: string): Check[] {
         ? '.cursor/rules/ found'
         : 'No Cursor rules',
     suggestion: cursorRulesExist ? undefined : 'Add .cursor/rules/ for Cursor users on your team',
-    fix: cursorRulesExist ? undefined : {
-      action: 'create_file',
-      data: { file: '.cursor/rules/' },
-      instruction: 'Create .cursor/rules/ with project-specific Cursor rules.',
-    },
+    fix: cursorRulesExist
+      ? undefined
+      : {
+          action: 'create_file',
+          data: { file: '.cursor/rules/' },
+          instruction: 'Create .cursor/rules/ with project-specific Cursor rules.',
+        },
   });
 
   // 2b. AGENTS.md exists (primary config for Codex)
@@ -106,11 +111,13 @@ export function checkExistence(dir: string): Check[] {
     passed: agentsMdExists,
     detail: agentsMdExists ? 'Found at project root' : 'Not found',
     suggestion: agentsMdExists ? undefined : 'Create AGENTS.md with project context for Codex',
-    fix: agentsMdExists ? undefined : {
-      action: 'create_file',
-      data: { file: 'AGENTS.md' },
-      instruction: 'Create AGENTS.md with project context for Codex.',
-    },
+    fix: agentsMdExists
+      ? undefined
+      : {
+          action: 'create_file',
+          data: { file: 'AGENTS.md' },
+          instruction: 'Create AGENTS.md with project context for Codex.',
+        },
   });
 
   // 2c. copilot-instructions.md exists
@@ -123,12 +130,17 @@ export function checkExistence(dir: string): Check[] {
     earnedPoints: copilotInstructionsExists ? POINTS_CLAUDE_MD_EXISTS : 0,
     passed: copilotInstructionsExists,
     detail: copilotInstructionsExists ? 'Found at .github/copilot-instructions.md' : 'Not found',
-    suggestion: copilotInstructionsExists ? undefined : 'Create .github/copilot-instructions.md with project context for GitHub Copilot',
-    fix: copilotInstructionsExists ? undefined : {
-      action: 'create_file',
-      data: { file: '.github/copilot-instructions.md' },
-      instruction: 'Create .github/copilot-instructions.md with project context for GitHub Copilot.',
-    },
+    suggestion: copilotInstructionsExists
+      ? undefined
+      : 'Create .github/copilot-instructions.md with project context for GitHub Copilot',
+    fix: copilotInstructionsExists
+      ? undefined
+      : {
+          action: 'create_file',
+          data: { file: '.github/copilot-instructions.md' },
+          instruction:
+            'Create .github/copilot-instructions.md with project context for GitHub Copilot.',
+        },
   });
 
   // 3. Skills exist (.claude/skills/ or .agents/skills/)
@@ -137,31 +149,37 @@ export function checkExistence(dir: string): Check[] {
   const opencodeSkills = countFiles(join(dir, '.opencode', 'skills'), /SKILL\.md$/);
   const skillCount = claudeSkills.length + codexSkills.length + opencodeSkills.length;
   const skillBase = skillCount >= 1 ? POINTS_SKILLS_EXIST : 0;
-  const skillBonus = Math.min((skillCount - 1) * POINTS_SKILLS_BONUS_PER_EXTRA, POINTS_SKILLS_BONUS_CAP);
+  const skillBonus = Math.min(
+    (skillCount - 1) * POINTS_SKILLS_BONUS_PER_EXTRA,
+    POINTS_SKILLS_BONUS_CAP,
+  );
   const skillPoints = skillCount >= 1 ? skillBase + Math.max(0, skillBonus) : 0;
   const maxSkillPoints = POINTS_SKILLS_EXIST + POINTS_SKILLS_BONUS_CAP;
   checks.push({
     id: 'skills_exist',
     name: 'Skills configured',
     category: 'existence',
-    maxPoints: maxSkillPoints,
+    maxPoints: skillCount >= 1 ? maxSkillPoints : 0,
     earnedPoints: Math.min(skillPoints, maxSkillPoints),
     passed: skillCount >= 1,
-    detail: skillCount === 0
-      ? 'No skills found'
-      : `${skillCount} skill${skillCount === 1 ? '' : 's'} found`,
-    suggestion: skillCount === 0
-      ? 'Add .claude/skills/ with project-specific workflows'
-      : skillCount < 3
-        ? 'Optimal is 2-3 focused skills'
+    detail:
+      skillCount === 0
+        ? 'No skills found'
+        : `${skillCount} skill${skillCount === 1 ? '' : 's'} found`,
+    suggestion:
+      skillCount === 0
+        ? 'Add .claude/skills/ with project-specific workflows'
+        : skillCount < 3
+          ? 'Optimal is 2-3 focused skills'
+          : undefined,
+    fix:
+      skillCount === 0
+        ? {
+            action: 'create_skills',
+            data: { currentCount: 0 },
+            instruction: 'Create .claude/skills/ with 2-3 project-specific workflow skills.',
+          }
         : undefined,
-    fix: skillCount === 0
-      ? {
-          action: 'create_skills',
-          data: { currentCount: 0 },
-          instruction: 'Create .claude/skills/ with 2-3 project-specific workflow skills.',
-        }
-      : undefined,
   });
 
   // 4. Cursor .mdc rules
@@ -174,43 +192,47 @@ export function checkExistence(dir: string): Check[] {
     maxPoints: POINTS_CURSOR_MDC_RULES,
     earnedPoints: mdcCount >= 1 ? POINTS_CURSOR_MDC_RULES : 0,
     passed: mdcCount >= 1,
-    detail: mdcCount === 0
-      ? 'No .mdc rule files'
-      : `${mdcCount} .mdc rule${mdcCount === 1 ? '' : 's'} found`,
-    suggestion: mdcCount === 0
-      ? 'Add .cursor/rules/*.mdc with frontmatter for Cursor'
-      : undefined,
-    fix: mdcCount === 0
-      ? {
-          action: 'create_mdc_rules',
-          data: {},
-          instruction: 'Create .cursor/rules/*.mdc files with YAML frontmatter for Cursor.',
-        }
-      : undefined,
+    detail:
+      mdcCount === 0
+        ? 'No .mdc rule files'
+        : `${mdcCount} .mdc rule${mdcCount === 1 ? '' : 's'} found`,
+    suggestion: mdcCount === 0 ? 'Add .cursor/rules/*.mdc with frontmatter for Cursor' : undefined,
+    fix:
+      mdcCount === 0
+        ? {
+            action: 'create_mdc_rules',
+            data: {},
+            instruction: 'Create .cursor/rules/*.mdc files with YAML frontmatter for Cursor.',
+          }
+        : undefined,
   });
 
-  // 5. MCP servers configured (no penalty if not configured — just bonus)
+  // 5. MCP servers configured
   const mcp = hasMcpServers(dir);
   checks.push({
     id: 'mcp_servers',
     name: 'MCP servers configured',
     category: 'existence',
-    maxPoints: POINTS_MCP_SERVERS,
+    maxPoints: mcp.count >= 1 ? POINTS_MCP_SERVERS : 0,
     earnedPoints: mcp.count >= 1 ? POINTS_MCP_SERVERS : 0,
     passed: mcp.count >= 1,
-    detail: mcp.count > 0
-      ? `${mcp.count} server${mcp.count === 1 ? '' : 's'} in ${mcp.sources.join(', ')}`
-      : 'No MCP servers configured',
-    suggestion: mcp.count === 0
-      ? 'Configure MCP servers in .mcp.json for external service access'
-      : undefined,
-    fix: mcp.count === 0
-      ? {
-          action: 'configure_mcp',
-          data: {},
-          instruction: 'Add MCP server configurations in .mcp.json for any external services the project uses.',
-        }
-      : undefined,
+    detail:
+      mcp.count > 0
+        ? `${mcp.count} server${mcp.count === 1 ? '' : 's'} in ${mcp.sources.join(', ')}`
+        : 'No MCP servers configured',
+    suggestion:
+      mcp.count === 0
+        ? 'Configure MCP servers in .mcp.json for external service access'
+        : undefined,
+    fix:
+      mcp.count === 0
+        ? {
+            action: 'configure_mcp',
+            data: {},
+            instruction:
+              'Add MCP server configurations in .mcp.json for any external services the project uses.',
+          }
+        : undefined,
   });
 
   // 6. Cross-platform parity
@@ -231,14 +253,18 @@ export function checkExistence(dir: string): Check[] {
         : hasCursorConfigs
           ? 'Only Cursor — no Claude Code configs'
           : 'Neither platform configured',
-    suggestion: hasParity ? undefined : 'Add configs for both platforms so all teammates get context',
-    fix: hasParity ? undefined : {
-      action: 'add_platform',
-      data: { hasClaude: hasClaudeConfigs, hasCursor: hasCursorConfigs },
-      instruction: hasClaudeConfigs
-        ? 'Add Cursor rules (.cursor/rules/) for cross-platform support.'
-        : 'Add CLAUDE.md for cross-platform support.',
-    },
+    suggestion: hasParity
+      ? undefined
+      : 'Add configs for both platforms so all teammates get context',
+    fix: hasParity
+      ? undefined
+      : {
+          action: 'add_platform',
+          data: { hasClaude: hasClaudeConfigs, hasCursor: hasCursorConfigs },
+          instruction: hasClaudeConfigs
+            ? 'Add Cursor rules (.cursor/rules/) for cross-platform support.'
+            : 'Add CLAUDE.md for cross-platform support.',
+        },
   });
 
   return checks;

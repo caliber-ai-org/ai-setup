@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { appendPreCommitBlock, appendLearningsBlock } from './pre-commit-block.js';
+import { appendManagedBlocks } from './pre-commit-block.js';
 
 interface RefreshDocs {
   agentsMd?: string | null;
@@ -8,7 +8,6 @@ interface RefreshDocs {
   readmeMd?: string | null;
   cursorrules?: string | null;
   cursorRules?: Array<{ filename: string; content: string }> | null;
-  claudeSkills?: Array<{ filename: string; content: string }> | null;
   copilotInstructions?: string | null;
   copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
 }
@@ -17,12 +16,12 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
   const written: string[] = [];
 
   if (docs.agentsMd) {
-    fs.writeFileSync('AGENTS.md', appendLearningsBlock(appendPreCommitBlock(docs.agentsMd)));
+    fs.writeFileSync('AGENTS.md', appendManagedBlocks(docs.agentsMd, 'codex'));
     written.push('AGENTS.md');
   }
 
   if (docs.claudeMd) {
-    fs.writeFileSync('CLAUDE.md', appendLearningsBlock(appendPreCommitBlock(docs.claudeMd)));
+    fs.writeFileSync('CLAUDE.md', appendManagedBlocks(docs.claudeMd));
     written.push('CLAUDE.md');
   }
 
@@ -45,18 +44,12 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
     }
   }
 
-  if (docs.claudeSkills) {
-    const skillsDir = path.join('.claude', 'skills');
-    if (!fs.existsSync(skillsDir)) fs.mkdirSync(skillsDir, { recursive: true });
-    for (const skill of docs.claudeSkills) {
-      fs.writeFileSync(path.join(skillsDir, skill.filename), skill.content);
-      written.push(`.claude/skills/${skill.filename}`);
-    }
-  }
-
   if (docs.copilotInstructions) {
     fs.mkdirSync('.github', { recursive: true });
-    fs.writeFileSync(path.join('.github', 'copilot-instructions.md'), appendLearningsBlock(appendPreCommitBlock(docs.copilotInstructions)));
+    fs.writeFileSync(
+      path.join('.github', 'copilot-instructions.md'),
+      appendManagedBlocks(docs.copilotInstructions, 'copilot'),
+    );
     written.push('.github/copilot-instructions.md');
   }
 

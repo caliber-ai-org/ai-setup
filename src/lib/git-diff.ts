@@ -4,15 +4,27 @@ const MAX_DIFF_BYTES = 100_000;
 
 const DOC_PATTERNS = [
   'CLAUDE.md',
+  'AGENTS.md',
   'README.md',
   '.cursorrules',
   '.cursor/rules/',
+  '.cursor/skills/',
   '.claude/skills/',
+  '.agents/skills/',
+  '.opencode/skills/',
+  '.github/copilot-instructions.md',
+  '.github/instructions/',
   'CALIBER_LEARNINGS.md',
 ];
 
+function truncateAtLineEnd(text: string, maxBytes: number): string {
+  if (text.length <= maxBytes) return text;
+  const lastNewline = text.lastIndexOf('\n', maxBytes);
+  return lastNewline === -1 ? text.slice(0, maxBytes) : text.slice(0, lastNewline);
+}
+
 function excludeArgs(): string[] {
-  return DOC_PATTERNS.flatMap(p => ['--', `:!${p}`]);
+  return DOC_PATTERNS.flatMap((p) => ['--', `:!${p}`]);
 }
 
 function safeExec(cmd: string): string {
@@ -70,15 +82,15 @@ export function collectDiff(lastSha: string | null): DiffResult {
   }
 
   changedFiles = [...new Set(changedFiles)].filter(
-    f => !DOC_PATTERNS.some(p => f === p || f.startsWith(p))
+    (f) => !DOC_PATTERNS.some((p) => f === p || f.startsWith(p)),
   );
 
   const totalSize = committedDiff.length + stagedDiff.length + unstagedDiff.length;
   if (totalSize > MAX_DIFF_BYTES) {
     const ratio = MAX_DIFF_BYTES / totalSize;
-    committedDiff = committedDiff.slice(0, Math.floor(committedDiff.length * ratio));
-    stagedDiff = stagedDiff.slice(0, Math.floor(stagedDiff.length * ratio));
-    unstagedDiff = unstagedDiff.slice(0, Math.floor(unstagedDiff.length * ratio));
+    committedDiff = truncateAtLineEnd(committedDiff, Math.floor(committedDiff.length * ratio));
+    stagedDiff = truncateAtLineEnd(stagedDiff, Math.floor(stagedDiff.length * ratio));
+    unstagedDiff = truncateAtLineEnd(unstagedDiff, Math.floor(unstagedDiff.length * ratio));
   }
 
   const hasChanges = !!(committedDiff || stagedDiff || unstagedDiff || changedFiles.length);

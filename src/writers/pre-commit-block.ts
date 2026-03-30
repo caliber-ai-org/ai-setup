@@ -5,7 +5,8 @@ export type ConfigPlatform = 'claude' | 'copilot' | 'codex';
 const BLOCK_START = '<!-- caliber:managed:pre-commit -->';
 const BLOCK_END = '<!-- /caliber:managed:pre-commit -->';
 
-const MANAGED_DOC_PATHS = 'CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md';
+const MANAGED_DOC_PATHS =
+  'CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md .agents/ .opencode/';
 
 function getCaliberNotFoundFallback(platform: ConfigPlatform, bin: string): string {
   switch (platform) {
@@ -213,7 +214,10 @@ const MANAGED_BLOCK_PAIRS = [
 export function stripManagedBlocks(content: string): string {
   let result = content;
   for (const [start, end] of MANAGED_BLOCK_PAIRS) {
-    const regex = new RegExp(`\\n?${start.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${end.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`, 'g');
+    const regex = new RegExp(
+      `\\n?${start.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[\\s\\S]*?${end.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n?`,
+      'g',
+    );
     result = result.replace(regex, '\n');
   }
   return result.replace(/\n{3,}/g, '\n\n').trim() + '\n';

@@ -30,4 +30,5 @@ export const LEARNING_ROI_FILE = 'roi-stats.json';
 export const PERSONAL_LEARNINGS_FILE = path.join(AUTH_DIR, 'personal-learnings.md');
 export const LEARNING_FINALIZE_LOG = 'finalize.log';
 export const LEARNING_LAST_ERROR_FILE = 'last-error.json';
+export const REFRESH_LAST_ERROR_FILE = path.join(CALIBER_DIR, 'last-refresh-error.json');
 export const MIN_SESSIONS_FOR_COMPARISON = 3;

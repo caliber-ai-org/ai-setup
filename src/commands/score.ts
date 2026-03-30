@@ -144,25 +144,40 @@ export async function scoreCommand(options: ScoreOptions) {
   console.log(separator);
 
   const bin = resolveCaliber();
-  if (result.score < 40) {
+  const failing = result.checks
+    .filter((c) => !c.passed && c.maxPoints > 0)
+    .sort((a, b) => b.maxPoints - b.earnedPoints - (a.maxPoints - a.earnedPoints));
+
+  if (result.score < 70 && failing.length > 0) {
+    const topFix = failing[0];
+    const pts = topFix.maxPoints - topFix.earnedPoints;
+    console.log(
+      chalk.gray('  Biggest gain: ') +
+        chalk.yellow(`+${pts} pts`) +
+        chalk.gray(` from "${topFix.name}"`) +
+        (topFix.suggestion ? chalk.gray(` — ${topFix.suggestion}`) : ''),
+    );
     console.log(
       chalk.gray('  Run ') +
         chalk.hex('#83D1EB')(`${bin} init`) +
-        chalk.gray(' to generate a complete, optimized config.'),
+        chalk.gray(' to auto-fix these.'),
     );
-  } else if (result.score < 70) {
-    console.log(
-      chalk.gray('  Run ') +
-        chalk.hex('#83D1EB')(`${bin} init`) +
-        chalk.gray(' to improve your config.'),
-    );
-  } else {
+  } else if (failing.length > 0) {
     console.log(
       chalk.green('  Looking good!') +
-        chalk.gray(' Run ') +
+        chalk.gray(
+          ` ${failing.length} check${failing.length === 1 ? '' : 's'} can still be improved.`,
+        ),
+    );
+    console.log(
+      chalk.gray('  Run ') +
+        chalk.hex('#83D1EB')(`${bin} init`) +
+        chalk.gray(' to improve, or ') +
         chalk.hex('#83D1EB')(`${bin} regenerate`) +
         chalk.gray(' to rebuild from scratch.'),
     );
+  } else {
+    console.log(chalk.green('  Perfect score! Your agent configs are fully optimized.'));
   }
   console.log('');
 }
