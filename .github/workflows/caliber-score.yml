@@ -24,6 +24,9 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+      - name: Fetch base branch for comparison
+        run: git fetch origin ${{ github.base_ref }} --no-tags
+
       - name: Score and compare against base
         id: score
         run: |
