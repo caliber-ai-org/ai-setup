@@ -115,27 +115,33 @@ describe('writeRefreshDocs', () => {
   });
 
   describe('dir parameter', () => {
+    const norm = (paths: string[]) => paths.map((p) => p.replace(/\\/g, '/'));
+
     it('prefixes CLAUDE.md path with dir', () => {
-      const written = writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend');
+      const written = norm(writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend'));
       expect(written).toContain('packages/frontend/CLAUDE.md');
     });
 
     it('prefixes AGENTS.md path with dir', () => {
-      const written = writeRefreshDocs({ agentsMd: '# Agents' }, 'packages/backend');
+      const written = norm(writeRefreshDocs({ agentsMd: '# Agents' }, 'packages/backend'));
       expect(written).toContain('packages/backend/AGENTS.md');
     });
 
     it('prefixes cursor rules paths with dir', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      const written = writeRefreshDocs(
-        { cursorRules: [{ filename: 'test.mdc', content: 'rule' }] },
-        'packages/api',
+      const written = norm(
+        writeRefreshDocs(
+          { cursorRules: [{ filename: 'test.mdc', content: 'rule' }] },
+          'packages/api',
+        ),
       );
       expect(written).toContain('packages/api/.cursor/rules/test.mdc');
     });
 
     it('prefixes copilot instructions path with dir', () => {
-      const written = writeRefreshDocs({ copilotInstructions: '# Copilot' }, 'packages/frontend');
+      const written = norm(
+        writeRefreshDocs({ copilotInstructions: '# Copilot' }, 'packages/frontend'),
+      );
       expect(written).toContain('packages/frontend/.github/copilot-instructions.md');
     });
 
@@ -146,9 +152,10 @@ describe('writeRefreshDocs', () => {
 
     it('creates parent directories for subdirectory writes', () => {
       writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend');
-      expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith('packages/frontend', {
-        recursive: true,
-      });
+      const mkdirCalls = vi
+        .mocked(fs.mkdirSync)
+        .mock.calls.map((call) => (call[0] as string).replace(/\\/g, '/'));
+      expect(mkdirCalls).toContain('packages/frontend');
     });
   });
 });
