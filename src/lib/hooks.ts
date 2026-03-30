@@ -112,7 +112,7 @@ const STOP_HOOK_SCRIPT_CONTENT = `#!/bin/sh
 if grep -q "caliber" .git/hooks/pre-commit 2>/dev/null; then
   exit 0
 fi
-FLAG="/tmp/caliber-nudge-$(echo "$PWD" | shasum | cut -c1-8)"
+FLAG="/tmp/caliber-nudge-$(echo "$PWD" | (shasum 2>/dev/null || sha1sum 2>/dev/null || md5sum 2>/dev/null || cksum) | cut -c1-8)"
 find /tmp -maxdepth 1 -name "caliber-nudge-*" -mmin +120 -delete 2>/dev/null
 if [ -f "$FLAG" ]; then
   exit 0
@@ -206,9 +206,10 @@ function getPrecommitBlock(): string {
 
   return `${PRECOMMIT_START}
 if ${guard}; then
+  mkdir -p .caliber
   echo "\\033[2mcaliber: refreshing docs...\\033[0m"
-  ${invoke} refresh 2>/dev/null || true
-  ${invoke} learn finalize 2>/dev/null || true
+  ${invoke} refresh --quiet 2>.caliber/refresh-hook.log || true
+  ${invoke} learn finalize 2>>.caliber/refresh-hook.log || true
   git diff --name-only -- CLAUDE.md .claude/ .cursor/ AGENTS.md CALIBER_LEARNINGS.md .github/ .agents/ .opencode/ 2>/dev/null | xargs git add 2>/dev/null || true
 fi
 ${PRECOMMIT_END}`;

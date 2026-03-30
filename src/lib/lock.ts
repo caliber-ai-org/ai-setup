@@ -1,8 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 
-const LOCK_FILE = path.join(os.tmpdir(), '.caliber.lock');
+function getLockFile(): string {
+  const cwd = process.cwd();
+  const hash = crypto.createHash('md5').update(cwd).digest('hex').slice(0, 8);
+  return path.join(os.tmpdir(), `.caliber-${hash}.lock`);
+}
+
 const STALE_MS = 10 * 60 * 1000; // 10 minutes — treat lock as stale after this
 
 /**
@@ -12,8 +18,8 @@ const STALE_MS = 10 * 60 * 1000; // 10 minutes — treat lock as stale after thi
  */
 export function isCaliberRunning(): boolean {
   try {
-    if (!fs.existsSync(LOCK_FILE)) return false;
-    const raw = fs.readFileSync(LOCK_FILE, 'utf-8').trim();
+    if (!fs.existsSync(getLockFile())) return false;
+    const raw = fs.readFileSync(getLockFile(), 'utf-8').trim();
     const { pid, ts } = JSON.parse(raw);
 
     // Stale lock — ignore
@@ -34,7 +40,7 @@ export function isCaliberRunning(): boolean {
 /** Write a lock file for the current process. */
 export function acquireLock(): void {
   try {
-    fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, ts: Date.now() }));
+    fs.writeFileSync(getLockFile(), JSON.stringify({ pid: process.pid, ts: Date.now() }));
   } catch {
     // best-effort
   }
@@ -43,7 +49,7 @@ export function acquireLock(): void {
 /** Remove the lock file. */
 export function releaseLock(): void {
   try {
-    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+    if (fs.existsSync(getLockFile())) fs.unlinkSync(getLockFile());
   } catch {
     // best-effort
   }

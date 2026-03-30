@@ -18,6 +18,46 @@ import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
 import { computeLocalScore, detectTargetAgent } from '../scoring/index.js';
 import { recordScore } from '../scoring/history.js';
+import { CALIBER_DIR, REFRESH_LAST_ERROR_FILE } from '../constants.js';
+
+function writeRefreshError(error: unknown): void {
+  try {
+    if (!fs.existsSync(CALIBER_DIR)) fs.mkdirSync(CALIBER_DIR, { recursive: true });
+    fs.writeFileSync(
+      REFRESH_LAST_ERROR_FILE,
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          cwd: process.cwd(),
+          nodeVersion: process.version,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch {
+    // best-effort — don't let crash logging crash
+  }
+}
+
+function readRefreshError(): { timestamp: string; error: string } | null {
+  try {
+    if (!fs.existsSync(REFRESH_LAST_ERROR_FILE)) return null;
+    return JSON.parse(fs.readFileSync(REFRESH_LAST_ERROR_FILE, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function clearRefreshError(): void {
+  try {
+    if (fs.existsSync(REFRESH_LAST_ERROR_FILE)) fs.unlinkSync(REFRESH_LAST_ERROR_FILE);
+  } catch {
+    // best-effort
+  }
+}
 
 interface RefreshOptions {
   quiet?: boolean;
@@ -74,9 +114,10 @@ async function refreshSingleRepo(
 
   const state = readState();
   const lastSha = state?.lastRefreshSha ?? null;
+  const currentSha = getCurrentHeadSha();
 
-  // Rate-limit: skip if last refresh was within cooldown period
-  if (state?.lastRefreshTimestamp) {
+  // Rate-limit: skip if last refresh was within cooldown AND HEAD hasn't changed
+  if (state?.lastRefreshTimestamp && lastSha && currentSha === lastSha) {
     const elapsed = Date.now() - new Date(state.lastRefreshTimestamp).getTime();
     if (elapsed < REFRESH_COOLDOWN_MS && elapsed > 0) {
       log(
@@ -88,7 +129,6 @@ async function refreshSingleRepo(
   }
 
   const diff = collectDiff(lastSha);
-  const currentSha = getCurrentHeadSha();
 
   if (!diff.hasChanges) {
     if (currentSha) {
@@ -233,6 +273,7 @@ async function refreshSingleRepo(
     log(quiet, `  ${chalk.green('✓')} ${file} ${chalk.dim('(built-in)')}`);
   }
 
+  clearRefreshError();
   if (currentSha) {
     writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
   }
@@ -245,6 +286,21 @@ export async function refreshCommand(options: RefreshOptions) {
   if (quiet) {
     const { isCaliberRunning } = await import('../lib/lock.js');
     if (isCaliberRunning()) return;
+  }
+
+  // Show last refresh error if running interactively
+  if (!quiet) {
+    const lastError = readRefreshError();
+    if (lastError) {
+      console.log(chalk.yellow(`\n  ⚠  Last refresh failed (${lastError.timestamp}):`));
+      console.log(chalk.dim(`     ${lastError.error}`));
+      console.log(
+        chalk.dim(
+          `     Run with --debug for full details, or report at https://github.com/caliber-ai-org/ai-setup/issues\n`,
+        ),
+      );
+      clearRefreshError();
+    }
   }
 
   try {
@@ -297,6 +353,7 @@ export async function refreshCommand(options: RefreshOptions) {
     process.chdir(originalDir);
   } catch (err) {
     if (err instanceof Error && err.message === '__exit__') throw err;
+    writeRefreshError(err);
     if (quiet) return;
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.log(chalk.red(`Refresh failed: ${msg}`));
