@@ -27,7 +27,15 @@ jobs:
       - name: Score and compare against base
         id: score
         run: |
-          RESULT=$(node dist/bin.js score --json --compare "origin/${{ github.base_ref }}" --agent claude 2>/dev/null || echo '{}')
+          set +e
+          RESULT=$(node dist/bin.js score --json --compare "origin/${{ github.base_ref }}" --agent claude 2>/dev/null)
+          EXIT_CODE=$?
+          set -e
+
+          if [ $EXIT_CODE -ne 0 ] || ! echo "$RESULT" | jq empty 2>/dev/null; then
+            echo "Score command failed or returned invalid JSON, running without compare"
+            RESULT=$(node dist/bin.js score --json --agent claude 2>/dev/null) || RESULT='{"score":0,"grade":"?"}'
+          fi
 
           SCORE=$(echo "$RESULT" | jq -r '.current.score // .score // 0')
           GRADE=$(echo "$RESULT" | jq -r '.current.grade // .grade // "?"')
