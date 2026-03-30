@@ -25,7 +25,7 @@ jobs:
       - run: npm run build
 
       - name: Fetch base branch for comparison
-        run: git fetch origin ${{ github.base_ref }} --no-tags
+        run: git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
 
       - name: Score and compare against base
         id: score
