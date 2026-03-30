@@ -5,7 +5,7 @@ import os from 'os';
 
 export interface LocalItem {
   type: 'mcp' | 'rule' | 'skill' | 'config';
-  platform: 'claude' | 'cursor' | 'codex';
+  platform: 'claude' | 'cursor' | 'codex' | 'opencode';
   name: string;
   contentHash: string;
   path: string;
@@ -15,6 +15,7 @@ export interface PlatformDetection {
   claude: boolean;
   cursor: boolean;
   codex: boolean;
+  opencode: boolean;
 }
 
 export function detectPlatforms(): PlatformDetection {
@@ -23,6 +24,7 @@ export function detectPlatforms(): PlatformDetection {
     claude: fs.existsSync(path.join(home, '.claude')),
     cursor: fs.existsSync(getCursorConfigDir()),
     codex: fs.existsSync(path.join(home, '.codex')),
+    opencode: fs.existsSync(path.join(home, '.config', 'opencode')),
   };
 }
 
@@ -107,6 +109,27 @@ export function scanLocalState(dir: string): LocalItem[] {
       }
     } catch (error) {
       warnScanSkip('.agents/skills', error);
+    }
+  }
+
+  // OpenCode: .opencode/skills/*/SKILL.md
+  const opencodeSkillsDir = path.join(dir, '.opencode', 'skills');
+  if (fs.existsSync(opencodeSkillsDir)) {
+    try {
+      for (const name of fs.readdirSync(opencodeSkillsDir)) {
+        const skillFile = path.join(opencodeSkillsDir, name, 'SKILL.md');
+        if (fs.existsSync(skillFile)) {
+          items.push({
+            type: 'skill',
+            platform: 'opencode',
+            name: `${name}/SKILL.md`,
+            contentHash: hashFile(skillFile),
+            path: skillFile,
+          });
+        }
+      }
+    } catch (error) {
+      warnScanSkip('.opencode/skills', error);
     }
   }
 

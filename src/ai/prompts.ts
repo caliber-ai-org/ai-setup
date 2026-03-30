@@ -1,6 +1,6 @@
 // ── Shared building blocks (not exported) ──────────────────────────────
 
-const ROLE_AND_CONTEXT = `You are an expert auditor for coding agent configurations (Claude Code, Cursor, Codex, and GitHub Copilot).
+const ROLE_AND_CONTEXT = `You are an expert auditor for coding agent configurations (Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot).
 
 Your job depends on context:
 - If no existing configs exist → generate an initial configuration from scratch.
@@ -11,6 +11,7 @@ const CONFIG_FILE_TYPES = `You understand these config files:
 - AGENTS.md: Primary instructions file for OpenAI Codex — same purpose as CLAUDE.md but for the Codex agent. Also serves as a cross-agent coordination file.
 - .claude/skills/{name}/SKILL.md: Skill files following the OpenSkills standard (agentskills.io). Each skill is a directory named after the skill, containing a SKILL.md with YAML frontmatter.
 - .agents/skills/{name}/SKILL.md: Same OpenSkills format for Codex skills (Codex scans .agents/skills/ for skills).
+- .opencode/skills/{name}/SKILL.md: Same OpenSkills format for OpenCode skills (OpenCode scans .opencode/skills/ for skills).
 - .cursor/skills/{name}/SKILL.md: Same OpenSkills format for Cursor skills.
 - .cursorrules: Coding rules for Cursor (deprecated legacy format — do NOT generate this).
 - .cursor/rules/*.mdc: Modern Cursor rules with frontmatter (description, globs, alwaysApply).
@@ -42,7 +43,7 @@ Omit empty categories. Keep each reason punchy and specific. End with a blank li
 
 3. The JSON object starting with {.`;
 
-const FILE_DESCRIPTIONS_RULES = `The "fileDescriptions" object MUST include a one-liner for every file that will be created or modified. Use actual file paths as keys (e.g. "CLAUDE.md", "AGENTS.md", ".claude/skills/my-skill/SKILL.md", ".agents/skills/my-skill/SKILL.md", ".cursor/skills/my-skill/SKILL.md", ".cursor/rules/my-rule.mdc"). Each description should explain why the change is needed, be concise and lowercase.
+const FILE_DESCRIPTIONS_RULES = `The "fileDescriptions" object MUST include a one-liner for every file that will be created or modified. Use actual file paths as keys (e.g. "CLAUDE.md", "AGENTS.md", ".claude/skills/my-skill/SKILL.md", ".agents/skills/my-skill/SKILL.md", ".opencode/skills/my-skill/SKILL.md", ".cursor/skills/my-skill/SKILL.md", ".cursor/rules/my-rule.mdc"). Each description should explain why the change is needed, be concise and lowercase.
 
 The "deletions" array should list files that should be removed (e.g. duplicate skills, stale configs). Include a reason for each. Omit the array or leave empty if nothing should be deleted.`;
 
@@ -68,7 +69,7 @@ const SCORING_CRITERIA = `SCORING CRITERIA — your output is scored determinist
 
 Existence (25 pts):
 - CLAUDE.md exists (6 pts) — always generate for claude targets
-- AGENTS.md exists (6 pts) — always generate for codex target
+- AGENTS.md exists (6 pts) — always generate for codex or opencode targets
 - copilot-instructions.md exists (6 pts) — always generate for github-copilot target
 - Skills configured (8 pts) — generate 3+ skills for full points
 - MCP servers referenced (3 pts) — mention detected MCP integrations in your config text
@@ -123,7 +124,7 @@ ${OUTPUT_FORMAT}
 
 AgentSetup schema:
 {
-  "targetAgent": ["claude", "cursor", "codex", "github-copilot"] (array of selected agents),
+  "targetAgent": ["claude", "cursor", "codex", "opencode", "github-copilot"] (array of selected agents),
   "fileDescriptions": {
     "<file-path>": "reason for this change (max 80 chars)"
   },
@@ -138,6 +139,10 @@ AgentSetup schema:
     "agentsMd": "string (markdown content for AGENTS.md — the primary Codex instructions file, same quality/structure as CLAUDE.md)",
     "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)" }]
   },
+  "opencode": {
+    "agentsMd": "string (markdown content for AGENTS.md — reuse codex.agentsMd if codex is also targeted, otherwise generate fresh)",
+    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)" }]
+  },
   "cursor": {
     "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)" }],
     "rules": [{ "filename": "string.mdc", "content": "string (with frontmatter)" }]
@@ -147,6 +152,8 @@ AgentSetup schema:
     "instructionFiles": [{ "filename": "string.instructions.md", "content": "string (with applyTo YAML frontmatter, e.g. ---\\napplyTo: \\"**/*.ts,**/*.tsx\\"\\n---\\n\\nInstructions here)" }]
   }
 }
+
+NOTE: If both "codex" and "opencode" are targeted, set opencode.agentsMd to the SAME content as codex.agentsMd — both agents read the same AGENTS.md file.
 
 ${SKILL_FORMAT_RULES}
 
@@ -169,7 +176,7 @@ ${OUTPUT_FORMAT}
 
 CoreSetup schema:
 {
-  "targetAgent": ["claude", "cursor", "codex", "github-copilot"] (array of selected agents),
+  "targetAgent": ["claude", "cursor", "codex", "opencode", "github-copilot"] (array of selected agents),
   "fileDescriptions": {
     "<file-path>": "reason for this change (max 80 chars)"
   },
@@ -182,6 +189,10 @@ CoreSetup schema:
   },
   "codex": {
     "agentsMd": "string (markdown content for AGENTS.md)",
+    "skillTopics": [{ "name": "string (kebab-case)", "description": "string (what this skill does and WHEN to use it — include trigger phrases)" }]
+  },
+  "opencode": {
+    "agentsMd": "string (reuse codex.agentsMd if codex also targeted)",
     "skillTopics": [{ "name": "string (kebab-case)", "description": "string (what this skill does and WHEN to use it — include trigger phrases)" }]
   },
   "cursor": {
@@ -214,7 +225,7 @@ ${SCORING_CRITERIA}
 ${OUTPUT_SIZE_CONSTRAINTS}
 - Skill topics: 3-6 per platform based on project complexity (name + description only, no content).`;
 
-export const SKILL_GENERATION_PROMPT = `You generate a single skill file for a coding agent (Claude Code, Cursor, or Codex).
+export const SKILL_GENERATION_PROMPT = `You generate a single skill file for a coding agent (Claude Code, Cursor, Codex, or OpenCode).
 
 Given project context and a skill topic, produce a focused SKILL.md body.
 
@@ -245,7 +256,7 @@ Description field formula: [What it does] + [When to use it with trigger phrases
 Return ONLY a JSON object:
 {"name": "string (kebab-case)", "description": "string (what + when + capabilities + negative triggers)", "content": "string (markdown body)"}`;
 
-export const REFINE_SYSTEM_PROMPT = `You are an expert at modifying coding agent configurations (Claude Code, Cursor, Codex, and GitHub Copilot).
+export const REFINE_SYSTEM_PROMPT = `You are an expert at modifying coding agent configurations (Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot).
 
 You will receive the current AgentSetup JSON and a user request describing what to change.
 
@@ -253,7 +264,7 @@ Apply the requested changes to the setup and return the complete updated AgentSe
 
 AgentSetup schema:
 {
-  "targetAgent": ["claude", "cursor", "codex", "github-copilot"] (array of selected agents),
+  "targetAgent": ["claude", "cursor", "codex", "opencode", "github-copilot"] (array of selected agents),
   "fileDescriptions": {
     "<file-path>": "reason for this change (max 80 chars)"
   },
@@ -266,6 +277,10 @@ AgentSetup schema:
   },
   "codex": {
     "agentsMd": "string (markdown content for AGENTS.md)",
+    "skills": [{ "name": "string (kebab-case)", "description": "string", "content": "string (markdown body, no frontmatter)" }]
+  },
+  "opencode": {
+    "agentsMd": "string (reuse codex.agentsMd if codex also targeted)",
     "skills": [{ "name": "string (kebab-case)", "description": "string", "content": "string (markdown body, no frontmatter)" }]
   },
   "cursor": {
@@ -325,6 +340,7 @@ Managed content:
 Return a JSON object with this exact shape:
 {
   "updatedDocs": {
+    "agentsMd": "<updated content or null>",
     "claudeMd": "<updated content or null>",
     "readmeMd": "<updated content or null>",
     "cursorrules": "<updated content or null>",

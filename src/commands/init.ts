@@ -97,8 +97,8 @@ export async function initCommand(options: InitOptions) {
   }
 
   const platforms = detectPlatforms();
-  if (!platforms.claude && !platforms.cursor && !platforms.codex) {
-    console.log(chalk.yellow('  ⚠ No supported AI platforms detected (Claude, Cursor, Codex).'));
+  if (!platforms.claude && !platforms.cursor && !platforms.codex && !platforms.opencode) {
+    console.log(chalk.yellow('  ⚠ No supported AI platforms detected (Claude, Cursor, Codex, OpenCode).'));
     console.log(chalk.yellow('    Caliber will still generate config files, but they won\'t be auto-installed.\n'));
   }
 

@@ -11,7 +11,7 @@ import { trackSkillsInstalled } from '../telemetry/events.js';
 import { readState } from '../lib/state.js';
 import { resolveCaliber } from '../lib/resolve-caliber.js';
 
-type Platform = 'claude' | 'cursor' | 'codex' | 'github-copilot';
+type Platform = 'claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot';
 
 export interface SkillResult {
   name: string;
@@ -51,7 +51,9 @@ function getSkillPath(platform: Platform, slug: string): string {
       ? join('.cursor', 'skills')
       : platform === 'codex'
         ? join('.agents', 'skills')
-        : join('.claude', 'skills');
+        : platform === 'opencode'
+          ? join('.opencode', 'skills')
+          : join('.claude', 'skills');
 
   const cwd = process.cwd();
   const fullPath = resolve(cwd, baseDir, safe, 'SKILL.md');
@@ -65,6 +67,7 @@ function getSkillPath(platform: Platform, slug: string): string {
 function getSkillDir(platform: Platform): string {
   if (platform === 'cursor') return join(process.cwd(), '.cursor', 'skills');
   if (platform === 'codex') return join(process.cwd(), '.agents', 'skills');
+  if (platform === 'opencode') return join(process.cwd(), '.opencode', 'skills');
   return join(process.cwd(), '.claude', 'skills');
 }
 

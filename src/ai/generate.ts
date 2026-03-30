@@ -6,7 +6,7 @@ import { CORE_GENERATION_PROMPT, GENERATION_SYSTEM_PROMPT, SKILL_GENERATION_PROM
 import { extractAllDeps } from '../utils/dependencies.js';
 import { formatSourcesForPrompt } from '../fingerprint/sources.js';
 
-type TargetAgent = ('claude' | 'cursor' | 'codex' | 'github-copilot')[];
+type TargetAgent = ('claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot')[];
 
 interface GenerateCallbacks {
   onStatus: (message: string) => void;
@@ -127,7 +127,9 @@ function mergeSkillResults(
 
       const skillPath = platform === 'codex'
         ? `.agents/skills/${skill.name}/SKILL.md`
-        : `.${platform}/skills/${skill.name}/SKILL.md`;
+        : platform === 'opencode'
+          ? `.opencode/skills/${skill.name}/SKILL.md`
+          : `.${platform}/skills/${skill.name}/SKILL.md`;
       const descriptions = (setup.fileDescriptions ?? {}) as Record<string, string>;
       descriptions[skillPath] = skill.description.slice(0, 80);
       setup.fileDescriptions = descriptions;
@@ -147,7 +149,7 @@ function collectSkillTopics(
 ): Array<{ platform: string; topic: SkillTopic }> {
   const topics: Array<{ platform: string; topic: SkillTopic }> = [];
 
-  for (const platform of ['claude', 'codex', 'cursor'] as const) {
+  for (const platform of ['claude', 'codex', 'opencode', 'cursor'] as const) {
     if (!targetAgent.includes(platform)) continue;
     const platformObj = setup[platform] as Record<string, unknown> | undefined;
     const skillTopics = platformObj?.skillTopics as SkillTopic[] | undefined;

@@ -3,17 +3,19 @@ import { writeClaudeConfig } from './claude/index.js';
 import { writeCursorConfig } from './cursor/index.js';
 import { writeCodexConfig } from './codex/index.js';
 import { writeGithubCopilotConfig } from './github-copilot/index.js';
+import { writeOpencodeConfig } from './opencode/index.js';
 import { createBackup, restoreBackup } from './backup.js';
 import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
 import { MANIFEST_FILE } from '../constants.js';
 import { readManifest, writeManifest, fileChecksum, type ManifestEntry } from './manifest.js';
 
 export interface AgentSetup {
-  targetAgent: ('claude' | 'cursor' | 'codex' | 'github-copilot')[];
+  targetAgent: ('claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot')[];
   deletions?: Array<{ filePath: string; reason: string }>;
   claude?: Parameters<typeof writeClaudeConfig>[0];
   cursor?: Parameters<typeof writeCursorConfig>[0];
   codex?: Parameters<typeof writeCodexConfig>[0];
+  opencode?: Parameters<typeof writeOpencodeConfig>[0];
   copilot?: Parameters<typeof writeGithubCopilotConfig>[0];
 }
 
@@ -42,6 +44,11 @@ export function writeSetup(setup: AgentSetup): {
 
   if (setup.targetAgent.includes('codex') && setup.codex) {
     written.push(...writeCodexConfig(setup.codex));
+  }
+
+  if (setup.targetAgent.includes('opencode') && setup.opencode) {
+    const agentsMdAlreadyWritten = written.includes('AGENTS.md');
+    written.push(...writeOpencodeConfig(setup.opencode, agentsMdAlreadyWritten));
   }
 
   if (setup.targetAgent.includes('github-copilot') && setup.copilot) {
@@ -135,6 +142,15 @@ export function getFilesToWrite(setup: AgentSetup): string[] {
     files.push('AGENTS.md');
     if (setup.codex.skills) {
       for (const s of setup.codex.skills) files.push(`.agents/skills/${s.name}/SKILL.md`);
+    }
+  }
+
+  if (setup.targetAgent.includes('opencode') && setup.opencode) {
+    if (!setup.targetAgent.includes('codex')) {
+      files.push('AGENTS.md');
+    }
+    if (setup.opencode.skills) {
+      for (const s of setup.opencode.skills) files.push(`.opencode/skills/${s.name}/SKILL.md`);
     }
   }
 

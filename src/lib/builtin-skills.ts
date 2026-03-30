@@ -366,6 +366,7 @@ export const PLATFORM_CONFIGS: Array<{ platformDir: string; skillsDir: string }>
   { platformDir: '.claude', skillsDir: path.join('.claude', 'skills') },
   { platformDir: '.cursor', skillsDir: path.join('.cursor', 'skills') },
   { platformDir: '.agents', skillsDir: path.join('.agents', 'skills') },
+  { platformDir: '.opencode', skillsDir: path.join('.opencode', 'skills') },
 ];
 
 export const BUILTIN_SKILL_NAMES = new Set(BUILTIN_SKILLS.map(s => s.name));

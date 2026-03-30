@@ -13,6 +13,7 @@ interface RefreshDiff {
 }
 
 interface ExistingDocs {
+  agentsMd?: string;
   claudeMd?: string;
   readmeMd?: string;
   claudeSettings?: Record<string, unknown>;
@@ -30,6 +31,7 @@ interface ProjectContext {
 
 interface RefreshResponse {
   updatedDocs: {
+    agentsMd?: string | null;
     claudeMd?: string | null;
     readmeMd?: string | null;
     cursorrules?: string | null;
@@ -98,6 +100,10 @@ function buildRefreshPrompt(
 
   parts.push('\n--- Current Documentation ---');
 
+  if (existingDocs.agentsMd) {
+    parts.push('\n[AGENTS.md]');
+    parts.push(existingDocs.agentsMd);
+  }
   if (existingDocs.claudeMd) {
     parts.push('\n[CLAUDE.md]');
     parts.push(existingDocs.claudeMd);

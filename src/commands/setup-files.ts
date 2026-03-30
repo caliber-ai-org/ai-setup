@@ -6,7 +6,7 @@ export { buildSkillContent };
 
 export function collectSetupFiles(
   setup: Record<string, unknown>,
-  targetAgent?: ('claude' | 'cursor' | 'codex' | 'github-copilot')[],
+  targetAgent?: ('claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot')[],
 ): Array<{ path: string; content: string }> {
   const files: Array<{ path: string; content: string }> = [];
   const claude = setup.claude as Record<string, unknown> | undefined;
@@ -83,6 +83,30 @@ export function collectSetupFiles(
     }
   }
 
+  const opencode = setup.opencode as Record<string, unknown> | undefined;
+  if (opencode) {
+    if (opencode.agentsMd && !files.some((f) => f.path === 'AGENTS.md')) {
+      files.push({ path: 'AGENTS.md', content: opencode.agentsMd as string });
+    }
+    const opencodeSkills = opencode.skills as
+      | Array<{ name: string; description: string; content: string }>
+      | undefined;
+    if (Array.isArray(opencodeSkills)) {
+      for (const skill of opencodeSkills) {
+        files.push({
+          path: `.opencode/skills/${sanitizePath(skill.name)}/SKILL.md`,
+          content: buildSkillContent(skill),
+        });
+      }
+    }
+    for (const builtin of BUILTIN_SKILLS) {
+      files.push({
+        path: `.opencode/skills/${builtin.name}/SKILL.md`,
+        content: buildSkillContent(builtin),
+      });
+    }
+  }
+
   const copilot = setup.copilot as Record<string, unknown> | undefined;
   if (copilot) {
     if (copilot.instructions)
@@ -104,7 +128,8 @@ export function collectSetupFiles(
   }
 
   const codexTargeted = targetAgent ? targetAgent.includes('codex') : false;
-  if (codexTargeted && !fs.existsSync('AGENTS.md') && !(codex && codex.agentsMd)) {
+  const opencodeTargeted = targetAgent ? targetAgent.includes('opencode') : false;
+  if ((codexTargeted || opencodeTargeted) && !fs.existsSync('AGENTS.md') && !(codex && codex.agentsMd) && !(opencode && opencode.agentsMd)) {
     const agentRefs: string[] = [];
     if (claude) agentRefs.push('See `CLAUDE.md` for Claude Code configuration.');
     if (cursor) agentRefs.push('See `.cursor/rules/` for Cursor rules.');

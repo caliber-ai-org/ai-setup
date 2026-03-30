@@ -3,6 +3,7 @@ import path from 'path';
 import { appendPreCommitBlock, appendLearningsBlock } from './pre-commit-block.js';
 
 interface RefreshDocs {
+  agentsMd?: string | null;
   claudeMd?: string | null;
   readmeMd?: string | null;
   cursorrules?: string | null;
@@ -14,6 +15,11 @@ interface RefreshDocs {
 
 export function writeRefreshDocs(docs: RefreshDocs): string[] {
   const written: string[] = [];
+
+  if (docs.agentsMd) {
+    fs.writeFileSync('AGENTS.md', appendLearningsBlock(appendPreCommitBlock(docs.agentsMd)));
+    written.push('AGENTS.md');
+  }
 
   if (docs.claudeMd) {
     fs.writeFileSync('CLAUDE.md', appendLearningsBlock(appendPreCommitBlock(docs.claudeMd)));

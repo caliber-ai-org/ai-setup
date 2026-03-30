@@ -32,7 +32,9 @@ export function formatWhatChanged(setup: Record<string, unknown>): string[] {
     lines.push(`${action} CLAUDE.md`);
   }
 
-  if (codex?.agentsMd) {
+  const opencode = setup.opencode as Record<string, unknown> | undefined;
+
+  if (codex?.agentsMd || opencode?.agentsMd) {
     const action = fs.existsSync('AGENTS.md') ? 'Updated' : 'Created';
     lines.push(`${action} AGENTS.md`);
   }
@@ -41,6 +43,7 @@ export function formatWhatChanged(setup: Record<string, unknown>): string[] {
   for (const [_platform, obj] of [
     ['claude', claude],
     ['codex', codex],
+    ['opencode', opencode],
     ['cursor', cursor],
   ] as const) {
     const skills = (obj as Record<string, unknown> | undefined)?.skills as
@@ -136,6 +139,32 @@ export function printSetupSummary(setup: Record<string, unknown>) {
     if (Array.isArray(codexSkills) && codexSkills.length > 0) {
       for (const skill of codexSkills) {
         const skillPath = `.agents/skills/${skill.name}/SKILL.md`;
+        const icon = fs.existsSync(skillPath) ? chalk.yellow('~') : chalk.green('+');
+        const desc = getDescription(skillPath);
+        console.log(`  ${icon} ${chalk.bold(skillPath)}`);
+        console.log(chalk.dim(`    ${desc || skill.description || skill.name}`));
+        console.log('');
+      }
+    }
+  }
+
+  const opencode = setup.opencode as Record<string, unknown> | undefined;
+
+  if (opencode) {
+    if (opencode.agentsMd && !(codex?.agentsMd)) {
+      const icon = fs.existsSync('AGENTS.md') ? chalk.yellow('~') : chalk.green('+');
+      const desc = getDescription('AGENTS.md');
+      console.log(`  ${icon} ${chalk.bold('AGENTS.md')} ${chalk.dim('(OpenCode)')}`);
+      if (desc) console.log(chalk.dim(`    ${desc}`));
+      console.log('');
+    }
+
+    const opencodeSkills = opencode.skills as
+      | Array<{ name: string; description: string; content: string }>
+      | undefined;
+    if (Array.isArray(opencodeSkills) && opencodeSkills.length > 0) {
+      for (const skill of opencodeSkills) {
+        const skillPath = `.opencode/skills/${skill.name}/SKILL.md`;
         const icon = fs.existsSync(skillPath) ? chalk.yellow('~') : chalk.green('+');
         const desc = getDescription(skillPath);
         console.log(`  ${icon} ${chalk.bold(skillPath)}`);
