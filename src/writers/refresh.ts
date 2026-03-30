@@ -8,25 +8,8 @@ interface RefreshDocs {
   readmeMd?: string | null;
   cursorrules?: string | null;
   cursorRules?: Array<{ filename: string; content: string }> | null;
-  claudeSkills?: Array<{ filename: string; content: string }> | null;
-  cursorSkills?: Array<{ name: string; content: string }> | null;
   copilotInstructions?: string | null;
   copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
-  codexSkills?: Array<{ name: string; content: string }> | null;
-  opencodeSkills?: Array<{ name: string; content: string }> | null;
-}
-
-function writeSkillFiles(
-  skills: Array<{ name: string; content: string }>,
-  baseDir: string,
-  written: string[],
-): void {
-  for (const skill of skills) {
-    const skillDir = path.join(baseDir, skill.name);
-    fs.mkdirSync(skillDir, { recursive: true });
-    fs.writeFileSync(path.join(skillDir, 'SKILL.md'), skill.content);
-    written.push(`${baseDir}/${skill.name}/SKILL.md`);
-  }
 }
 
 export function writeRefreshDocs(docs: RefreshDocs): string[] {
@@ -60,19 +43,6 @@ export function writeRefreshDocs(docs: RefreshDocs): string[] {
       written.push(`.cursor/rules/${rule.filename}`);
     }
   }
-
-  if (docs.claudeSkills) {
-    const skillsDir = path.join('.claude', 'skills');
-    if (!fs.existsSync(skillsDir)) fs.mkdirSync(skillsDir, { recursive: true });
-    for (const skill of docs.claudeSkills) {
-      fs.writeFileSync(path.join(skillsDir, skill.filename), skill.content);
-      written.push(`.claude/skills/${skill.filename}`);
-    }
-  }
-
-  if (docs.cursorSkills) writeSkillFiles(docs.cursorSkills, '.cursor/skills', written);
-  if (docs.codexSkills) writeSkillFiles(docs.codexSkills, '.agents/skills', written);
-  if (docs.opencodeSkills) writeSkillFiles(docs.opencodeSkills, '.opencode/skills', written);
 
   if (docs.copilotInstructions) {
     fs.mkdirSync('.github', { recursive: true });

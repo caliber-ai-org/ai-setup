@@ -90,8 +90,8 @@ describe('refreshDocs', () => {
         claudeMd: '# My CLAUDE.md',
         readmeMd: '# README',
         cursorrules: 'cursor rules content',
-        claudeSkills: [{ filename: 'test.md', content: 'skill content' }],
         cursorRules: [{ filename: 'rule.mdc', content: 'rule content' }],
+        copilotInstructions: '# Copilot instructions',
       },
       baseContext,
     );
@@ -101,8 +101,8 @@ describe('refreshDocs', () => {
     expect(prompt).toContain('# My CLAUDE.md');
     expect(prompt).toContain('[README.md]');
     expect(prompt).toContain('[.cursorrules]');
-    expect(prompt).toContain('[.claude/skills/test.md]');
     expect(prompt).toContain('[.cursor/rules/rule.mdc]');
+    expect(prompt).toContain('[.github/copilot-instructions.md]');
   });
 
   it('omits empty diff sections', async () => {
@@ -130,7 +130,7 @@ describe('refreshDocs', () => {
     expect(prompt).not.toContain('--- Unstaged Changes ---');
   });
 
-  it('uses dynamic maxTokens based on doc count (min 8192)', async () => {
+  it('uses fixed maxTokens of 16384', async () => {
     mockedLlmCall.mockResolvedValue('{}');
     mockedParseJson.mockReturnValue({
       updatedDocs: {},
@@ -139,33 +139,7 @@ describe('refreshDocs', () => {
     });
 
     await refreshDocs(baseDiff, {}, baseContext);
-    // 0 docs → max(8192, 0*4096) = 8192
-    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(8192);
-  });
-
-  it('scales maxTokens with doc count', async () => {
-    mockedLlmCall.mockResolvedValue('{}');
-    mockedParseJson.mockReturnValue({
-      updatedDocs: {},
-      changesSummary: '',
-      docsUpdated: [],
-    });
-
-    await refreshDocs(
-      baseDiff,
-      {
-        claudeMd: '# Project',
-        agentsMd: '# Agents',
-        copilotInstructions: '# Copilot',
-        claudeSkills: [
-          { filename: 's1/SKILL.md', content: '' },
-          { filename: 's2/SKILL.md', content: '' },
-        ],
-      },
-      baseContext,
-    );
-    // 3 markdown docs + 2 skills = 5 → max(8192, 5*4096) = 20480
-    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(20480);
+    expect(mockedLlmCall.mock.calls[0][0].maxTokens).toBe(16384);
   });
 
   it('passes CALIBER_FAST_MODEL as model override when set', async () => {

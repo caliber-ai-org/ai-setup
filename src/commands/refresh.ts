@@ -55,21 +55,6 @@ function collectFilesToWrite(updatedDocs: Record<string, unknown>): string[] {
     for (const r of updatedDocs.cursorRules as Array<{ filename: string }>)
       files.push(`.cursor/rules/${r.filename}`);
   }
-  if (Array.isArray(updatedDocs.claudeSkills)) {
-    for (const s of updatedDocs.claudeSkills as Array<{ filename: string }>)
-      files.push(`.claude/skills/${s.filename}`);
-  }
-  const skillSets: Array<{ key: string; dir: string }> = [
-    { key: 'cursorSkills', dir: '.cursor/skills' },
-    { key: 'codexSkills', dir: '.agents/skills' },
-    { key: 'opencodeSkills', dir: '.opencode/skills' },
-  ];
-  for (const { key, dir } of skillSets) {
-    if (Array.isArray(updatedDocs[key])) {
-      for (const s of updatedDocs[key] as Array<{ name: string }>)
-        files.push(`${dir}/${s.name}/SKILL.md`);
-    }
-  }
   if (updatedDocs.copilotInstructions) files.push('.github/copilot-instructions.md');
   if (Array.isArray(updatedDocs.copilotInstructionFiles)) {
     for (const f of updatedDocs.copilotInstructionFiles as Array<{ filename: string }>)

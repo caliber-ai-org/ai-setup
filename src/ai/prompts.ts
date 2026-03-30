@@ -350,12 +350,8 @@ Return a JSON object with this exact shape:
     "readmeMd": "<updated content or null>",
     "cursorrules": "<updated content or null>",
     "cursorRules": [{"filename": "name.mdc", "content": "..."}] or null,
-    "claudeSkills": [{"filename": "name.md", "content": "..."}] or null,
-    "cursorSkills": [{"name": "skill-name", "content": "..."}] or null,
     "copilotInstructions": "<updated content or null>",
-    "copilotInstructionFiles": [{"filename": "name.instructions.md", "content": "..."}] or null,
-    "codexSkills": [{"name": "skill-name", "content": "..."}] or null,
-    "opencodeSkills": [{"name": "skill-name", "content": "..."}] or null
+    "copilotInstructionFiles": [{"filename": "name.instructions.md", "content": "..."}] or null
   },
   "changesSummary": "<1-2 sentence summary of what was updated and why>",
   "docsUpdated": ["CLAUDE.md", "README.md"]

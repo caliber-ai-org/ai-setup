@@ -3,7 +3,6 @@ import { getFastModel } from '../llm/config.js';
 import { REFRESH_SYSTEM_PROMPT } from './prompts.js';
 import type { SourceSummary } from '../fingerprint/sources.js';
 import { formatSourcesForPrompt } from '../fingerprint/sources.js';
-import { BUILTIN_SKILL_NAMES } from '../lib/builtin-skills.js';
 import { stripManagedBlocks } from '../writers/pre-commit-block.js';
 
 interface RefreshDiff {
@@ -18,15 +17,10 @@ interface ExistingDocs {
   agentsMd?: string;
   claudeMd?: string;
   readmeMd?: string;
-  claudeSettings?: Record<string, unknown>;
-  claudeSkills?: Array<{ filename: string; content: string }>;
   cursorrules?: string;
   cursorRules?: Array<{ filename: string; content: string }>;
-  cursorSkills?: Array<{ name: string; filename: string; content: string }>;
   copilotInstructions?: string;
   copilotInstructionFiles?: Array<{ filename: string; content: string }>;
-  codexSkills?: Array<{ name: string; filename: string; content: string }>;
-  opencodeSkills?: Array<{ name: string; filename: string; content: string }>;
 }
 
 interface ProjectContext {
@@ -43,12 +37,8 @@ interface RefreshResponse {
     readmeMd?: string | null;
     cursorrules?: string | null;
     cursorRules?: Array<{ filename: string; content: string }> | null;
-    claudeSkills?: Array<{ filename: string; content: string }> | null;
     copilotInstructions?: string | null;
     copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
-    codexSkills?: Array<{ name: string; content: string }> | null;
-    opencodeSkills?: Array<{ name: string; content: string }> | null;
-    cursorSkills?: Array<{ name: string; content: string }> | null;
   };
   changesSummary: string;
   docsUpdated: string[];
@@ -64,26 +54,10 @@ export async function refreshDocs(
   const prompt = buildRefreshPrompt(diff, existingDocs, projectContext, learnedSection, sources);
   const fastModel = getFastModel();
 
-  const docCount =
-    [
-      existingDocs.claudeMd,
-      existingDocs.agentsMd,
-      existingDocs.readmeMd,
-      existingDocs.copilotInstructions,
-      existingDocs.cursorrules,
-    ].filter(Boolean).length +
-    (existingDocs.claudeSkills?.length ?? 0) +
-    (existingDocs.cursorRules?.length ?? 0) +
-    (existingDocs.cursorSkills?.length ?? 0) +
-    (existingDocs.copilotInstructionFiles?.length ?? 0) +
-    (existingDocs.codexSkills?.length ?? 0) +
-    (existingDocs.opencodeSkills?.length ?? 0);
-  const maxTokens = Math.min(32768, Math.max(8192, docCount * 4096));
-
   const raw = await llmCall({
     system: REFRESH_SYSTEM_PROMPT,
     prompt,
-    maxTokens,
+    maxTokens: 16384,
     ...(fastModel ? { model: fastModel } : {}),
   });
 
@@ -148,33 +122,11 @@ function buildRefreshPrompt(
     parts.push('\n[.cursorrules]');
     parts.push(existingDocs.cursorrules);
   }
-  if (existingDocs.claudeSkills?.length) {
-    for (const skill of existingDocs.claudeSkills) {
-      const skillName = skill.filename.split('/')[0];
-      if (BUILTIN_SKILL_NAMES.has(skillName)) continue;
-      parts.push(`\n[.claude/skills/${skill.filename}]`);
-      parts.push(skill.content);
-    }
-  }
   if (existingDocs.cursorRules?.length) {
     for (const rule of existingDocs.cursorRules) {
       if (rule.filename.startsWith('caliber-')) continue;
       parts.push(`\n[.cursor/rules/${rule.filename}]`);
       parts.push(rule.content);
-    }
-  }
-  const skillSources: Array<{ skills?: Array<{ name: string; content: string }>; prefix: string }> =
-    [
-      { skills: existingDocs.cursorSkills, prefix: '.cursor/skills' },
-      { skills: existingDocs.codexSkills, prefix: '.agents/skills' },
-      { skills: existingDocs.opencodeSkills, prefix: '.opencode/skills' },
-    ];
-  for (const { skills, prefix } of skillSources) {
-    if (!skills?.length) continue;
-    for (const skill of skills) {
-      if (BUILTIN_SKILL_NAMES.has(skill.name)) continue;
-      parts.push(`\n[${prefix}/${skill.name}/SKILL.md]`);
-      parts.push(skill.content);
     }
   }
   if (existingDocs.copilotInstructions) {

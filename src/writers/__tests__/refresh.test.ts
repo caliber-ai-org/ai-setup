@@ -75,28 +75,6 @@ describe('writeRefreshDocs', () => {
     expect(written).toEqual([]);
   });
 
-  it('writes cursor skills via writeSkillFiles', () => {
-    const written = writeRefreshDocs({
-      cursorSkills: [{ name: 'testing', content: '# Testing skill' }],
-    });
-    expect(written).toContain('.cursor/skills/testing/SKILL.md');
-    expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalled();
-  });
-
-  it('writes codex skills via writeSkillFiles', () => {
-    const written = writeRefreshDocs({
-      codexSkills: [{ name: 'api-routes', content: '# API routes' }],
-    });
-    expect(written).toContain('.agents/skills/api-routes/SKILL.md');
-  });
-
-  it('writes opencode skills via writeSkillFiles', () => {
-    const written = writeRefreshDocs({
-      opencodeSkills: [{ name: 'deploy', content: '# Deploy' }],
-    });
-    expect(written).toContain('.opencode/skills/deploy/SKILL.md');
-  });
-
   it('writes AGENTS.md with all managed blocks (codex platform)', () => {
     const written = writeRefreshDocs({
       agentsMd: '# Agents\n\nProject instructions.\n',
