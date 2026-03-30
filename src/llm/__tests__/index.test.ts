@@ -13,11 +13,46 @@ const {
   MockCursorAcpProvider,
   MockClaudeCliProvider,
 } = vi.hoisted(() => {
-  class MockAnthropicProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockVertexProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockOpenAIProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockCursorAcpProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockClaudeCliProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
+  class MockAnthropicProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockVertexProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockOpenAIProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockCursorAcpProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockClaudeCliProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
 
   return {
     mockLoadConfig: vi.fn(),
@@ -68,13 +103,19 @@ describe('getProvider', () => {
   });
 
   it('creates AnthropicProvider for anthropic config', () => {
-    mockLoadConfig.mockReturnValue({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test' });
+    mockLoadConfig.mockReturnValue({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-test',
+    });
 
     const provider = getProvider();
 
     expect(provider).toBeInstanceOf(MockAnthropicProvider);
     expect((provider as InstanceType<typeof MockAnthropicProvider>).config).toEqual({
-      provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-test',
     });
   });
 
@@ -117,7 +158,11 @@ describe('getProvider', () => {
   });
 
   it('caches provider on subsequent calls', () => {
-    mockLoadConfig.mockReturnValue({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test' });
+    mockLoadConfig.mockReturnValue({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-test',
+    });
 
     const first = getProvider();
     const second = getProvider();
@@ -140,12 +185,16 @@ describe('getConfig', () => {
   });
 
   it('returns config from loadConfig', () => {
-    mockLoadConfig.mockReturnValue({ provider: 'openai', model: 'gpt-4.1', apiKey: 'sk-test' });
+    mockLoadConfig.mockReturnValue({
+      provider: 'openai',
+      model: 'gpt-5.4-mini',
+      apiKey: 'sk-test',
+    });
 
     const config = getConfig();
 
     expect(config.provider).toBe('openai');
-    expect(config.model).toBe('gpt-4.1');
+    expect(config.model).toBe('gpt-5.4-mini');
   });
 
   it('throws when no config is available', () => {

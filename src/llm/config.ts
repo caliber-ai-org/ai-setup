@@ -9,7 +9,7 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 export const DEFAULT_MODELS: Record<ProviderType, string> = {
   anthropic: 'claude-sonnet-4-6',
   vertex: 'claude-sonnet-4-6',
-  openai: 'gpt-4.1',
+  openai: 'gpt-5.4-mini',
   cursor: 'sonnet-4.6',
   'claude-cli': 'default',
 };
@@ -19,8 +19,7 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'claude-opus-4-6': 200_000,
   'claude-haiku-4-5-20251001': 200_000,
   'claude-sonnet-4-5-20250514': 200_000,
-  'gpt-4.1': 1_000_000,
-  'gpt-4.1-mini': 1_000_000,
+  'gpt-5.4-mini': 1_000_000,
   'gpt-4o': 128_000,
   'gpt-4o-mini': 128_000,
   'sonnet-4.6': 200_000,
@@ -44,7 +43,7 @@ export function getMaxPromptTokens(): number {
 export const DEFAULT_FAST_MODELS: Partial<Record<ProviderType, string>> = {
   anthropic: 'claude-haiku-4-5-20251001',
   vertex: 'claude-haiku-4-5-20251001',
-  openai: 'gpt-4.1-mini',
+  openai: 'gpt-5.4-mini',
   cursor: 'gpt-5.3-codex-fast',
 };
 

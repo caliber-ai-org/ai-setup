@@ -143,13 +143,13 @@ describe('refreshDocs', () => {
   });
 
   it('passes CALIBER_FAST_MODEL as model override when set', async () => {
-    process.env.CALIBER_FAST_MODEL = 'gpt-4.1-mini';
+    process.env.CALIBER_FAST_MODEL = 'gpt-5.4-mini';
     mockedLlmCall.mockResolvedValue('{}');
     mockedParseJson.mockReturnValue({ updatedDocs: {}, changesSummary: '', docsUpdated: [] });
 
     await refreshDocs(baseDiff, {}, baseContext);
 
-    expect(mockedLlmCall.mock.calls[0][0].model).toBe('gpt-4.1-mini');
+    expect(mockedLlmCall.mock.calls[0][0].model).toBe('gpt-5.4-mini');
   });
 
   it('falls back to ANTHROPIC_SMALL_FAST_MODEL', async () => {

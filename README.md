@@ -285,9 +285,9 @@ No API key? No problem. Caliber works with your existing AI tool subscription:
 | **Claude Code** (your seat) | `caliber config` → Claude Code | Inherited from Claude Code |
 | **Cursor** (your seat) | `caliber config` → Cursor | Inherited from Cursor |
 | **Anthropic** | `export ANTHROPIC_API_KEY=sk-ant-...` | `claude-sonnet-4-6` |
-| **OpenAI** | `export OPENAI_API_KEY=sk-...` | `gpt-4.1` |
+| **OpenAI** | `export OPENAI_API_KEY=sk-...` | `gpt-5.4-mini` |
 | **Vertex AI** | `export VERTEX_PROJECT_ID=my-project` | `claude-sonnet-4-6` |
-| **Custom endpoint** | `OPENAI_API_KEY` + `OPENAI_BASE_URL` | `gpt-4.1` |
+| **Custom endpoint** | `OPENAI_API_KEY` + `OPENAI_BASE_URL` | `gpt-5.4-mini` |
 
 Override the model for any provider: `export CALIBER_MODEL=<model-name>` or use `caliber config`.
 
