@@ -308,7 +308,7 @@ describe('Hook script correctness', () => {
     expect(script).toContain('"decision":"block"');
   });
 
-  it('SessionStart hook is executable', async () => {
+  it.skipIf(process.platform === 'win32')('SessionStart hook is executable', async () => {
     const { installSessionStartHook } = await import('../lib/hooks.js');
     installSessionStartHook();
 
