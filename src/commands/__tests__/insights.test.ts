@@ -127,7 +127,7 @@ describe('insights command', () => {
 
     const output = logSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('Learning hooks not installed');
-    expect(output).toContain('learn install');
+    expect(output).toContain('caliber learn install');
   });
 
   it('shows "no data yet" when hooks installed but no sessions', async () => {
