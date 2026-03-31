@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+// 👇 Yahan maine 'export' laga diya hai taaki doosri file isko use kar sake
 export const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.next', 'dist', 'build', '.cache',
   '.turbo', 'coverage', '.caliber', '__pycache__', '.venv',
