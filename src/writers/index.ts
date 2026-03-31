@@ -120,6 +120,9 @@ export function getFilesToWrite(setup: AgentSetup): string[] {
   if (setup.targetAgent.includes('claude') && setup.claude) {
     files.push('CLAUDE.md');
     if (setup.claude.mcpServers) files.push('.mcp.json');
+    if (setup.claude.rules) {
+      for (const r of setup.claude.rules) files.push(`.claude/rules/${r.filename}`);
+    }
     if (setup.claude.skills) {
       for (const s of setup.claude.skills) {
         files.push(`.claude/skills/${s.name.replace(/[^a-z0-9-]/gi, '-').toLowerCase()}/SKILL.md`);

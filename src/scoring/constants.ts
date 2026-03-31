@@ -16,7 +16,7 @@ export const CATEGORY_MAX = {
   bonus: 7,
 } as const;
 
-// ── Existence checks (25 pts) ─────────────────────────────────────────
+// ── Existence checks (per-target subset of these; normalized to 100) ──
 export const POINTS_CLAUDE_MD_EXISTS = 6;
 export const POINTS_CURSOR_RULES_EXIST = 3;
 export const POINTS_SKILLS_EXIST = 6;
@@ -24,6 +24,7 @@ export const POINTS_SKILLS_BONUS_PER_EXTRA = 1;
 export const POINTS_SKILLS_BONUS_CAP = 2;
 export const POINTS_CURSOR_MDC_RULES = 3;
 export const POINTS_MCP_SERVERS = 3;
+export const POINTS_CLAUDE_RULES = 3;
 export const POINTS_CROSS_PLATFORM_PARITY = 2;
 
 // ── Quality checks (25 pts) ──────────────────────────────────────────
@@ -134,7 +135,11 @@ export const SECRET_PLACEHOLDER_PATTERNS = [
 // ── Platform-specific check IDs ───────────────────────────────────────
 export const CURSOR_ONLY_CHECKS = new Set(['cursor_rules_exist', 'cursor_mdc_rules']);
 
-export const CLAUDE_ONLY_CHECKS = new Set(['claude_md_exists', 'claude_md_freshness']);
+export const CLAUDE_ONLY_CHECKS = new Set([
+  'claude_md_exists',
+  'claude_md_freshness',
+  'claude_rules_exist',
+]);
 
 export const BOTH_ONLY_CHECKS = new Set(['cross_platform_parity', 'no_duplicate_content']);
 

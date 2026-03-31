@@ -106,6 +106,10 @@ export function collectFilesToWrite(
     (dir === '.' ? relPath : path.join(dir, relPath)).replace(/\\/g, '/');
   if (updatedDocs.agentsMd) files.push(p('AGENTS.md'));
   if (updatedDocs.claudeMd) files.push(p('CLAUDE.md'));
+  if (Array.isArray(updatedDocs.claudeRules)) {
+    for (const r of updatedDocs.claudeRules as Array<{ filename: string }>)
+      files.push(p(`.claude/rules/${r.filename}`));
+  }
   if (updatedDocs.readmeMd) files.push(p('README.md'));
   if (updatedDocs.cursorrules) files.push(p('.cursorrules'));
   if (Array.isArray(updatedDocs.cursorRules)) {

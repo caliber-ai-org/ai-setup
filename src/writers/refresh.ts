@@ -5,11 +5,24 @@ import { appendManagedBlocks } from './pre-commit-block.js';
 interface RefreshDocs {
   agentsMd?: string | null;
   claudeMd?: string | null;
+  claudeRules?: Array<{ filename: string; content: string }> | null;
   readmeMd?: string | null;
   cursorrules?: string | null;
   cursorRules?: Array<{ filename: string; content: string }> | null;
   copilotInstructions?: string | null;
   copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
+}
+
+function writeFileGroup(
+  groupDir: string,
+  files: Array<{ filename: string; content: string }>,
+): string[] {
+  fs.mkdirSync(groupDir, { recursive: true });
+  return files.map((file) => {
+    const filePath = path.join(groupDir, file.filename);
+    fs.writeFileSync(filePath, file.content);
+    return filePath.replace(/\\/g, '/');
+  });
 }
 
 export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[] {
@@ -35,6 +48,10 @@ export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[]
     written.push(filePath);
   }
 
+  if (docs.claudeRules) {
+    written.push(...writeFileGroup(p(path.join('.claude', 'rules')), docs.claudeRules));
+  }
+
   if (docs.readmeMd) {
     const filePath = p('README.md');
     ensureParent(filePath);
@@ -50,12 +67,7 @@ export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[]
   }
 
   if (docs.cursorRules) {
-    const rulesDir = p(path.join('.cursor', 'rules'));
-    if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
-    for (const rule of docs.cursorRules) {
-      fs.writeFileSync(path.join(rulesDir, rule.filename), rule.content);
-      written.push(p(path.join('.cursor', 'rules', rule.filename)));
-    }
+    written.push(...writeFileGroup(p(path.join('.cursor', 'rules')), docs.cursorRules));
   }
 
   if (docs.copilotInstructions) {
@@ -66,12 +78,9 @@ export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[]
   }
 
   if (docs.copilotInstructionFiles) {
-    const instructionsDir = p(path.join('.github', 'instructions'));
-    if (!fs.existsSync(instructionsDir)) fs.mkdirSync(instructionsDir, { recursive: true });
-    for (const file of docs.copilotInstructionFiles) {
-      fs.writeFileSync(path.join(instructionsDir, file.filename), file.content);
-      written.push(p(path.join('.github', 'instructions', file.filename)));
-    }
+    written.push(
+      ...writeFileGroup(p(path.join('.github', 'instructions')), docs.copilotInstructionFiles),
+    );
   }
 
   return written;

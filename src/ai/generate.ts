@@ -28,6 +28,7 @@ interface GeneratedSkill {
   name: string;
   description: string;
   content: string;
+  paths?: string[];
 }
 
 const CORE_MAX_TOKENS = 16000;
@@ -298,6 +299,7 @@ async function generateSkill(
     name: result.name || topic.name,
     description: result.description || topic.description,
     content,
+    ...(result.paths?.length ? { paths: result.paths } : {}),
   };
 }
 
@@ -602,6 +604,7 @@ export function buildGeneratePrompt(
     existing.claudeMd ||
     existing.claudeSettings ||
     existing.claudeSkills?.length ||
+    existing.claudeRules?.length ||
     existing.readmeMd ||
     existing.agentsMd ||
     existing.cursorrules ||
@@ -691,6 +694,15 @@ export function buildGeneratePrompt(
     }
   }
 
+  if (existing.claudeRules?.length) {
+    parts.push('\n--- Existing Claude Rules ---');
+    for (const rule of existing.claudeRules.slice(0, LIMITS.RULES_MAX)) {
+      parts.push(
+        `\n[.claude/rules/${rule.filename}]\n${truncate(rule.content, LIMITS.SKILL_CHARS)}`,
+      );
+    }
+  }
+
   if (existing.cursorrules)
     parts.push(
       `\nExisting .cursorrules:\n${truncate(existing.cursorrules, LIMITS.EXISTING_CONFIG_CHARS)}`,
@@ -730,6 +742,14 @@ export function buildGeneratePrompt(
   if (allDeps.length > 0) {
     parts.push(`\nProject dependencies (${allDeps.length}):`);
     parts.push(allDeps.join(', '));
+  }
+
+  if (existing.includableDocs?.length) {
+    parts.push('\n--- Existing Documentation Files (use @include) ---');
+    parts.push('These files exist and can be referenced in CLAUDE.md using @./path:');
+    for (const doc of existing.includableDocs) {
+      parts.push(`- ${doc}`);
+    }
   }
 
   if (prompt) parts.push(`\nUser instructions: ${prompt}`);

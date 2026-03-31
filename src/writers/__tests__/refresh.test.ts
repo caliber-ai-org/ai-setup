@@ -114,6 +114,20 @@ describe('writeRefreshDocs', () => {
     expect(content).toContain('/setup-caliber');
   });
 
+  it('writes claude rules to .claude/rules/', () => {
+    const written = writeRefreshDocs({
+      claudeRules: [
+        { filename: 'testing.md', content: '---\npaths:\n  - "**/*.test.ts"\n---\n\n# Testing\n' },
+      ],
+    });
+
+    const rulePath = written.find((p) => p.includes('testing.md'));
+    expect(rulePath).toBeDefined();
+    expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith(expect.stringContaining('.claude/rules'), {
+      recursive: true,
+    });
+  });
+
   describe('dir parameter', () => {
     it('prefixes CLAUDE.md path with dir', () => {
       const written = writeRefreshDocs({ claudeMd: '# Pkg' }, 'packages/frontend');
