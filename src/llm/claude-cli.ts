@@ -15,17 +15,18 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
 
 function spawnClaude(args: string[]): ChildProcess {
+  const env = { ...process.env, CLAUDE_CODE_SIMPLE: '1' };
   return IS_WINDOWS
     ? spawn([CLAUDE_CLI_BIN, ...args].join(' '), {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'] as const,
-        env: process.env,
+        env,
         shell: true,
       })
     : spawn(CLAUDE_CLI_BIN, args, {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: process.env,
+        env,
       });
 }
 
