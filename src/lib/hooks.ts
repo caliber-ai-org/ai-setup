@@ -102,11 +102,83 @@ export function removeHook(): { removed: boolean; notFound: boolean } {
   return { removed: true, notFound: false };
 }
 
-// ── SessionStart hook (onboarding nudge for new team members) ───────
+// ── Script hook factory ─────────────────────────────────────────────
 
-// ── Stop hook (onboarding nudge for new team members) ───────────────
-// Uses a Stop hook to block the agent from finishing until it mentions
-// Caliber setup. A per-repo flag file ensures the nudge fires only once.
+interface ScriptHookConfig {
+  eventName: string;
+  scriptPath: string;
+  scriptContent: string;
+  description: string;
+}
+
+function createScriptHook(config: ScriptHookConfig) {
+  const { eventName, scriptPath, scriptContent, description } = config;
+
+  const hasHook = (matchers: HookMatcher[]) =>
+    matchers.some((entry) => entry.hooks?.some((h) => h.description === description));
+
+  function isInstalled(): boolean {
+    const settings = readSettings();
+    const matchers = settings.hooks?.[eventName] as HookMatcher[] | undefined;
+    return Array.isArray(matchers) && hasHook(matchers);
+  }
+
+  function install(): { installed: boolean; alreadyInstalled: boolean } {
+    const settings = readSettings();
+    if (!settings.hooks) settings.hooks = {};
+
+    const matchers = settings.hooks[eventName] as HookMatcher[] | undefined;
+    if (Array.isArray(matchers) && hasHook(matchers)) {
+      return { installed: false, alreadyInstalled: true };
+    }
+
+    const scriptDir = path.dirname(scriptPath);
+    if (!fs.existsSync(scriptDir)) fs.mkdirSync(scriptDir, { recursive: true });
+    fs.writeFileSync(scriptPath, scriptContent);
+    fs.chmodSync(scriptPath, 0o755);
+
+    if (!Array.isArray(settings.hooks[eventName])) {
+      settings.hooks[eventName] = [];
+    }
+    (settings.hooks[eventName] as HookMatcher[]).push({
+      matcher: '',
+      hooks: [{ type: 'command', command: scriptPath, description }],
+    });
+
+    writeSettings(settings);
+    return { installed: true, alreadyInstalled: false };
+  }
+
+  function remove(): { removed: boolean; notFound: boolean } {
+    const settings = readSettings();
+    const matchers = settings.hooks?.[eventName] as HookMatcher[] | undefined;
+
+    if (!Array.isArray(matchers)) return { removed: false, notFound: true };
+
+    const idx = matchers.findIndex((entry) =>
+      entry.hooks?.some((h) => h.description === description),
+    );
+    if (idx === -1) return { removed: false, notFound: true };
+
+    matchers.splice(idx, 1);
+    if (matchers.length === 0) delete settings.hooks![eventName];
+    if (settings.hooks && Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+    writeSettings(settings);
+
+    try {
+      fs.unlinkSync(scriptPath);
+    } catch {
+      /* best effort */
+    }
+
+    return { removed: true, notFound: false };
+  }
+
+  return { isInstalled, install, remove };
+}
+
+// ── Stop hook (onboarding nudge) ────────────────────────────────────
 
 const STOP_HOOK_SCRIPT_CONTENT = `#!/bin/sh
 if grep -q "caliber" .git/hooks/pre-commit 2>/dev/null; then
@@ -121,72 +193,56 @@ touch "$FLAG"
 printf '{"decision":"block","reason":"Caliber agent config sync is not set up on this machine. Tell the user: This project uses Caliber to keep agent configs in sync — it is not set up yet. Want me to run /setup-caliber? (~30 seconds)"}'
 `;
 
-const STOP_HOOK_SCRIPT_PATH = path.join('.claude', 'hooks', 'caliber-check-sync.sh');
-const STOP_HOOK_DESCRIPTION = 'Caliber: offer setup if not configured';
+const stopHook = createScriptHook({
+  eventName: 'Stop',
+  scriptPath: path.join('.claude', 'hooks', 'caliber-check-sync.sh'),
+  scriptContent: STOP_HOOK_SCRIPT_CONTENT,
+  description: 'Caliber: offer setup if not configured',
+});
 
-function hasStopHook(matchers: HookMatcher[]): boolean {
-  return matchers.some((entry) =>
-    entry.hooks?.some((h) => h.description === STOP_HOOK_DESCRIPTION),
-  );
-}
+export const installStopHook = stopHook.install;
+export const removeStopHook = stopHook.remove;
 
-export function installStopHook(): { installed: boolean; alreadyInstalled: boolean } {
-  const settings = readSettings();
-  if (!settings.hooks) settings.hooks = {};
+// ── Freshness check script ───────────────────────────────────────────
 
-  const stop = settings.hooks.Stop as HookMatcher[] | undefined;
-  if (Array.isArray(stop) && hasStopHook(stop)) {
-    return { installed: false, alreadyInstalled: true };
-  }
+const FRESHNESS_SCRIPT = `#!/bin/sh
+STATE_FILE=".caliber/.caliber-state.json"
+[ ! -f "$STATE_FILE" ] && exit 0
+LAST_SHA=$(grep -o '"lastRefreshSha":"[^"]*"' "$STATE_FILE" 2>/dev/null | cut -d'"' -f4)
+[ -z "$LAST_SHA" ] && exit 0
+CURRENT_SHA=$(git rev-parse HEAD 2>/dev/null)
+[ "$LAST_SHA" = "$CURRENT_SHA" ] && exit 0
+COMMITS_BEHIND=$(git rev-list --count "$LAST_SHA".."$CURRENT_SHA" 2>/dev/null || echo 0)
+if [ "$COMMITS_BEHIND" -gt 15 ]; then
+  printf '{"systemMessage":"Caliber: agent configs are %s commits behind. Run caliber refresh to sync."}' "$COMMITS_BEHIND"
+fi
+`;
 
-  const scriptDir = path.dirname(STOP_HOOK_SCRIPT_PATH);
-  if (!fs.existsSync(scriptDir)) fs.mkdirSync(scriptDir, { recursive: true });
-  fs.writeFileSync(STOP_HOOK_SCRIPT_PATH, STOP_HOOK_SCRIPT_CONTENT);
-  fs.chmodSync(STOP_HOOK_SCRIPT_PATH, 0o755);
+// ── SessionStart hook (freshness check on session start) ────────────
 
-  if (!Array.isArray(settings.hooks.Stop)) {
-    settings.hooks.Stop = [];
-  }
-  (settings.hooks.Stop as HookMatcher[]).push({
-    matcher: '',
-    hooks: [
-      {
-        type: 'command',
-        command: STOP_HOOK_SCRIPT_PATH,
-        description: STOP_HOOK_DESCRIPTION,
-      },
-    ],
-  });
+const sessionStartHook = createScriptHook({
+  eventName: 'SessionStart',
+  scriptPath: path.join('.claude', 'hooks', 'caliber-session-freshness.sh'),
+  scriptContent: FRESHNESS_SCRIPT,
+  description: 'Caliber: check config freshness on session start',
+});
 
-  writeSettings(settings);
-  return { installed: true, alreadyInstalled: false };
-}
+export const isSessionStartHookInstalled = sessionStartHook.isInstalled;
+export const installSessionStartHook = sessionStartHook.install;
+export const removeSessionStartHook = sessionStartHook.remove;
 
-export function removeStopHook(): { removed: boolean; notFound: boolean } {
-  const settings = readSettings();
-  const stop = settings.hooks?.Stop as HookMatcher[] | undefined;
+// ── Notification hook (kept for backwards compat, not auto-installed) ─
 
-  if (!Array.isArray(stop)) return { removed: false, notFound: true };
+const notificationHook = createScriptHook({
+  eventName: 'Notification',
+  scriptPath: path.join('.claude', 'hooks', 'caliber-freshness-notify.sh'),
+  scriptContent: FRESHNESS_SCRIPT,
+  description: 'Caliber: warn when agent configs are stale',
+});
 
-  const idx = stop.findIndex((entry) =>
-    entry.hooks?.some((h) => h.description === STOP_HOOK_DESCRIPTION),
-  );
-  if (idx === -1) return { removed: false, notFound: true };
-
-  stop.splice(idx, 1);
-  if (stop.length === 0) delete settings.hooks!.Stop;
-  if (settings.hooks && Object.keys(settings.hooks).length === 0) delete settings.hooks;
-
-  writeSettings(settings);
-
-  try {
-    fs.unlinkSync(STOP_HOOK_SCRIPT_PATH);
-  } catch {
-    /* best effort */
-  }
-
-  return { removed: true, notFound: false };
-}
+export const isNotificationHookInstalled = notificationHook.isInstalled;
+export const installNotificationHook = notificationHook.install;
+export const removeNotificationHook = notificationHook.remove;
 
 // ── Pre-commit hook ──────────────────────────────────────────────────
 

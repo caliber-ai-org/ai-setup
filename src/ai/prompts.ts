@@ -13,6 +13,7 @@ const CONFIG_FILE_TYPES = `You understand these config files:
 - .agents/skills/{name}/SKILL.md: Same OpenSkills format for Codex skills (Codex scans .agents/skills/ for skills).
 - .opencode/skills/{name}/SKILL.md: Same OpenSkills format for OpenCode skills (OpenCode scans .opencode/skills/ for skills).
 - .cursor/skills/{name}/SKILL.md: Same OpenSkills format for Cursor skills.
+- .claude/rules/*.md: Path-scoped rules for Claude Code with YAML frontmatter. Each rule file contains a \`paths:\` field with glob patterns — Claude Code only loads the rule when the user works on matching files. Use for domain-specific conventions (e.g., API patterns, test conventions, database rules). Always-apply rules omit the \`paths:\` field.
 - .cursorrules: Coding rules for Cursor (deprecated legacy format — do NOT generate this).
 - .cursor/rules/*.mdc: Modern Cursor rules with frontmatter (description, globs, alwaysApply).
 - .github/copilot-instructions.md: Always-on repository-wide instructions for GitHub Copilot — same purpose as CLAUDE.md but for Copilot. Plain markdown, no frontmatter.
@@ -57,6 +58,7 @@ Skill field requirements:
 - "name" MUST NOT be any of these reserved names (they are managed by Caliber automatically): "setup-caliber", "find-skills", "save-learning". Do NOT generate skills with these names.
 - "description": MUST include WHAT it does + WHEN to use it with specific trigger phrases. Example: "Manages database migrations. Use when user says 'run migration', 'create migration', 'db schema change', or modifies files in db/migrations/."
 - "content": markdown body only — do NOT include YAML frontmatter, it is generated from name+description.
+- "paths" (optional): array of glob patterns. When provided, the skill is only loaded when the user works on matching files. Use for skills tied to specific file types or directories. Example: ["src/api/**", "src/routes/**"] for an API skill, or ["Dockerfile*", "docker-compose*"] for a Docker skill. Omit for general-purpose skills.
 
 Skill content structure — follow this template:
 1. A heading with the skill name
@@ -65,6 +67,32 @@ Skill content structure — follow this template:
 4. "## Troubleshooting" (optional) — common errors and how to fix them
 
 Keep skill content under 200 lines. Focus on actionable instructions, not documentation prose.`;
+
+const CLAUDE_RULES_FORMAT = `CLAUDE RULES FORMAT — .claude/rules/*.md files:
+Claude Code loads .claude/rules/*.md files as path-scoped instructions. Generate 2-4 rules that extract domain-specific conventions from CLAUDE.md into focused, contextually-loaded files.
+
+Each rule file uses YAML frontmatter with an optional \`paths:\` field:
+\`\`\`markdown
+---
+paths:
+  - src/api/**
+  - src/routes/**
+---
+
+# API Conventions
+
+- All endpoints return \`{ data, error }\` envelope
+- Use \`validateRequest(schema)\` middleware before handlers
+\`\`\`
+
+Rules without \`paths:\` apply globally (use sparingly — prefer path-scoped rules).
+
+Guidelines:
+- Extract patterns from the codebase that apply to specific file types or directories
+- Keep each rule under 50 lines — these are loaded into context, conciseness matters
+- Good candidates: testing patterns, API conventions, database query patterns, component structure
+- Do NOT duplicate content from CLAUDE.md — rules supplement it with path-specific detail
+- filename must be kebab-case ending in .md (e.g. \`testing-patterns.md\`, \`api-conventions.md\`)`;
 
 const SCORING_CRITERIA = `SCORING CRITERIA — your output is scored deterministically against the actual filesystem. Optimize for 100/100:
 
@@ -109,7 +137,13 @@ For command sections, use code blocks with one command per line.
 
 - Each skill content: max 150 lines. Focus on patterns and examples, not exhaustive docs.
 - Cursor rules: max 5 .mdc files.
-- If the project is large, prioritize depth on the 3-4 most critical tools over breadth across everything.`;
+- If the project is large, prioritize depth on the 3-4 most critical tools over breadth across everything.
+
+@include directives (Claude Code only):
+- If the project has existing documentation files (ARCHITECTURE.md, CONTRIBUTING.md, API docs, etc.), reference them in CLAUDE.md using \`@./path\` instead of summarizing their content. Claude Code will inline them automatically.
+- Example: Instead of writing an architecture summary, add \`@./ARCHITECTURE.md\` in the relevant section.
+- This keeps CLAUDE.md compact while giving the agent access to detailed docs.
+- Only use @include for files that actually exist in the provided file tree.`;
 
 // ── Exported prompts ───────────────────────────────────────────────────
 
@@ -134,18 +168,19 @@ AgentSetup schema:
   ],
   "claude": {
     "claudeMd": "string (markdown content for CLAUDE.md)",
-    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)" }]
+    "rules": [{ "filename": "string.md (kebab-case, e.g. api-conventions.md)", "content": "string (markdown with YAML frontmatter containing paths: glob)" }],
+    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)", "paths": ["optional array of glob patterns — omit for general-purpose skills"] }]
   },
   "codex": {
     "agentsMd": "string (markdown content for AGENTS.md — the primary Codex instructions file, same quality/structure as CLAUDE.md)",
-    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)" }]
+    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)", "paths": ["optional array of glob patterns — omit for general-purpose skills"] }]
   },
   "opencode": {
     "agentsMd": "string (markdown content for AGENTS.md — reuse codex.agentsMd if codex is also targeted, otherwise generate fresh)",
-    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)" }]
+    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)", "paths": ["optional array of glob patterns — omit for general-purpose skills"] }]
   },
   "cursor": {
-    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)" }],
+    "skills": [{ "name": "string (kebab-case, matches directory name)", "description": "string (what this skill does and when to use it)", "content": "string (markdown body — NO frontmatter, it will be generated from name+description)", "paths": ["optional array of glob patterns — omit for general-purpose skills"] }],
     "rules": [{ "filename": "string.mdc", "content": "string (with frontmatter)" }]
   },
   "copilot": {
@@ -158,12 +193,15 @@ NOTE: If both "codex" and "opencode" are targeted, set opencode.agentsMd to the 
 
 ${SKILL_FORMAT_RULES}
 
+${CLAUDE_RULES_FORMAT}
+
 ${FILE_DESCRIPTIONS_RULES}
 
 ${SCORING_CRITERIA}
 
 ${OUTPUT_SIZE_CONSTRAINTS}
-- Skills: generate 3-6 skills per target platform based on project complexity. Each skill should cover a distinct tool, workflow, or domain — don't pad with generic skills.`;
+- Skills: generate 3-6 skills per target platform based on project complexity. Each skill should cover a distinct tool, workflow, or domain — don't pad with generic skills.
+- Claude rules: generate 2-4 .claude/rules/*.md files when claude is targeted. Each rule should extract domain-specific patterns from the codebase.`;
 
 export const CORE_GENERATION_PROMPT = `${ROLE_AND_CONTEXT}
 
@@ -186,6 +224,7 @@ CoreSetup schema:
   ],
   "claude": {
     "claudeMd": "string (markdown content for CLAUDE.md)",
+    "rules": [{ "filename": "string.md (kebab-case, e.g. api-conventions.md)", "content": "string (markdown with YAML frontmatter containing paths: glob)" }],
     "skillTopics": [{ "name": "string (kebab-case)", "description": "string (what this skill does and WHEN to use it — include trigger phrases)" }]
   },
   "codex": {
@@ -219,12 +258,15 @@ Skill topic description MUST follow this formula: [What it does] + [When to use 
 Include specific trigger phrases users would actually say. Also include negative triggers to prevent over-triggering.
 Example: "Creates a new API endpoint following the project's route pattern. Handles request validation, error responses, and DB queries. Use when user says 'add endpoint', 'new route', 'create API', or adds files to src/routes/. Do NOT use for modifying existing routes."
 
+${CLAUDE_RULES_FORMAT}
+
 ${FILE_DESCRIPTIONS_RULES}
 
 ${SCORING_CRITERIA}
 
 ${OUTPUT_SIZE_CONSTRAINTS}
-- Skill topics: 3-6 per platform based on project complexity (name + description only, no content).`;
+- Skill topics: 3-6 per platform based on project complexity (name + description only, no content).
+- Claude rules: generate 2-4 .claude/rules/*.md files when claude is targeted.`;
 
 export const SKILL_GENERATION_PROMPT = `You generate a single skill file for a coding agent (Claude Code, Cursor, Codex, or OpenCode).
 
@@ -255,7 +297,7 @@ Rules:
 Description field formula: [What it does] + [When to use it with trigger phrases] + [Key capabilities]. Include negative triggers ("Do NOT use for X") to prevent over-triggering.
 
 Return ONLY a JSON object:
-{"name": "string (kebab-case)", "description": "string (what + when + capabilities + negative triggers)", "content": "string (markdown body)"}`;
+{"name": "string (kebab-case)", "description": "string (what + when + capabilities + negative triggers)", "content": "string (markdown body)", "paths": ["optional glob patterns — include when the skill applies to specific file types or directories, omit for general-purpose skills"]}`;
 
 export const REFINE_SYSTEM_PROMPT = `You are an expert at modifying coding agent configurations (Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot).
 
@@ -314,7 +356,7 @@ export const REFRESH_SYSTEM_PROMPT = `You are an expert at maintaining coding pr
 
 You will receive:
 1. Git diffs showing what code changed
-2. Current contents of documentation files (CLAUDE.md, README.md, skills, cursor rules, copilot instructions)
+2. Current contents of documentation files (CLAUDE.md, .claude/rules/*.md, README.md, skills, cursor rules, copilot instructions)
 3. Project context (languages, frameworks, file tree)
 
 CONSERVATIVE UPDATE means:
@@ -333,6 +375,12 @@ Quality constraints (the output is scored deterministically):
 - ONLY reference file paths that exist in the provided file tree — do NOT invent paths
 - Preserve the existing structure (headings, bullet style, formatting)
 
+Claude rules (.claude/rules/*.md):
+- If the diff affects code in a domain covered by an existing rule, update that rule
+- If the diff introduces a new domain pattern (e.g., new API conventions, new test patterns), create a new rule file
+- Rules with paths: frontmatter should only contain conventions relevant to those paths
+- Keep rules under 50 lines — they load into context alongside other instructions
+
 Cross-agent sync:
 - When a code change affects documentation, update ALL provided platform configs together.
 - A renamed command, moved file, or changed convention must be reflected in every config (CLAUDE.md, AGENTS.md, copilot instructions, skills across all platforms).
@@ -349,6 +397,7 @@ Return a JSON object with this exact shape:
   "updatedDocs": {
     "agentsMd": "<updated content or null>",
     "claudeMd": "<updated content or null>",
+    "claudeRules": [{"filename": "name.md", "content": "full content with frontmatter"}] or null,
     "readmeMd": "<updated content or null>",
     "cursorrules": "<updated content or null>",
     "cursorRules": [{"filename": "name.mdc", "content": "..."}] or null,

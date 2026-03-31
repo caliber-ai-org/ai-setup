@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import fs from 'fs';
 import { collectFingerprint, type Fingerprint } from '../fingerprint/index.js';
 import { detectPlatforms } from '../scanner/index.js';
-import { installPreCommitHook, installStopHook } from '../lib/hooks.js';
+import { installPreCommitHook, installStopHook, installSessionStartHook } from '../lib/hooks.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { generateSetup, generateSkillsForSetup } from '../ai/generate.js';
@@ -228,6 +228,8 @@ export async function initCommand(options: InitOptions) {
 
   installStopHook();
   console.log(`  ${chalk.green('✓')} Onboarding hook — nudges new team members to set up`);
+  installSessionStartHook();
+  console.log(`  ${chalk.green('✓')} Freshness hook — warns when configs are stale`);
 
   // Install builtin skills (setup-caliber, find-skills, save-learning)
   const { ensureBuiltinSkills } = await import('../lib/builtin-skills.js');

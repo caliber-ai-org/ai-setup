@@ -4,6 +4,7 @@ import { REFRESH_SYSTEM_PROMPT } from './prompts.js';
 import type { SourceSummary } from '../fingerprint/sources.js';
 import { formatSourcesForPrompt } from '../fingerprint/sources.js';
 import { stripManagedBlocks } from '../writers/pre-commit-block.js';
+import { CALIBER_MANAGED_PREFIX } from '../fingerprint/existing-config.js';
 
 interface RefreshDiff {
   committed: string;
@@ -19,10 +20,12 @@ interface ExistingDocs {
   readmeMd?: string;
   claudeSettings?: Record<string, unknown>;
   claudeSkills?: Array<{ filename: string; content: string }>;
+  claudeRules?: Array<{ filename: string; content: string }>;
   cursorrules?: string;
   cursorRules?: Array<{ filename: string; content: string }>;
   copilotInstructions?: string;
   copilotInstructionFiles?: Array<{ filename: string; content: string }>;
+  includableDocs?: string[];
 }
 
 interface ProjectContext {
@@ -41,6 +44,7 @@ interface RefreshResponse {
   updatedDocs: {
     agentsMd?: string | null;
     claudeMd?: string | null;
+    claudeRules?: Array<{ filename: string; content: string }> | null;
     readmeMd?: string | null;
     cursorrules?: string | null;
     cursorRules?: Array<{ filename: string; content: string }> | null;
@@ -153,9 +157,16 @@ function buildRefreshPrompt(
       parts.push(skill.content);
     }
   }
+  if (existingDocs.claudeRules?.length) {
+    for (const rule of existingDocs.claudeRules) {
+      if (rule.filename.startsWith(CALIBER_MANAGED_PREFIX)) continue;
+      parts.push(`\n[.claude/rules/${rule.filename}]`);
+      parts.push(rule.content);
+    }
+  }
   if (existingDocs.cursorRules?.length) {
     for (const rule of existingDocs.cursorRules) {
-      if (rule.filename.startsWith('caliber-')) continue;
+      if (rule.filename.startsWith(CALIBER_MANAGED_PREFIX)) continue;
       parts.push(`\n[.cursor/rules/${rule.filename}]`);
       parts.push(rule.content);
     }
@@ -168,6 +179,16 @@ function buildRefreshPrompt(
     for (const file of existingDocs.copilotInstructionFiles) {
       parts.push(`\n[.github/instructions/${file.filename}]`);
       parts.push(file.content);
+    }
+  }
+
+  if (existingDocs.includableDocs?.length) {
+    parts.push(`\n--- Existing Documentation Files (use @include) ---`);
+    parts.push(
+      'These files exist in the project and can be referenced in CLAUDE.md using @./path:',
+    );
+    for (const doc of existingDocs.includableDocs) {
+      parts.push(`- ${doc}`);
     }
   }
 

@@ -105,6 +105,37 @@ describe('refreshDocs', () => {
     expect(prompt).toContain('[.github/copilot-instructions.md]');
   });
 
+  async function getRefreshPrompt(existingDocs: Record<string, unknown>): Promise<string> {
+    mockedLlmCall.mockResolvedValue('{}');
+    mockedParseJson.mockReturnValue({ updatedDocs: {}, changesSummary: '', docsUpdated: [] });
+    await refreshDocs(baseDiff, existingDocs, baseContext);
+    return mockedLlmCall.mock.calls[0][0].prompt;
+  }
+
+  it('includes existing claude rules in prompt', async () => {
+    const prompt = await getRefreshPrompt({
+      claudeRules: [{ filename: 'api.md', content: '# API Conventions' }],
+    });
+    expect(prompt).toContain('[.claude/rules/api.md]');
+    expect(prompt).toContain('# API Conventions');
+  });
+
+  it('filters caliber-managed rules from prompt', async () => {
+    const prompt = await getRefreshPrompt({
+      claudeRules: [{ filename: 'caliber-onboarding.md', content: '# Managed' }],
+    });
+    expect(prompt).not.toContain('caliber-onboarding.md');
+  });
+
+  it('includes includable docs in prompt', async () => {
+    const prompt = await getRefreshPrompt({
+      includableDocs: ['ARCHITECTURE.md', 'CONTRIBUTING.md'],
+    });
+    expect(prompt).toContain('Existing Documentation Files');
+    expect(prompt).toContain('ARCHITECTURE.md');
+    expect(prompt).toContain('CONTRIBUTING.md');
+  });
+
   it('omits empty diff sections', async () => {
     mockedLlmCall.mockResolvedValue('{}');
     mockedParseJson.mockReturnValue({

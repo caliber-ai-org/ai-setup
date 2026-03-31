@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { CALIBER_MANAGED_PREFIX } from '../../fingerprint/existing-config.js';
 import type { Check } from '../index.js';
 import {
   POINTS_CLAUDE_MD_EXISTS,
@@ -9,6 +10,7 @@ import {
   POINTS_SKILLS_BONUS_CAP,
   POINTS_CURSOR_MDC_RULES,
   POINTS_MCP_SERVERS,
+  POINTS_CLAUDE_RULES,
   POINTS_CROSS_PLATFORM_PARITY,
 } from '../constants.js';
 
@@ -74,7 +76,43 @@ export function checkExistence(dir: string): Check[] {
         },
   });
 
-  // 2. .cursorrules or .cursor/rules/ exists
+  // 2. .claude/rules/*.md exists (path-scoped rules)
+  const claudeRulesDir = join(dir, '.claude', 'rules');
+  let claudeRuleFiles: string[] = [];
+  if (existsSync(claudeRulesDir)) {
+    try {
+      claudeRuleFiles = readdirSync(claudeRulesDir).filter(
+        (f) => f.endsWith('.md') && !f.startsWith(CALIBER_MANAGED_PREFIX),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+  const hasClaudeRules = claudeRuleFiles.length > 0;
+  checks.push({
+    id: 'claude_rules_exist',
+    name: 'Claude rules exist (.claude/rules/)',
+    category: 'existence',
+    maxPoints: POINTS_CLAUDE_RULES,
+    earnedPoints: hasClaudeRules ? POINTS_CLAUDE_RULES : 0,
+    passed: hasClaudeRules,
+    detail: hasClaudeRules
+      ? `${claudeRuleFiles.length} rule${claudeRuleFiles.length === 1 ? '' : 's'} found`
+      : 'No .claude/rules/*.md files',
+    suggestion: hasClaudeRules
+      ? undefined
+      : 'Add .claude/rules/*.md with path-scoped conventions for better context efficiency',
+    fix: hasClaudeRules
+      ? undefined
+      : {
+          action: 'create_file',
+          data: { file: '.claude/rules/' },
+          instruction:
+            'Create .claude/rules/ with path-scoped markdown rules (e.g., testing-patterns.md, api-conventions.md).',
+        },
+  });
+
+  // 3. .cursorrules or .cursor/rules/ exists
   const hasCursorrules = existsSync(join(dir, '.cursorrules'));
   const cursorRulesDir = existsSync(join(dir, '.cursor', 'rules'));
   const cursorRulesExist = hasCursorrules || cursorRulesDir;

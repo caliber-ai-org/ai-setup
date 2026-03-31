@@ -4,6 +4,21 @@ import { PERSONAL_LEARNINGS_FILE } from '../constants.js';
 
 type SkillEntry = { name: string; filename: string; content: string };
 
+export const CALIBER_MANAGED_PREFIX = 'caliber-';
+
+const INCLUDABLE_DOC_PATTERNS = [
+  'ARCHITECTURE.md',
+  'CONTRIBUTING.md',
+  'DEVELOPMENT.md',
+  'SETUP.md',
+  'docs/ARCHITECTURE.md',
+  'docs/CONTRIBUTING.md',
+  'docs/DEVELOPMENT.md',
+  'docs/API.md',
+  'docs/GUIDE.md',
+  'docs/SETUP.md',
+];
+
 function readSkillsFromDir(skillsDir: string): SkillEntry[] | undefined {
   if (!fs.existsSync(skillsDir)) return undefined;
   try {
@@ -36,6 +51,7 @@ export function readExistingConfigs(dir: string) {
     agentsMd?: string;
     claudeSettings?: Record<string, unknown>;
     claudeSkills?: Array<{ filename: string; content: string }>;
+    claudeRules?: Array<{ filename: string; content: string }>;
     cursorrules?: string;
     cursorRules?: Array<{ filename: string; content: string }>;
     cursorSkills?: Array<{ name: string; filename: string; content: string }>;
@@ -46,6 +62,7 @@ export function readExistingConfigs(dir: string) {
     claudeMcpServers?: Record<string, unknown>;
     cursorMcpServers?: Record<string, unknown>;
     personalLearnings?: string;
+    includableDocs?: string[];
   } = {};
 
   // README.md
@@ -95,6 +112,21 @@ export function readExistingConfigs(dir: string) {
         }
       }
       if (skills.length > 0) configs.claudeSkills = skills;
+    } catch {
+      // ignore
+    }
+  }
+
+  // .claude/rules/*.md
+  const claudeRulesDir = path.join(dir, '.claude', 'rules');
+  if (fs.existsSync(claudeRulesDir)) {
+    try {
+      const files = fs.readdirSync(claudeRulesDir).filter((f) => f.endsWith('.md'));
+      const rules = files.map((f) => ({
+        filename: f,
+        content: fs.readFileSync(path.join(claudeRulesDir, f), 'utf-8'),
+      }));
+      if (rules.length > 0) configs.claudeRules = rules;
     } catch {
       // ignore
     }
@@ -188,6 +220,9 @@ export function readExistingConfigs(dir: string) {
       // ignore — personal learnings are optional
     }
   }
+
+  const found = INCLUDABLE_DOC_PATTERNS.filter((p) => fs.existsSync(path.join(dir, p)));
+  if (found.length > 0) configs.includableDocs = found;
 
   return configs;
 }

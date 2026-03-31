@@ -2,11 +2,17 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import confirm from '@inquirer/confirm';
-import { removePreCommitHook, removeStopHook } from '../lib/hooks.js';
+import {
+  removePreCommitHook,
+  removeStopHook,
+  removeNotificationHook,
+  removeSessionStartHook,
+} from '../lib/hooks.js';
 import { removeLearningHooks, removeCursorLearningHooks } from '../lib/learning-hooks.js';
 import { stripManagedBlocks } from '../writers/pre-commit-block.js';
 import { BUILTIN_SKILL_NAMES, PLATFORM_CONFIGS } from '../lib/builtin-skills.js';
 import { CALIBER_DIR } from '../constants.js';
+import { CALIBER_MANAGED_PREFIX } from '../fingerprint/existing-config.js';
 import { trackUninstallExecuted } from '../telemetry/events.js';
 import { getConfigFilePath } from '../llm/config.js';
 
@@ -20,16 +26,17 @@ const MANAGED_DOC_FILES = [
   'AGENTS.md',
 ];
 
-const SKILL_DIRS = PLATFORM_CONFIGS.map(c => c.skillsDir);
+const SKILL_DIRS = PLATFORM_CONFIGS.map((c) => c.skillsDir);
 
 const CURSOR_RULES_DIR = path.join('.cursor', 'rules');
+const CLAUDE_RULES_DIR = path.join('.claude', 'rules');
 
-function removeCaliberCursorRules(): string[] {
+function removeCaliberManagedFiles(dir: string, extension: string): string[] {
   const removed: string[] = [];
-  if (!fs.existsSync(CURSOR_RULES_DIR)) return removed;
-  for (const file of fs.readdirSync(CURSOR_RULES_DIR)) {
-    if (file.startsWith('caliber-') && file.endsWith('.mdc')) {
-      const fullPath = path.join(CURSOR_RULES_DIR, file);
+  if (!fs.existsSync(dir)) return removed;
+  for (const file of fs.readdirSync(dir)) {
+    if (file.startsWith(CALIBER_MANAGED_PREFIX) && file.endsWith(extension)) {
+      const fullPath = path.join(dir, file);
       fs.unlinkSync(fullPath);
       removed.push(fullPath);
     }
@@ -111,6 +118,18 @@ export async function uninstallCommand(options: UninstallOptions) {
     actions.push('onboarding hook');
   }
 
+  const notificationHookResult = removeNotificationHook();
+  if (notificationHookResult.removed) {
+    console.log(`  ${chalk.red('✗')} Notification hook removed`);
+    actions.push('notification hook');
+  }
+
+  const sessionStartResult = removeSessionStartHook();
+  if (sessionStartResult.removed) {
+    console.log(`  ${chalk.red('✗')} SessionStart hook removed`);
+    actions.push('session-start hook');
+  }
+
   const learnResult = removeLearningHooks();
   if (learnResult.removed) {
     console.log(`  ${chalk.red('✗')} Claude Code learning hooks removed`);
@@ -129,11 +148,17 @@ export async function uninstallCommand(options: UninstallOptions) {
     actions.push(file);
   }
 
-  const removedRules = removeCaliberCursorRules();
-  for (const rule of removedRules) {
+  const removedCursorRules = removeCaliberManagedFiles(CURSOR_RULES_DIR, '.mdc');
+  for (const rule of removedCursorRules) {
     console.log(`  ${chalk.red('✗')} ${rule}`);
   }
-  if (removedRules.length > 0) actions.push('cursor rules');
+  if (removedCursorRules.length > 0) actions.push('cursor rules');
+
+  const removedClaudeRules = removeCaliberManagedFiles(CLAUDE_RULES_DIR, '.md');
+  for (const rule of removedClaudeRules) {
+    console.log(`  ${chalk.red('✗')} ${rule}`);
+  }
+  if (removedClaudeRules.length > 0) actions.push('claude rules');
 
   const removedSkills = removeBuiltinSkills();
   for (const skill of removedSkills) {
@@ -162,9 +187,11 @@ export async function uninstallCommand(options: UninstallOptions) {
   const configPath = getConfigFilePath();
   if (fs.existsSync(configPath)) {
     console.log('');
-    const removeConfig = options.force || await confirm({
-      message: `Remove global config (~/.caliber/config.json)? This affects all projects.`,
-    });
+    const removeConfig =
+      options.force ||
+      (await confirm({
+        message: `Remove global config (~/.caliber/config.json)? This affects all projects.`,
+      }));
     if (removeConfig) {
       fs.unlinkSync(configPath);
       console.log(`  ${chalk.red('✗')} ${configPath}`);
@@ -172,7 +199,9 @@ export async function uninstallCommand(options: UninstallOptions) {
       try {
         const remaining = fs.readdirSync(configDir);
         if (remaining.length === 0) fs.rmdirSync(configDir);
-      } catch { /* best effort */ }
+      } catch {
+        /* best effort */
+      }
     }
   }
 

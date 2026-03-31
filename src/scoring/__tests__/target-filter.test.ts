@@ -100,6 +100,7 @@ describe('computeLocalScore target filtering', () => {
 
     expect(checkIds).not.toContain('claude_md_exists');
     expect(checkIds).not.toContain('claude_md_freshness');
+    expect(checkIds).not.toContain('claude_rules_exist');
     expect(checkIds).not.toContain('cross_platform_parity');
     expect(checkIds).not.toContain('no_duplicate_content');
   });
@@ -176,15 +177,38 @@ describe('computeLocalScore target filtering', () => {
 
   it('scores higher when CLAUDE.md exists for claude target', () => {
     const before = computeLocalScore(dir, ['claude']);
-    writeFileSync(join(dir, 'CLAUDE.md'), '# Project\n\n## Commands\n\n```bash\nnpm run build\nnpm test\n```\n');
+    writeFileSync(
+      join(dir, 'CLAUDE.md'),
+      '# Project\n\n## Commands\n\n```bash\nnpm run build\nnpm test\n```\n',
+    );
     const after = computeLocalScore(dir, ['claude']);
 
     expect(after.score).toBeGreaterThan(before.score);
   });
 
+  it('includes claude_rules_exist check when target is [claude]', () => {
+    const result = computeLocalScore(dir, ['claude']);
+    const checkIds = result.checks.map((c) => c.id);
+    expect(checkIds).toContain('claude_rules_exist');
+  });
+
+  it('scores higher when .claude/rules/*.md exists for claude target', () => {
+    const before = computeLocalScore(dir, ['claude']);
+    mkdirSync(join(dir, '.claude', 'rules'), { recursive: true });
+    writeFileSync(
+      join(dir, '.claude', 'rules', 'api-conventions.md'),
+      '---\npaths:\n  - src/api/**\n---\n\n# API Conventions\n\n- Use REST patterns\n',
+    );
+    const after = computeLocalScore(dir, ['claude']);
+    expect(after.score).toBeGreaterThan(before.score);
+  });
+
   it('scores higher when .cursorrules exists for cursor target', () => {
     const before = computeLocalScore(dir, ['cursor']);
-    writeFileSync(join(dir, '.cursorrules'), 'Use TypeScript strict mode.\nRun npm test before committing.\n');
+    writeFileSync(
+      join(dir, '.cursorrules'),
+      'Use TypeScript strict mode.\nRun npm test before committing.\n',
+    );
     const after = computeLocalScore(dir, ['cursor']);
 
     expect(after.score).toBeGreaterThan(before.score);
@@ -213,7 +237,10 @@ describe('computeLocalScore target filtering', () => {
 
   it('scores higher when AGENTS.md exists for codex target', () => {
     const before = computeLocalScore(dir, ['codex']);
-    writeFileSync(join(dir, 'AGENTS.md'), '# Project\n\n## Commands\n\n```bash\nnpm run build\nnpm test\n```\n');
+    writeFileSync(
+      join(dir, 'AGENTS.md'),
+      '# Project\n\n## Commands\n\n```bash\nnpm run build\nnpm test\n```\n',
+    );
     const after = computeLocalScore(dir, ['codex']);
 
     expect(after.score).toBeGreaterThan(before.score);
@@ -249,7 +276,10 @@ describe('computeLocalScore target filtering', () => {
   it('scores higher when copilot-instructions.md exists for github-copilot target', () => {
     const before = computeLocalScore(dir, ['github-copilot']);
     mkdirSync(join(dir, '.github'), { recursive: true });
-    writeFileSync(join(dir, '.github', 'copilot-instructions.md'), '# Project\n\n## Commands\n\n```bash\nnpm run build\nnpm test\n```\n');
+    writeFileSync(
+      join(dir, '.github', 'copilot-instructions.md'),
+      '# Project\n\n## Commands\n\n```bash\nnpm run build\nnpm test\n```\n',
+    );
     const after = computeLocalScore(dir, ['github-copilot']);
 
     expect(after.score).toBeGreaterThan(before.score);
