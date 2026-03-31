@@ -1,5 +1,5 @@
 /**
- * large-file-scan.ts
+ * src/fingerprint/large-file-scan.ts
  *
  * Detects files that exceed a size threshold inside a project directory.
  * Designed to be called explicitly by commands before feeding project
@@ -19,6 +19,7 @@
 
 import fs from 'fs';
 import path from 'path';
+// 👇 Yahan IGNORE_DIRS ko successfully import kar liya gaya hai
 import { IGNORE_DIRS } from './file-tree.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
