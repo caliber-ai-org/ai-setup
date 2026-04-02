@@ -1,3 +1,9 @@
+## v1.40.1 (2026-04-02)
+
+### Bug Fixes
+
+- improve onboarding UX for Windows users and clarify scoring suggestions (#116)
+
 ## v1.40.0 (2026-04-02)
 
 ### Features
