@@ -71,7 +71,7 @@ export function checkBonus(dir: string): Check[] {
     detail: hasHooks ? hookSources.join(', ') : 'No hooks configured',
     suggestion: hasHooks
       ? undefined
-      : `Run \`${resolveCaliber()} init\` to add pre-commit instructions`,
+      : `Hooks auto-sync your agent config on every commit so it stays fresh. Run \`${resolveCaliber()} init\` to set up`,
     fix: hasHooks
       ? undefined
       : {
@@ -91,7 +91,7 @@ export function checkBonus(dir: string): Check[] {
     earnedPoints: agentsMdExists ? POINTS_AGENTS_MD : 0,
     passed: agentsMdExists,
     detail: agentsMdExists ? 'Found at project root' : 'Not found',
-    suggestion: agentsMdExists ? undefined : 'Add AGENTS.md — the emerging cross-agent standard',
+    suggestion: agentsMdExists ? undefined : 'AGENTS.md provides project context to Codex, Copilot, and other agents. Works alongside CLAUDE.md',
     fix: agentsMdExists
       ? undefined
       : {
@@ -141,7 +141,7 @@ export function checkBonus(dir: string): Check[] {
           : `${openSkillsCount}/${totalSkillFiles} use OpenSkills format`,
     suggestion:
       totalSkillFiles > 0 && !allOpenSkills
-        ? 'Migrate skills to .claude/skills/{name}/SKILL.md with YAML frontmatter'
+        ? 'OpenSkills format (SKILL.md with YAML header) makes skills portable across agents. Migrate for cross-tool compatibility'
         : undefined,
     fix:
       totalSkillFiles > 0 && !allOpenSkills
@@ -170,7 +170,7 @@ export function checkBonus(dir: string): Check[] {
     detail: hasLearned ? 'Session learnings found in CALIBER_LEARNINGS.md' : 'No learned content',
     suggestion: hasLearned
       ? undefined
-      : `Install learning hooks: \`${resolveCaliber()} learn install\``,
+      : `Session learnings capture patterns from your coding sessions so the agent improves over time. Run \`${resolveCaliber()} learn install\``,
   });
 
   return checks;

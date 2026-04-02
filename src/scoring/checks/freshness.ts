@@ -184,7 +184,7 @@ export function checkFreshness(dir: string): Check[] {
     detail: permissionDetail,
     suggestion: hasPermissions
       ? undefined
-      : 'Add permissions.allow to .claude/settings.json for safer agent execution',
+      : 'Permissions control which shell commands the agent can run without asking. Adds a safety layer for your team',
     fix: hasPermissions
       ? undefined
       : {

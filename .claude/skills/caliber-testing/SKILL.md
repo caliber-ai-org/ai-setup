@@ -1,209 +1,370 @@
 ---
 name: caliber-testing
-description: Writes Vitest tests following project patterns: __tests__/ directories, vi.mock() for module mocking, global LLM mock from src/test/setup.ts, environment variable save/restore, and test file organization. Use when user says 'write tests', 'add test coverage', 'test this', creates *.test.ts files, or when test failures appear in CI. Do NOT use for non-test code or for debugging without writing tests.
+description: Writes Vitest tests following project patterns: __tests__/ directories, vi.mock() for module mocking with vi.hoisted() for test-time factories, global LLM mock from src/test/setup.ts, environment variable save/restore in beforeEach/afterEach, vi.clearAllMocks() lifecycle, and test file organization. Use when user says 'write tests', 'add test coverage', 'test this', creates *.test.ts files, or when test failures appear in CI. Do NOT use for non-test code or for debugging without writing tests.
+paths:
+  - src/**/__tests__/*.test.ts
 ---
-# caliber-testing
+# Caliber Testing
 
 ## Critical
 
-- **Test file location**: Always place tests in `__tests__/` subdirectory of the module being tested. File name: `module-name.test.ts`. Example: `src/llm/__tests__/anthropic.test.ts` for `src/llm/anthropic.ts`.
-- **Global LLM mock**: Use the mock from `src/test/setup.ts`. It is auto-loaded by Vitest. Do NOT create duplicate LLM mocks in individual test files.
-- **Avoid over-mocking**: Mock only external dependencies (HTTP, file I/O, LLM calls). Never mock internal modules or pure logic.
-- **Environment cleanup**: Always save and restore `process.env` between tests to prevent cross-test pollution. Use the pattern in Step 4.
-- **No hardcoded test data**: Use `beforeEach` to set up fresh mocks and env state for each test.
+- All test files MUST be placed in `__tests__/` directories parallel to source files: `src/[module]/__tests__/[module].test.ts`
+- Register any new `__tests__/` directories in `vitest.config.ts`'s `include` glob (already configured: `src/**/*.test.ts`)
+- NEVER mock `src/test/setup.ts` — it is the global LLM provider mock already applied to all tests
+- Environment variable tests MUST save `process.env` in `beforeEach`, restore in `afterEach`, and explicitly delete env vars to test absence
+- Temporary file/directory cleanup MUST happen in `afterEach`, not in individual test cleanup. Use `fs.rmSync(dir, { recursive: true, force: true })`
+- When a test requires unmocking modules mocked in global setup, call `vi.unmock('../module.js')` BEFORE the import statement
+- Run `pnpm test` locally and `pnpm test:coverage` before committing to verify coverage thresholds (lines: 50, functions: 50, branches: 50, statements: 50)
 
 ## Instructions
 
-### Step 1: Set up the test file structure
-Create `src/<module>/__tests__/<module-name>.test.ts`. Import `describe`, `it`, `expect`, `beforeEach`, `afterEach` from `vitest`, and import the module under test.
+### Step 1: Create the test file in the correct directory
+Create `src/[module]/__tests__/[module].test.ts`. The parent source file is `src/[module]/[module].ts`.
 
+**Verify**: The `__tests__` directory exists at the same level as the source file being tested.
+
+### Step 2: Import test framework
+At the top of every test file, import from `vitest`:
 ```typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { functionToTest } from '../module-name.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 ```
 
-Verify: The test file is in the correct `__tests__/` directory parallel to the module it tests.
+Add additional imports based on what you're testing:
+- File system: `import fs from 'fs'; import path from 'path'; import os from 'os';`
+- Temporary files: Use `fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-prefix-'))`
+- Exec: `import { execSync } from 'child_process';`
 
-### Step 2: Mock external dependencies with vi.mock()
-At the top of the test file, before `describe`, mock external modules using `vi.mock()`. This applies to:
-- HTTP calls (use `vi.mock()` to intercept fetch or axios)
-- File I/O (use `vi.mock('fs')` or similar)
-- LLM providers (already mocked globally via `src/test/setup.ts`, but document the assumption)
+**Verify**: All required test utilities are imported before test definitions.
 
-Example:
+### Step 3: Set up module mocking (if needed)
+If testing a module that imports other modules you want to mock:
+
 ```typescript
-vi.mock('fs', () => ({
-  readFileSync: vi.fn(() => 'mock content'),
+vi.mock('../config.js', () => ({
+  loadConfig: vi.fn(),
+  writeConfigFile: vi.fn(),
 }));
 ```
 
-Verify: All external dependencies are mocked. Internal module calls are NOT mocked.
-
-### Step 3: Use beforeEach and afterEach for setup and cleanup
-For each test suite, create `beforeEach` to reset mocks and set up test state. Create `afterEach` to clean up.
-
+For complex mocks with test-time factory functions (hoisted):
 ```typescript
-describe('module-name', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
+const { mockLoadConfig } = vi.hoisted(() => ({
+  mockLoadConfig: vi.fn(),
+}));
 
-  afterEach(() => {
-    vi.resetAllMocks();
-  });
+vi.mock('../config.js', () => ({
+  loadConfig: () => mockLoadConfig(),
+}));
+```
 
-  it('should do something', () => {
+For unmocking global setup mocks (e.g., to test llm/index.js itself):
+```typescript
+vi.unmock('../index.js');
+```
+
+Place all `vi.mock()` and `vi.unmock()` calls BEFORE importing the module under test.
+
+**Verify**: Mock declarations appear before the import of the module being tested.
+
+### Step 4: Organize tests in describe blocks
+Group related tests with `describe()`:
+```typescript
+describe('functionName', () => {
+  it('returns X when Y', () => {
     // test body
   });
 });
 ```
 
-Verify: `vi.clearAllMocks()` is called in `beforeEach` to reset mock call counts.
+**Verify**: Each `it()` test has a clear, complete assertion.
 
-### Step 4: Save and restore process.env for env-dependent tests
-If a test modifies `process.env`, save the original state and restore it. Use this pattern:
+### Step 5: Manage environment and process state
+For tests that modify `process.env` or `process.argv`:
 
 ```typescript
-describe('env-dependent module', () => {
+describe('config tests', () => {
   const originalEnv = process.env;
+  const originalArgv = process.argv;
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
-    vi.clearAllMocks();
+    process.env = { ...originalEnv }; // Copy, not reference
+    process.argv = [...originalArgv];
+    delete process.env.SPECIFIC_VAR; // Explicitly remove vars to test absence
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    vi.resetAllMocks();
+    process.argv = originalArgv;
   });
 
-  it('should read from process.env.VARIABLE', () => {
-    process.env.VARIABLE = 'test-value';
-    // test assertion
+  it('tests env var behavior', () => {
+    process.env.MY_VAR = 'test';
+    // test code
   });
 });
 ```
 
-Verify: `process.env` is restored to its original state after each test.
+**Verify**: `beforeEach` creates a copy of env/argv; `afterEach` restores originals; unused env vars are explicitly deleted with `delete process.env.VAR`.
 
-### Step 5: Write assertions that match project conventions
-Use `expect()` with clear matchers. For async functions, use `await` or `.resolves`.
+### Step 6: Manage temporary files and directories
+For file system tests, create temporary directories and clean them up:
 
 ```typescript
-it('should return the expected value', async () => {
-  const result = await functionToTest('input');
-  expect(result).toEqual({ key: 'value' });
+describe('file tree', () => {
+  const dirs: string[] = [];
+  
+  afterEach(() => {
+    for (const d of dirs) {
+      try { fs.rmSync(d, { recursive: true, force: true }); } catch {}
+    }
+    dirs.length = 0;
+  });
+
+  it('processes files', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-test-'));
+    dirs.push(tmp);
+    // use tmp directory
+  });
+});
+```
+
+**Verify**: All temporary directories are pushed to a cleanup array and removed in `afterEach`.
+
+### Step 7: Handle mock state cleanup
+Before each test, clear mock call history to avoid pollution between tests:
+
+```typescript
+beforeEach(() => {
+  vi.clearAllMocks(); // Reset all mock call counts and return values
 });
 
-it('should throw on invalid input', async () => {
-  await expect(functionToTest(null)).rejects.toThrow('Invalid input');
+afterEach(() => {
+  vi.restoreAllMocks(); // Restore original implementations
+  vi.resetModules(); // Reset cached module imports (if you reload modules)
 });
 ```
 
-Verify: Assertions are specific (not just checking truthiness) and async functions use `await` or `.resolves`.
+**Verify**: `beforeEach` calls `vi.clearAllMocks()` for providers and `afterEach` calls `vi.restoreAllMocks()`.
 
-### Step 6: Run and verify the tests
-Run the specific test file to ensure it passes:
-```bash
-npm run test -- src/<module>/__tests__/<module-name>.test.ts
+### Step 8: Test assertions
+Write assertions using `expect()`. Match the patterns from existing tests:
+
+```typescript
+// Simple checks
+expect(value).toBe(expected);
+expect(array).toContain(item);
+expect(fn).toThrow('error message');
+
+// Instance checks
+expect(obj).toBeInstanceOf(ClassName);
+
+// Mock checks
+expect(mockFn).toHaveBeenCalledTimes(1);
+expect(mockFn).toHaveBeenCalledWith(arg);
+
+// File system checks
+expect(fs.existsSync(path)).toBe(true);
 ```
 
-Or run all tests:
+**Verify**: Each test has at least one assertion and uses appropriate `expect()` matchers.
+
+### Step 9: Run tests
+Run tests locally before committing:
 ```bash
-npm run test
+pnpm test                # Run all tests in watch mode
+pnpm test:coverage       # Check coverage thresholds
+pnpm test -- src/my/path/__tests__/my.test.ts  # Run single test file
 ```
 
-Verify: All tests pass. Check test coverage with `npm run test -- --coverage`.
+**Verify**: All tests pass and coverage thresholds are met (lines: 50%, functions: 50%, branches: 50%).
 
 ## Examples
 
-### Example: Testing an LLM provider module
+### Example 1: Testing a module with environment variables (config.test.ts pattern)
 
-User says: "Write tests for src/llm/anthropic.ts"
+**User asks**: "Write tests for my config loader that reads from env vars and a config file."
 
-**Actions:**
-1. Create `src/llm/__tests__/anthropic.test.ts`
-2. Import `describe`, `it`, `expect`, `beforeEach`, `afterEach`, `vi` from vitest
-3. Mock external HTTP calls (fetch is mocked globally via setup)
-4. Write tests for `call()` and `stream()` methods
-5. Save/restore `process.env` for API key tests
-6. Run: `npm run test -- src/llm/__tests__/anthropic.test.ts`
+**Actions taken**:
+1. Create `src/lib/__tests__/config.test.ts`
+2. Import test framework and fs module
+3. Mock `fs` and `os`
+4. Save/restore `process.env` in beforeEach/afterEach
+5. Delete specific env vars to test absence
+6. Test each branch: env vars set, file exists, both, neither
 
-**Result:**
+**Result**:
 ```typescript
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { AnthropicProvider } from '../anthropic.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'fs';
 
-describe('AnthropicProvider', () => {
+vi.mock('fs');
+vi.mock('os', () => ({ default: { homedir: () => '/home/user' } }));
+
+import { loadConfig } from '../config.js';
+
+describe('config', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    process.env = { ...originalEnv, ANTHROPIC_API_KEY: 'test-key' };
     vi.clearAllMocks();
+    process.env = { ...originalEnv };
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
   });
 
   afterEach(() => {
     process.env = originalEnv;
-    vi.resetAllMocks();
   });
 
-  it('should call the API with correct parameters', async () => {
-    const provider = new AnthropicProvider();
-    const response = await provider.call({ messages: [{ role: 'user', content: 'test' }] });
-    expect(response).toBeDefined();
+  it('returns env config when ANTHROPIC_API_KEY is set', () => {
+    process.env.ANTHROPIC_API_KEY = 'sk-ant-test';
+    const config = loadConfig();
+    expect(config?.provider).toBe('anthropic');
+  });
+
+  it('returns null when no env vars set', () => {
+    expect(loadConfig()).toBeNull();
   });
 });
 ```
 
-### Example: Testing a utility function
+### Example 2: Testing file system operations with temp cleanup (file-tree.test.ts pattern)
 
-User says: "Add tests for src/utils/sanitize.ts"
+**User asks**: "Write tests for file tree analysis."
 
-**Actions:**
-1. Create `src/utils/__tests__/sanitize.test.ts`
-2. Import the sanitize function
-3. Write tests for different input types
-4. No mocking needed (pure logic)
-5. Run: `npm run test -- src/utils/__tests__/sanitize.test.ts`
+**Actions taken**:
+1. Create `src/fingerprint/__tests__/file-tree.test.ts`
+2. Set up a cleanup array for temp directories
+3. Create temp dirs in each test and push to cleanup array
+4. Clean up all temp dirs in afterEach
+5. Test with various file mtimes and directory structures
 
-**Result:**
+**Result**:
 ```typescript
-import { describe, it, expect } from 'vitest';
-import { sanitize } from '../sanitize.js';
+import { describe, it, expect, afterEach } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { getFileTree } from '../file-tree.js';
 
-describe('sanitize', () => {
-  it('should remove dangerous characters', () => {
-    expect(sanitize('<script>alert()</script>')).toEqual('scriptalert()script');
+const dirs: string[] = [];
+afterEach(() => {
+  for (const d of dirs) {
+    try { fs.rmSync(d, { recursive: true, force: true }); } catch {}
+  }
+  dirs.length = 0;
+});
+
+describe('getFileTree', () => {
+  it('returns files sorted by mtime descending', () => {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-ft-'));
+    dirs.push(tmp);
+
+    fs.writeFileSync(path.join(tmp, 'a.ts'), 'a');
+    fs.writeFileSync(path.join(tmp, 'b.ts'), 'b');
+    const tree = getFileTree(tmp);
+    expect(tree).toHaveLength(2);
+  });
+});
+```
+
+### Example 3: Testing with module mocking and factory functions (index.test.ts pattern)
+
+**User asks**: "Write tests for the provider factory that instantiates different providers based on config."
+
+**Actions taken**:
+1. Create `src/llm/__tests__/index.test.ts`
+2. Use `vi.unmock('../index.js')` to test the real module
+3. Create mock classes in `vi.hoisted()`
+4. Mock dependencies (config, provider classes)
+5. Test provider selection logic
+6. Use `resetProvider()` between tests to clear cached instances
+
+**Result**:
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+vi.unmock('../index.js');
+
+const { mockLoadConfig, MockAnthropicProvider } = vi.hoisted(() => {
+  class MockAnthropicProvider {
+    config: unknown;
+    call = vi.fn();
+    constructor(c: unknown) { this.config = c; }
+  }
+  return {
+    mockLoadConfig: vi.fn(),
+    MockAnthropicProvider,
+  };
+});
+
+vi.mock('../config.js', () => ({
+  loadConfig: () => mockLoadConfig(),
+}));
+
+vi.mock('../anthropic.js', () => ({
+  AnthropicProvider: MockAnthropicProvider,
+}));
+
+import { getProvider, resetProvider } from '../index.js';
+
+describe('getProvider', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    resetProvider();
   });
 
-  it('should handle null input', () => {
-    expect(sanitize(null)).toEqual('');
+  it('creates AnthropicProvider for anthropic config', () => {
+    mockLoadConfig.mockReturnValue({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-test',
+    });
+    const provider = getProvider();
+    expect(provider).toBeInstanceOf(MockAnthropicProvider);
   });
 });
 ```
 
 ## Common Issues
 
-**Issue: "Cannot find module" error when importing from test**
-- **Cause**: Missing `.js` extension in ESM imports
-- **Fix**: Ensure all imports in test files use `.js` extension: `import { foo } from '../module.js'`
+**"Cannot find module" when running tests**
+- **Cause**: `vi.mock()` called after the import statement
+- **Fix**: Move all `vi.mock()` and `vi.unmock()` calls to the TOP of the file, before any `import` statements
 
-**Issue: "process.env.VARIABLE is undefined" in tests**
-- **Cause**: Environment variable not set up in test or not restored properly
-- **Fix**: Use the save/restore pattern from Step 4. Set `process.env.VARIABLE = 'value'` in `beforeEach`.
+**Environment variable persists across tests**
+- **Cause**: `beforeEach` assigns by reference instead of copying: `process.env = originalEnv`
+- **Fix**: Create a copy in `beforeEach`: `process.env = { ...originalEnv }; delete process.env.VAR`
 
-**Issue: "vi.mock is not defined" or mock not working**
-- **Cause**: Attempting to mock after imports, or mocking an already-imported module
-- **Fix**: Call `vi.mock()` at the top of the file, before any imports of the mocked module.
+**Temporary files not cleaned up, filling disk**
+- **Cause**: `afterEach` not called or temp paths not tracked
+- **Fix**: Use centralized cleanup array: `dirs: string[] = []` pushed to in tests, cleaned in `afterEach` with `fs.rmSync(..., { recursive: true, force: true })`
 
-**Issue: Tests pass locally but fail in CI**
-- **Cause**: Mock state or env vars not cleaned up between tests
-- **Fix**: Add `vi.clearAllMocks()` in `beforeEach` and restore `process.env` in `afterEach`.
+**Mock return value from previous test bleeds into next test**
+- **Cause**: `vi.clearAllMocks()` not called in `beforeEach`
+- **Fix**: Add `vi.clearAllMocks()` as first statement in `beforeEach`
 
-**Issue: "Timeout of 5000ms exceeded"**
-- **Cause**: Async test or mock not resolving
-- **Fix**: Ensure mocks return resolved promises. Use `vi.fn().mockResolvedValue()` for async mocks.
+**"vi.mocked() is not a function" when accessing mock calls**
+- **Cause**: Trying to use `vi.mocked()` on a non-mocked module
+- **Fix**: Ensure the module is mocked with `vi.mock()` before importing, then cast: `const mockFn = vi.mocked(importedFn)`
 
-**Issue: Tests reference global LLM mock but it's not available**
-- **Cause**: Test setup not loading `src/test/setup.ts`
-- **Fix**: Verify `vitest.config.ts` includes `setupFiles: ['src/test/setup.ts']`. This is already configured in the project.
+**Test passes locally but fails in CI**
+- **Cause**: Tests rely on real file system or network (not mocked)
+- **Fix**: Check if temp files are being created in real directories instead of mocked ones. Verify all external calls use `vi.mock()` for fs/http/exec
+
+**Coverage threshold failures: "lines not covered", "statements not covered"**
+- **Cause**: Branches or error paths not tested
+- **Fix**: Run `pnpm test:coverage` locally to see untested lines. Add `it()` tests for error cases, edge conditions, and branches that return different values
+- **Example**: If `if (x) return 'a'; else return 'b';` has 0% branch coverage, add tests: one with x=true, one with x=false
+
+**"expected 1 error but got 0" when testing error throws**
+- **Cause**: Error not actually thrown, or thrown asynchronously
+- **Fix**: For sync functions: `expect(() => fn()).toThrow('message')`. For async: `expect(async () => { await fn() }).rejects.toThrow('message')` or use `await expect(promise).rejects.toThrow()`
+
+**Mock factory returns undefined**
+- **Cause**: `vi.hoisted()` variables used before definition in the same block
+- **Fix**: Ensure `vi.hoisted()` block returns all factories, and `vi.mock()` blocks use them after the hoisted definition
+
+**Test flakes (sometimes passes, sometimes fails)**
+- **Cause**: Timing issues or file system race conditions in cleanup
+- **Fix**: For file cleanup, use `{ force: true }` in `rmSync`. For timing, avoid `setTimeout`; use `vi.useFakeTimers()` and `vi.runAllTimers()` if needed. Check for leftover files from previous test runs in `beforeEach`

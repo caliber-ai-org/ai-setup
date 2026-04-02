@@ -59,6 +59,8 @@ import {
 } from './init-helpers.js';
 import { recordScore } from '../scoring/history.js';
 
+const IS_WINDOWS = process.platform === 'win32';
+
 export type { TargetAgent };
 
 interface InitOptions {
@@ -230,6 +232,11 @@ export async function initCommand(options: InitOptions) {
   console.log(`  ${chalk.green('✓')} Onboarding hook — nudges new team members to set up`);
   installSessionStartHook();
   console.log(`  ${chalk.green('✓')} Freshness hook — warns when configs are stale`);
+
+  if (IS_WINDOWS) {
+    console.log(chalk.yellow('\n  Note: hooks use shell syntax and require Git Bash (included with Git for Windows).'));
+    console.log(chalk.dim('  If hooks don\'t run, ensure Git for Windows is installed and git is using its bundled sh.'));
+  }
 
   // Install builtin skills (setup-caliber, find-skills, save-learning)
   const { ensureBuiltinSkills } = await import('../lib/builtin-skills.js');

@@ -7,6 +7,7 @@ import { CursorAcpProvider, isCursorAgentAvailable } from './cursor-acp.js';
 import { ClaudeCliProvider, isClaudeCliAvailable } from './claude-cli.js';
 import { parseJsonResponse, extractJson, estimateTokens } from './utils.js';
 import { isModelNotAvailableError, handleModelNotAvailable } from './model-recovery.js';
+import { isRateLimitError } from './seat-based-errors.js';
 import { resolveCaliber } from '../lib/resolve-caliber.js';
 
 export type { LLMProvider, LLMConfig, LLMCallOptions };
@@ -120,6 +121,11 @@ export async function llmCall(options: LLMCallOptions): Promise<string> {
 
       if (isOverloaded(error) && attempt < MAX_RETRIES) {
         await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt - 1)));
+        continue;
+      }
+
+      if (isRateLimitError(error.message) && attempt < MAX_RETRIES) {
+        await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt - 1)));
         continue;
       }
 

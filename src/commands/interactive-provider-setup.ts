@@ -7,6 +7,8 @@ import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
 import { isClaudeCliAvailable } from '../llm/claude-cli.js';
 import { promptInput } from '../utils/prompt.js';
 
+const IS_WINDOWS = process.platform === 'win32';
+
 const PROVIDER_CHOICES: Array<{ name: string; value: ProviderType }> = [
   { name: 'Claude Code — use your existing subscription (no API key)', value: 'claude-cli' },
   { name: 'Cursor — use your existing subscription (no API key)', value: 'cursor' },
@@ -48,8 +50,13 @@ export async function runInteractiveProviderSetup(options?: {
     case 'cursor': {
       if (!isCursorAgentAvailable()) {
         console.log(chalk.yellow('\n  Cursor Agent CLI not found.'));
-        console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('curl https://cursor.com/install -fsS | bash'));
-        console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' to authenticate.\n'));
+        if (IS_WINDOWS) {
+          console.log(chalk.dim('  Install it from: ') + chalk.hex('#83D1EB')('https://www.cursor.com/downloads'));
+          console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' in PowerShell to authenticate.\n'));
+        } else {
+          console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('curl https://cursor.com/install -fsS | bash'));
+          console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' to authenticate.\n'));
+        }
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       } else if (!isCursorLoggedIn()) {

@@ -160,13 +160,13 @@ export async function scoreCommand(options: ScoreOptions) {
     console.log(
       chalk.gray('  Run ') +
         chalk.hex('#83D1EB')(`${bin} init`) +
-        chalk.gray(' to auto-fix these.'),
+        chalk.gray(' to generate or update your agent config files.'),
     );
   } else if (failing.length > 0) {
     console.log(
       chalk.green('  Looking good!') +
         chalk.gray(
-          ` ${failing.length} check${failing.length === 1 ? '' : 's'} can still be improved.`,
+          ` ${failing.length} optional improvement${failing.length === 1 ? '' : 's'} available.`,
         ),
     );
     console.log(

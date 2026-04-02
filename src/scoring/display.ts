@@ -144,7 +144,7 @@ export function displayScore(result: ScoreResult): void {
 function formatTopImprovements(checks: readonly Check[]): void {
   const improvable = checks
     .filter(c => c.earnedPoints < c.maxPoints)
-    .map(c => ({ name: c.name, potential: c.maxPoints - c.earnedPoints }))
+    .map(c => ({ name: c.name, potential: c.maxPoints - c.earnedPoints, suggestion: c.suggestion }))
     .sort((a, b) => b.potential - a.potential)
     .slice(0, 5);
 
@@ -159,6 +159,9 @@ function formatTopImprovements(checks: readonly Check[]): void {
     const label = chalk.white(item.name.padEnd(42));
     const pts = chalk.yellow(`+${item.potential} pts`);
     console.log(`  ${num} ${label}${pts}`);
+    if (item.suggestion) {
+      console.log(chalk.gray(`     ${item.suggestion}`));
+    }
   }
 
   console.log('');
