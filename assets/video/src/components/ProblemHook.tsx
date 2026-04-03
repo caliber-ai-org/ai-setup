@@ -15,12 +15,12 @@ export const ProblemHook: React.FC = () => {
     extrapolateRight: "clamp",
   });
 
-  // At frame 75, crossfade headline 1 → headline 2 (more breathing room)
-  const headline1Opacity = interpolate(frame, [75, 92], [1, 0], {
+  // Sequential: fade OUT first (65-78), blank gap, then fade IN (84-97)
+  const headline1Opacity = interpolate(frame, [65, 78], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const headline2Opacity = interpolate(frame, [75, 92], [0, 1], {
+  const headline2Opacity = interpolate(frame, [84, 97], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
