@@ -18,7 +18,3 @@ export function parseSeatBasedError(stderr: string, exitCode: number | null): st
 export function isRateLimitError(stderr: string): boolean {
   return /rate limit|too many requests|429/i.test(stderr);
 }
-
-export function isAuthError(stderr: string): boolean {
-  return /not logged in|not authenticated|login required|unauthorized/i.test(stderr);
-}
