@@ -4,7 +4,7 @@ import { AnthropicProvider } from './anthropic.js';
 import { VertexProvider } from './vertex.js';
 import { OpenAICompatProvider } from './openai-compat.js';
 import { CursorAcpProvider, isCursorAgentAvailable } from './cursor-acp.js';
-import { ClaudeCliProvider, isClaudeCliAvailable } from './claude-cli.js';
+import { ClaudeCliProvider, isClaudeCliAvailable, isClaudeCliLoggedIn } from './claude-cli.js';
 import { parseJsonResponse, extractJson, estimateTokens } from './utils.js';
 import { isModelNotAvailableError, handleModelNotAvailable } from './model-recovery.js';
 import { isRateLimitError } from './seat-based-errors.js';
@@ -42,6 +42,11 @@ function createProvider(config: LLMConfig): LLMProvider {
       if (!isClaudeCliAvailable()) {
         throw new Error(
           'Claude Code provider requires the Claude Code CLI. Install it from https://claude.ai/install (or run `claude` once and log in). Alternatively set ANTHROPIC_API_KEY or choose another provider.'
+        );
+      }
+      if (!isClaudeCliLoggedIn()) {
+        throw new Error(
+          'Claude Code CLI is installed but not logged in. Run `claude` in your terminal to log in, then retry.'
         );
       }
       return new ClaudeCliProvider(config);

@@ -17,7 +17,7 @@ import { promptInput } from '../utils/prompt.js';
 import { loadConfig, getFastModel, getDisplayModel, writeConfigFile } from '../llm/config.js';
 import { validateModel } from '../llm/index.js';
 import { runInteractiveProviderSetup } from './interactive-provider-setup.js';
-import { isClaudeCliAvailable } from '../llm/claude-cli.js';
+import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
 import confirm from '@inquirer/confirm';
 import { computeLocalScore } from '../scoring/index.js';
@@ -131,7 +131,7 @@ export async function initCommand(options: InitOptions) {
   let config = loadConfig();
   if (!config && !options.autoApprove) {
     // Try seat-based auto-detection
-    if (isClaudeCliAvailable()) {
+    if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
       console.log(chalk.dim('  Detected: Claude Code CLI (uses your Pro/Max/Team subscription)\n'));
       const useIt = await confirm({ message: 'Use Claude Code as your LLM provider?' });
       if (useIt) {
@@ -152,7 +152,7 @@ export async function initCommand(options: InitOptions) {
   if (!config) {
     if (options.autoApprove) {
       // In auto-approve mode, try seat-based silently
-      if (isClaudeCliAvailable()) {
+      if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
         const autoConfig = { provider: 'claude-cli' as const, model: 'default' };
         writeConfigFile(autoConfig);
         config = autoConfig;

@@ -4,7 +4,7 @@ import confirm from '@inquirer/confirm';
 import { writeConfigFile, DEFAULT_MODELS } from '../llm/config.js';
 import type { ProviderType, LLMConfig } from '../llm/types.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
-import { isClaudeCliAvailable } from '../llm/claude-cli.js';
+import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
 import { promptInput } from '../utils/prompt.js';
 
 const IS_WINDOWS = process.platform === 'win32';
@@ -40,6 +40,11 @@ export async function runInteractiveProviderSetup(options?: {
         console.log(chalk.yellow('\n  Claude Code CLI not found.'));
         console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('npm install -g @anthropic-ai/claude-code'));
         console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'));
+        const proceed = await confirm({ message: 'Continue anyway?' });
+        if (!proceed) throw new Error('__exit__');
+      } else if (!isClaudeCliLoggedIn()) {
+        console.log(chalk.yellow('\n  Claude Code CLI found but not logged in.'));
+        console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'));
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       } else {

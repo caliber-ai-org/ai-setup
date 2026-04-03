@@ -201,3 +201,31 @@ export function isClaudeCliAvailable(): boolean {
     return false;
   }
 }
+
+let cachedLoggedIn: boolean | null = null;
+
+/** Reset the cached login status — used in tests. */
+export function resetClaudeCliLoginCache(): void {
+  cachedLoggedIn = null;
+}
+
+/** Whether the user is logged in to Claude Code CLI. Uses `claude auth status` for a zero-cost check. Result is cached for the process lifetime. */
+export function isClaudeCliLoggedIn(): boolean {
+  if (cachedLoggedIn !== null) return cachedLoggedIn;
+  try {
+    const result = execSync(`${CLAUDE_CLI_BIN} auth status`, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 5000,
+    });
+    const output = result.toString().trim();
+    try {
+      const status = JSON.parse(output) as { loggedIn?: boolean };
+      cachedLoggedIn = status.loggedIn === true;
+    } catch {
+      cachedLoggedIn = !output.toLowerCase().includes('not logged in');
+    }
+  } catch {
+    cachedLoggedIn = false;
+  }
+  return cachedLoggedIn;
+}
