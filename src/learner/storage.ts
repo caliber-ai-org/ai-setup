@@ -8,6 +8,8 @@ import {
 } from '../constants.js';
 
 const MAX_RESPONSE_LENGTH = 2000;
+const MAX_PROMPT_LENGTH = 2000;
+const MAX_SESSION_FILE_BYTES = 10 * 1024 * 1024; // 10MB
 
 export interface ToolEvent {
   timestamp: string;
@@ -65,6 +67,14 @@ function truncateResponse(response: Record<string, unknown>): Record<string, unk
 }
 
 function trimSessionFileIfNeeded(filePath: string): void {
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > MAX_SESSION_FILE_BYTES) {
+      fs.writeFileSync(filePath, '');
+      return;
+    }
+  } catch { return; }
+
   const state = readState();
   if (state.eventCount + 1 > LEARNING_MAX_EVENTS) {
     const lines = fs.readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
@@ -85,14 +95,27 @@ export function appendEvent(event: ToolEvent): void {
 
 export function appendPromptEvent(event: PromptEvent): void {
   ensureLearningDir();
+  const truncated = {
+    ...event,
+    prompt_content: event.prompt_content.length > MAX_PROMPT_LENGTH
+      ? event.prompt_content.slice(0, MAX_PROMPT_LENGTH)
+      : event.prompt_content,
+  };
   const filePath = sessionFilePath();
-  fs.appendFileSync(filePath, JSON.stringify(event) + '\n');
+  fs.appendFileSync(filePath, JSON.stringify(truncated) + '\n');
   trimSessionFileIfNeeded(filePath);
 }
 
 export function readAllEvents(): SessionEvent[] {
   const filePath = sessionFilePath();
-  if (!fs.existsSync(filePath)) return [];
+
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > MAX_SESSION_FILE_BYTES) {
+      fs.writeFileSync(filePath, '');
+      return [];
+    }
+  } catch { return []; }
 
   const lines = fs.readFileSync(filePath, 'utf-8').split('\n').filter(Boolean);
   const events: SessionEvent[] = [];
@@ -108,7 +131,11 @@ export function readAllEvents(): SessionEvent[] {
 
 export function getEventCount(): number {
   const filePath = sessionFilePath();
-  if (!fs.existsSync(filePath)) return 0;
+
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size > MAX_SESSION_FILE_BYTES) return 0;
+  } catch { return 0; }
 
   const content = fs.readFileSync(filePath, 'utf-8');
   return content.split('\n').filter(Boolean).length;

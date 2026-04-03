@@ -419,6 +419,8 @@ You receive a chronological sequence of events from a Claude Code session. Most 
 
 Your job is to find OPERATIONAL patterns — things that went wrong and how they were fixed, commands that required specific flags or configuration, APIs that needed a particular approach to work. Focus on the WORKFLOW, not the code logic.
 
+IMPORTANT CONTEXT: Your output will be committed to git and shared with all developers and AI agents working on this repo. Only include patterns that will genuinely help future work — not descriptions of bugs that were already fixed in this session, not local environment issues, and not implementation details of what was built.
+
 CRITICAL FILTER — apply this to every potential learning before including it:
 The litmus test: "Would a different developer, working on a DIFFERENT task in this same repo next week, benefit from knowing this?" If the answer is no — if it only matters for the exact problem being debugged today — do NOT include it.
 
@@ -427,7 +429,7 @@ DO NOT extract:
 - General programming best practices everyone already knows
 - Summaries of successful routine operations that need no special handling
 - Anything already covered in the existing CLAUDE.md
-- **One-time debugging artifacts** — fixes for a specific bug that was resolved in this session and won't recur (e.g. "fixed the stream parser by adding a null check at line 42"). Only extract if the pattern will help future sessions avoid the same trap.
+- **One-time debugging artifacts** — fixes for a specific bug that was resolved in this session and won't recur (e.g. "fixed the stream parser by adding a null check at line 42"). The fix is in the code and git history — don't duplicate it as a learning. Only extract if the pattern reveals a recurring trap that future sessions could fall into.
 - **Session-specific file paths, worktree locations, or branch names** — these are ephemeral and won't apply to future sessions
 - **Implementation details of a feature being built** — the learning should be about HOW to work in this project, not WHAT was built
 

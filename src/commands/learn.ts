@@ -80,11 +80,21 @@ export async function learnObserveCommand(options: { failure?: boolean; prompt?:
     const sessionId = hookData.session_id || hookData.conversation_id || 'unknown';
 
     if (options.prompt) {
+      const content = String(hookData.prompt_content || hookData.content || hookData.prompt || '');
+
+      // Skip caliber's own LLM calls to prevent recursive feedback loop —
+      // finalize sends events as a prompt, which the hook would capture back,
+      // doubling the file size on every cycle. All caliber system prompts
+      // start with "You are an expert" (see src/ai/prompts.ts).
+      if (/^You are an expert\b/i.test(content)) {
+        return;
+      }
+
       const event: PromptEvent = {
         timestamp: new Date().toISOString(),
         session_id: sessionId,
         hook_event_name: 'UserPromptSubmit',
-        prompt_content: sanitizeSecrets(String(hookData.prompt_content || hookData.content || hookData.prompt || '')),
+        prompt_content: sanitizeSecrets(content),
         cwd: hookData.cwd || process.cwd(),
       };
       appendPromptEvent(event);
