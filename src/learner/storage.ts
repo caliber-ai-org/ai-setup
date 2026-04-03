@@ -71,6 +71,7 @@ function trimSessionFileIfNeeded(filePath: string): void {
     const stat = fs.statSync(filePath);
     if (stat.size > MAX_SESSION_FILE_BYTES) {
       fs.writeFileSync(filePath, '');
+      resetState();
       return;
     }
   } catch { return; }
@@ -113,6 +114,7 @@ export function readAllEvents(): SessionEvent[] {
     const stat = fs.statSync(filePath);
     if (stat.size > MAX_SESSION_FILE_BYTES) {
       fs.writeFileSync(filePath, '');
+      resetState();
       return [];
     }
   } catch { return []; }
@@ -143,7 +145,11 @@ export function getEventCount(): number {
 
 export function clearSession(): void {
   const filePath = sessionFilePath();
-  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  try {
+    fs.writeFileSync(filePath, '');
+  } catch {
+    // File may not exist — that's fine
+  }
 }
 
 export function readState(): LearningState {

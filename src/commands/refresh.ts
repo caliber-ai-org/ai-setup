@@ -423,9 +423,10 @@ export async function refreshCommand(options: RefreshOptions) {
             `${repoName}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`,
           ),
         );
+      } finally {
+        process.chdir(originalDir);
       }
     }
-    process.chdir(originalDir);
   } catch (err) {
     if (err instanceof Error && err.message === '__exit__') throw err;
     writeRefreshError(err);
