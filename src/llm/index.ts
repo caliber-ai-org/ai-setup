@@ -3,7 +3,7 @@ import { loadConfig } from './config.js';
 import { AnthropicProvider } from './anthropic.js';
 import { VertexProvider } from './vertex.js';
 import { OpenAICompatProvider } from './openai-compat.js';
-import { CursorAcpProvider, isCursorAgentAvailable } from './cursor-acp.js';
+import { CursorAcpProvider, isCursorAgentAvailable, isCursorLoggedIn } from './cursor-acp.js';
 import { ClaudeCliProvider, isClaudeCliAvailable, isClaudeCliLoggedIn } from './claude-cli.js';
 import { parseJsonResponse, extractJson, estimateTokens } from './utils.js';
 import { isModelNotAvailableError, handleModelNotAvailable } from './model-recovery.js';
@@ -34,6 +34,11 @@ function createProvider(config: LLMConfig): LLMProvider {
       if (!isCursorAgentAvailable()) {
         throw new Error(
           'Cursor provider requires the Cursor Agent CLI. Install it from https://cursor.com/install then run `agent login`. Alternatively set ANTHROPIC_API_KEY or another provider.'
+        );
+      }
+      if (!isCursorLoggedIn()) {
+        throw new Error(
+          'Cursor Agent CLI is installed but not logged in. Run `agent login` in your terminal to authenticate, then retry.'
         );
       }
       return new CursorAcpProvider(config);

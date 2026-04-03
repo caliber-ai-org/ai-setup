@@ -6,6 +6,7 @@ vi.unmock('../index.js');
 const {
   mockLoadConfig,
   mockIsCursorAgentAvailable,
+  mockIsCursorLoggedIn,
   mockIsClaudeCliAvailable,
   mockIsClaudeCliLoggedIn,
   MockAnthropicProvider,
@@ -58,6 +59,7 @@ const {
   return {
     mockLoadConfig: vi.fn(),
     mockIsCursorAgentAvailable: vi.fn(),
+    mockIsCursorLoggedIn: vi.fn(),
     mockIsClaudeCliAvailable: vi.fn(),
     mockIsClaudeCliLoggedIn: vi.fn(),
     MockAnthropicProvider,
@@ -89,6 +91,7 @@ vi.mock('../openai-compat.js', () => ({
 vi.mock('../cursor-acp.js', () => ({
   CursorAcpProvider: MockCursorAcpProvider,
   isCursorAgentAvailable: () => mockIsCursorAgentAvailable(),
+  isCursorLoggedIn: () => mockIsCursorLoggedIn(),
 }));
 
 vi.mock('../claude-cli.js', () => ({
@@ -122,9 +125,10 @@ describe('getProvider', () => {
     });
   });
 
-  it('creates CursorAcpProvider when cursor is configured and agent is available', () => {
+  it('creates CursorAcpProvider when cursor is configured, available, and logged in', () => {
     mockLoadConfig.mockReturnValue({ provider: 'cursor', model: 'default' });
     mockIsCursorAgentAvailable.mockReturnValue(true);
+    mockIsCursorLoggedIn.mockReturnValue(true);
 
     const provider = getProvider();
 
@@ -136,6 +140,14 @@ describe('getProvider', () => {
     mockIsCursorAgentAvailable.mockReturnValue(false);
 
     expect(() => getProvider()).toThrow('Cursor provider requires the Cursor Agent CLI');
+  });
+
+  it('throws when cursor is configured but not logged in', () => {
+    mockLoadConfig.mockReturnValue({ provider: 'cursor', model: 'default' });
+    mockIsCursorAgentAvailable.mockReturnValue(true);
+    mockIsCursorLoggedIn.mockReturnValue(false);
+
+    expect(() => getProvider()).toThrow('not logged in');
   });
 
   it('creates ClaudeCliProvider when claude-cli is configured and CLI is available and logged in', () => {
