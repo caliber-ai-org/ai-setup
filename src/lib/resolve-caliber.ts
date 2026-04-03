@@ -1,4 +1,5 @@
 import fs from 'fs';
+import path from 'path';
 import { execSync } from 'child_process';
 
 let _resolved: string | null = null;
@@ -12,9 +13,7 @@ export function resolveCaliber(): string {
 
   // 0. Detect npx context — temp paths become stale after the npx process exits,
   //    so use `npx --yes @rely-ai/caliber` which always resolves correctly.
-  const isNpx =
-    process.argv[1]?.includes('_npx') ||
-    process.env.npm_execpath?.includes('npx');
+  const isNpx = process.argv[1]?.includes('_npx') || process.env.npm_execpath?.includes('npx');
   if (isNpx) {
     _resolved = 'npx --yes @rely-ai/caliber';
     return _resolved;
@@ -50,6 +49,51 @@ export function resolveCaliber(): string {
 /** True when the resolved binary is a multi-word npx invocation. */
 export function isNpxResolution(): boolean {
   return resolveCaliber().startsWith('npx ');
+}
+
+/**
+ * Resolve caliber as a [binary, scriptPath] tuple suitable for child_process.spawn()
+ * without `shell: true`. On Windows this avoids .cmd shim issues (ENOENT) and
+ * prevents a visible cmd.exe window from opening for detached child processes.
+ *
+ * Returns `[process.execPath, scriptPath]` when running from a known script,
+ * or `null` when resolution isn't possible (caller should fall back to shell spawn).
+ */
+export function resolveCaliberForSpawn(): [string, string] | null {
+  // If we're running from a node script, we know process.argv[1] is the entry point
+  const scriptPath = process.argv[1];
+  if (scriptPath && /caliber/.test(scriptPath) && fs.existsSync(scriptPath)) {
+    return [process.execPath, scriptPath];
+  }
+
+  // Try to find the script via the npm global shim on Windows
+  if (process.platform === 'win32') {
+    try {
+      const shimPath = execSync('where caliber', {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+        .trim()
+        .split(/\r?\n/)[0];
+      // The shim sits next to node_modules/@rely-ai/caliber/dist/bin.js
+      const shimDir = path.dirname(shimPath);
+      const entryScript = path.join(
+        shimDir,
+        'node_modules',
+        '@rely-ai',
+        'caliber',
+        'dist',
+        'bin.js',
+      );
+      if (fs.existsSync(entryScript)) {
+        return [process.execPath, entryScript];
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  return null;
 }
 
 /** Reset cached resolution — only for tests. */

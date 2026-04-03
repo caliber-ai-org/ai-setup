@@ -98,6 +98,7 @@ export async function checkForUpdates(): Promise<void> {
         stdio: 'pipe',
         timeout: 120_000,
         env: { ...process.env, npm_config_fund: 'false', npm_config_audit: 'false' },
+        shell: true, // Required on Windows: npm is a .cmd shim
       });
 
       const installed = getInstalledVersion();
@@ -116,6 +117,7 @@ export async function checkForUpdates(): Promise<void> {
       execFileSync('caliber', args, {
         stdio: 'inherit',
         env: { ...process.env, CALIBER_SKIP_UPDATE_CHECK: '1' },
+        shell: true, // Required on Windows: caliber is a .cmd shim
       });
       process.exit(0);
     } catch (err) {
