@@ -5,9 +5,10 @@ import { theme } from "./theme";
 // Animation: opacity fades + width interpolation for divider. No springs.
 
 const diffLines = [
-  { prefix: " ", text: 'import { db } from "./db";', color: theme.textMuted },
-  { prefix: "-", text: 'import { users } from "./schema";', color: theme.red },
-  { prefix: "+", text: 'import { users, teams } from "./schema";', color: theme.green },
+  { prefix: " ", text: "// api/src/routes/auth.ts", color: theme.textMuted },
+  { prefix: "-", text: 'app.use(expressSession({ store: redis }))', color: theme.red },
+  { prefix: "+", text: "app.use(lucia({ adapter: drizzleAdapter }))", color: theme.green },
+  { prefix: "+", text: '// migrated from Redis sessions → Lucia Auth', color: theme.green },
 ];
 
 export const FreshScene: React.FC = () => {
@@ -177,7 +178,7 @@ export const FreshScene: React.FC = () => {
               Configs update
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {["CLAUDE.md updated", ".cursor/rules/ refreshed"].map((text) => (
+              {["CLAUDE.md — auth stack updated", ".cursor/rules/ — session patterns fixed"].map((text) => (
                 <div key={text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <svg width={20} height={20} viewBox="0 0 20 20" fill="none">
                     <circle cx={10} cy={10} r={9} stroke={theme.green} strokeWidth={1.5} opacity={0.4} />
