@@ -1,3 +1,9 @@
+## v1.40.2 (2026-04-03)
+
+### Bug Fixes
+
+- add pre-flight auth check for Claude CLI provider (#118)
+
 ## v1.40.1 (2026-04-02)
 
 ### Bug Fixes
