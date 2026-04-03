@@ -1,4 +1,4 @@
-export type ProviderType = 'anthropic' | 'vertex' | 'openai' | 'cursor' | 'claude-cli';
+export type ProviderType = 'anthropic' | 'vertex' | 'openai' | 'cursor' | 'claude-cli' | 'opencode';
 
 const SEAT_BASED_PROVIDERS: ReadonlySet<ProviderType> = new Set(['cursor', 'claude-cli']);
 
