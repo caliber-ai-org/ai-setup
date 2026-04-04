@@ -125,11 +125,11 @@ describe('streamGeneration inactivity timeout', () => {
 
     // send text at 8s intervals (under the 10s timeout)
     await vi.advanceTimersByTimeAsync(8000);
-    if (textCallback) textCallback('{"target');
+    textCallback!('{"target');
     await vi.advanceTimersByTimeAsync(8000);
-    if (textCallback) textCallback('Agent": "claude"}');
+    textCallback!('Agent": "claude"}');
     await vi.advanceTimersByTimeAsync(1);
-    if (endCallback) endCallback({ stopReason: 'end_turn' });
+    endCallback!({ stopReason: 'end_turn' });
 
     const result = await resultPromise;
     expect(result.setup).toMatchObject({ targetAgent: 'claude' });
@@ -211,7 +211,7 @@ describe('streamGeneration total timeout', () => {
 
     for (let i = 0; i < 10; i++) {
       await vi.advanceTimersByTimeAsync(3000);
-      if (textCallback) textCallback('more text... ');
+      textCallback!('more text... ');
     }
 
     const result = await resultPromise;
@@ -282,7 +282,7 @@ describe('streamGeneration total timeout', () => {
 
     await vi.advanceTimersByTimeAsync(5000);
     // try sending text after timeout
-    if (textCallback) textCallback('{"late": "data"}');
+    textCallback!('{"late": "data"}');
 
     const result = await resultPromise;
 
@@ -356,7 +356,7 @@ describe('streamGeneration settled guards', () => {
 
     await vi.advanceTimersByTimeAsync(10_000);
     // provider fires onEnd after timeout
-    if (endCallback) endCallback({ stopReason: 'end_turn' });
+    endCallback!({ stopReason: 'end_turn' });
 
     const result = await resultPromise;
 
@@ -525,11 +525,11 @@ describe('refineSetup inactivity timeout', () => {
 
     // send text at 8s intervals (under 10s timeout)
     await vi.advanceTimersByTimeAsync(8000);
-    if (textCallback) textCallback('{"claude');
+    textCallback!('{"claude');
     await vi.advanceTimersByTimeAsync(8000);
-    if (textCallback) textCallback('": {"claudeMd": "updated"}}');
+    textCallback!('": {"claudeMd": "updated"}}');
     await vi.advanceTimersByTimeAsync(1);
-    if (endCallback) endCallback();
+    endCallback!();
 
     const result = await resultPromise;
     expect(result).toMatchObject({ claude: { claudeMd: 'updated' } });
@@ -583,7 +583,7 @@ describe('refineSetup inactivity timeout', () => {
 
     await vi.advanceTimersByTimeAsync(10_000);
     // late onEnd from provider
-    if (endCallback) endCallback();
+    endCallback!();
 
     const result = await resultPromise;
 
