@@ -171,7 +171,9 @@ jobs:
           git add package.json package-lock.json CHANGELOG.md
           git diff --cached --quiet && echo "No version changes to commit" || git commit -m "chore: release v${VERSION} [skip ci]"
           git tag "v${VERSION}"
-          git push && git push --tags
+          MAJOR=$(echo "${VERSION}" | cut -d. -f1)
+          git tag -f "v${MAJOR}"
+          git push && git push --tags --force
 
       - name: Create GitHub release
         if: steps.version.outputs.skip != 'true'
