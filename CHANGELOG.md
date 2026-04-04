@@ -1,3 +1,9 @@
+## v1.41.0 (2026-04-04)
+
+### Features
+
+- add generation resilience with timeout and diagnostics (#129)
+
 ## v1.40.4 (2026-04-03)
 
 ### Bug Fixes
