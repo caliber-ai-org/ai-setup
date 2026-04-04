@@ -19,16 +19,25 @@ export function isFirstRun(dir: string): boolean {
 export function summarizeSetup(action: string, setup: Record<string, unknown>): string {
   const descriptions = setup.fileDescriptions as Record<string, string> | undefined;
   const files = descriptions
-    ? Object.entries(descriptions).map(([p, desc]) => `  ${p}: ${desc}`).join('\n')
-    : Object.keys(setup).filter(k => k !== 'targetAgent' && k !== 'fileDescriptions').join(', ');
+    ? Object.entries(descriptions)
+        .map(([p, desc]) => `  ${p}: ${desc}`)
+        .join('\n')
+    : Object.keys(setup)
+        .filter((k) => k !== 'targetAgent' && k !== 'fileDescriptions')
+        .join(', ');
   return `${action}. Files:\n${files}`;
 }
 
-export function derivePermissions(fingerprint: { languages: string[]; tools: string[]; fileTree: string[] }): string[] {
+export function derivePermissions(fingerprint: {
+  languages: string[];
+  tools: string[];
+  fileTree: string[];
+}): string[] {
   const perms: string[] = ['Bash(git *)'];
-  const langs = new Set(fingerprint.languages.map(l => l.toLowerCase()));
-  const tools = new Set(fingerprint.tools.map(t => t.toLowerCase()));
-  const hasFile = (name: string) => fingerprint.fileTree.some(f => f === name || f === `./${name}`);
+  const langs = new Set(fingerprint.languages.map((l) => l.toLowerCase()));
+  const tools = new Set(fingerprint.tools.map((t) => t.toLowerCase()));
+  const hasFile = (name: string) =>
+    fingerprint.fileTree.some((f) => f === name || f === `./${name}`);
 
   if (langs.has('typescript') || langs.has('javascript') || hasFile('package.json')) {
     perms.push('Bash(npm run *)', 'Bash(npx *)');
@@ -64,7 +73,11 @@ export function derivePermissions(fingerprint: { languages: string[]; tools: str
   return [...new Set(perms)];
 }
 
-export function ensurePermissions(fingerprint: { languages: string[]; tools: string[]; fileTree: string[] }): void {
+export function ensurePermissions(fingerprint: {
+  languages: string[];
+  tools: string[];
+  fileTree: string[];
+}): void {
   const settingsPath = '.claude/settings.json';
   let settings: Record<string, unknown> = {};
 
@@ -72,7 +85,9 @@ export function ensurePermissions(fingerprint: { languages: string[]; tools: str
     if (fs.existsSync(settingsPath)) {
       settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
     }
-  } catch { /* not valid JSON, start fresh */ }
+  } catch {
+    /* not valid JSON, start fresh */
+  }
 
   const permissions = (settings.permissions ?? {}) as Record<string, unknown>;
   const allow = permissions.allow as unknown[] | undefined;
@@ -107,6 +122,19 @@ export function writeErrorLog(
     }
     lines.push('## Raw LLM Output', '```', rawOutput || '(empty)', '```');
 
+    if (stopReason?.startsWith('timeout')) {
+      lines.push('', '## Troubleshooting', '');
+      lines.push('This failure was caused by a timeout. You can adjust timeouts with:');
+      lines.push('```bash');
+      lines.push('# Increase inactivity timeout (default: 120s)');
+      lines.push('export CALIBER_STREAM_INACTIVITY_TIMEOUT_MS=180000');
+      lines.push('');
+      lines.push('# Increase total generation timeout (default: 600s)');
+      lines.push('export CALIBER_GENERATION_TIMEOUT_MS=900000');
+      lines.push('```');
+      lines.push('', 'If timeouts persist, try a different model.');
+    }
+
     fs.mkdirSync(path.join(process.cwd(), '.caliber'), { recursive: true });
     fs.writeFileSync(logPath, lines.join('\n'));
     console.log(chalk.dim(`\n  Error log written to .caliber/error-log.md`));
@@ -121,14 +149,16 @@ export async function evaluateDismissals(
 ): Promise<DismissedCheck[]> {
   if (failingChecks.length === 0) return [];
   const fastModel = getFastModel();
-  const checkList = failingChecks.map(c => ({
+  const checkList = failingChecks.map((c) => ({
     id: c.id,
     name: c.name,
     suggestion: c.suggestion,
   }));
 
-  const hasBuildFiles = fingerprint.fileTree.some(f =>
-    /^(package\.json|Makefile|Cargo\.toml|go\.mod|pyproject\.toml|requirements\.txt|build\.gradle|pom\.xml)$/i.test(f.split('/').pop() || '')
+  const hasBuildFiles = fingerprint.fileTree.some((f) =>
+    /^(package\.json|Makefile|Cargo\.toml|go\.mod|pyproject\.toml|requirements\.txt|build\.gradle|pom\.xml)$/i.test(
+      f.split('/').pop() || '',
+    ),
   );
   const topFiles = fingerprint.fileTree.slice(0, 30).join(', ');
 
@@ -160,8 +190,8 @@ ${JSON.stringify(checkList, null, 2)}`,
 
     if (!Array.isArray(result.dismissed)) return [];
     return result.dismissed
-      .filter(d => d.id && d.reason && failingChecks.some(c => c.id === d.id))
-      .map(d => ({ id: d.id, reason: d.reason, dismissedAt: new Date().toISOString() }));
+      .filter((d) => d.id && d.reason && failingChecks.some((c) => c.id === d.id))
+      .map((d) => ({ id: d.id, reason: d.reason, dismissedAt: new Date().toISOString() }));
   } catch {
     return [];
   }

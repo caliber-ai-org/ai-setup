@@ -36,6 +36,46 @@ const GENERATION_MAX_TOKENS = 64000;
 const MODEL_MAX_OUTPUT_TOKENS = 128000;
 const MAX_RETRIES = 5;
 
+export const DEFAULT_INACTIVITY_TIMEOUT_MS = 120_000;
+const DEFAULT_TOTAL_TIMEOUT_MS = 600_000;
+
+export function parseEnvTimeout(envVar: string, defaultMs: number, minMs = 5000): number {
+  const val = process.env[envVar];
+  if (!val) return defaultMs;
+  const parsed = parseInt(val, 10);
+  if (!Number.isFinite(parsed) || parsed < minMs) return defaultMs;
+  return parsed;
+}
+
+export function buildDiagnostic(
+  stopReason: string | undefined,
+  raw: string | undefined,
+  charsReceived: number,
+): string {
+  if (stopReason === 'timeout_inactivity') {
+    const timeoutSec = Math.round(
+      parseEnvTimeout('CALIBER_STREAM_INACTIVITY_TIMEOUT_MS', DEFAULT_INACTIVITY_TIMEOUT_MS) / 1000,
+    );
+    if (charsReceived === 0) {
+      return `Model produced no output for ${timeoutSec}s. Check your API key and model name, or increase timeout with CALIBER_STREAM_INACTIVITY_TIMEOUT_MS.`;
+    }
+    return `Model stopped responding for ${timeoutSec}s after producing ${charsReceived} chars. The model may be stuck. Try a different model or increase timeout with CALIBER_STREAM_INACTIVITY_TIMEOUT_MS.`;
+  }
+
+  if (stopReason === 'timeout_total') {
+    const timeoutSec = Math.round(
+      parseEnvTimeout('CALIBER_GENERATION_TIMEOUT_MS', DEFAULT_TOTAL_TIMEOUT_MS) / 1000,
+    );
+    return `Generation exceeded ${timeoutSec}s total time limit. Try a different model or increase timeout with CALIBER_GENERATION_TIMEOUT_MS.`;
+  }
+
+  if (!raw || raw.trim().length === 0) {
+    return 'Model produced no output. Check your API key and model name.';
+  }
+
+  return `Model responded but output was not valid JSON. First 200 chars:\n${raw.slice(0, 200)}`;
+}
+
 function isTransientError(error: Error): boolean {
   const msg = error.message.toLowerCase();
   return TRANSIENT_ERRORS.some((e) => msg.includes(e.toLowerCase()));
@@ -322,8 +362,29 @@ interface StreamGenerationConfig {
 async function streamGeneration(config: StreamGenerationConfig): Promise<GenerationResult> {
   const provider = getProvider();
   let attempt = 0;
+  const inactivityTimeoutMs = parseEnvTimeout(
+    'CALIBER_STREAM_INACTIVITY_TIMEOUT_MS',
+    DEFAULT_INACTIVITY_TIMEOUT_MS,
+  );
+  const totalTimeoutMs = parseEnvTimeout('CALIBER_GENERATION_TIMEOUT_MS', DEFAULT_TOTAL_TIMEOUT_MS);
+
+  // Wall-clock cap across all retry attempts
+  let totalTimedOut = false;
+  let totalResolve: ((result: GenerationResult) => void) | null = null;
+  const totalTimer = setTimeout(() => {
+    totalTimedOut = true;
+    if (config.callbacks) config.callbacks.onError(buildDiagnostic('timeout_total', '', 0));
+    if (totalResolve) {
+      totalResolve({ setup: null, raw: '', stopReason: 'timeout_total' });
+      totalResolve = null;
+    }
+  }, totalTimeoutMs);
 
   const attemptGeneration = async (): Promise<GenerationResult> => {
+    if (totalTimedOut) {
+      return { setup: null, raw: '', stopReason: 'timeout_total' };
+    }
+
     attempt++;
 
     const maxTokensForAttempt = Math.min(
@@ -332,11 +393,38 @@ async function streamGeneration(config: StreamGenerationConfig): Promise<Generat
     );
 
     return new Promise((resolve) => {
+      totalResolve = resolve;
       let preJsonBuffer = '';
       let jsonContent = '';
       let inJson = false;
       let sentStatuses = 0;
       let stopReason: string | null = null;
+      let charsReceived = 0;
+      let settled = false;
+
+      let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+
+      function clearInactivityTimer() {
+        if (inactivityTimer) {
+          clearTimeout(inactivityTimer);
+          inactivityTimer = null;
+        }
+      }
+
+      function resetInactivityTimer() {
+        if (inactivityTimer) clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          clearInactivityTimer();
+          const raw = preJsonBuffer + jsonContent;
+          if (config.callbacks)
+            config.callbacks.onError(buildDiagnostic('timeout_inactivity', raw, charsReceived));
+          resolve({ setup: null, raw, stopReason: 'timeout_inactivity' });
+        }, inactivityTimeoutMs);
+      }
+
+      resetInactivityTimer();
 
       provider
         .stream(
@@ -347,6 +435,10 @@ async function streamGeneration(config: StreamGenerationConfig): Promise<Generat
           },
           {
             onText: (text) => {
+              if (settled || totalTimedOut) return;
+              charsReceived += text.length;
+              resetInactivityTimer();
+
               if (!inJson) {
                 preJsonBuffer += text;
                 const lines = preJsonBuffer.split('\n');
@@ -375,6 +467,10 @@ async function streamGeneration(config: StreamGenerationConfig): Promise<Generat
               }
             },
             onEnd: (meta) => {
+              clearInactivityTimer();
+              if (settled || totalTimedOut) return;
+              settled = true;
+
               stopReason = meta?.stopReason ?? null;
               let setup: Record<string, unknown> | null = null;
               let jsonToParse = (jsonContent || preJsonBuffer).replace(/```\s*$/g, '').trim();
@@ -424,25 +520,40 @@ async function streamGeneration(config: StreamGenerationConfig): Promise<Generat
               }
             },
             onError: (error) => {
+              clearInactivityTimer();
+              if (settled || totalTimedOut) return;
+
               if (isTransientError(error) && attempt < MAX_RETRIES) {
+                settled = true;
                 if (config.callbacks)
                   config.callbacks.onStatus('Connection interrupted, retrying...');
                 setTimeout(() => attemptGeneration().then(resolve), 2000);
                 return;
               }
+              settled = true;
               if (config.callbacks) config.callbacks.onError(error.message);
               resolve({ setup: null, raw: error.message, stopReason: 'error' });
             },
           },
         )
         .catch((error: Error) => {
+          clearInactivityTimer();
+          if (settled || totalTimedOut) return;
+          settled = true;
           if (config.callbacks) config.callbacks.onError(error.message);
           resolve({ setup: null, raw: error.message, stopReason: 'error' });
         });
     });
   };
 
-  return attemptGeneration();
+  try {
+    const result = await attemptGeneration();
+    clearTimeout(totalTimer);
+    return totalTimedOut ? { setup: null, raw: result.raw, stopReason: 'timeout_total' } : result;
+  } catch (err) {
+    clearTimeout(totalTimer);
+    throw err;
+  }
 }
 
 async function generateCore(
