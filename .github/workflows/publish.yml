@@ -173,7 +173,7 @@ jobs:
           git tag "v${VERSION}"
           MAJOR=$(echo "${VERSION}" | cut -d. -f1)
           git tag -f "v${MAJOR}"
-          git push && git push --tags --force
+          git push && git push origin "v${VERSION}" && git push -f origin "v${MAJOR}"
 
       - name: Create GitHub release
         if: steps.version.outputs.skip != 'true'
