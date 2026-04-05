@@ -107,12 +107,14 @@ export function removeHook(): { removed: boolean; notFound: boolean } {
 interface ScriptHookConfig {
   eventName: string;
   scriptPath: string;
-  scriptContent: string;
+  scriptContent: string | (() => string);
   description: string;
 }
 
 function createScriptHook(config: ScriptHookConfig) {
-  const { eventName, scriptPath, scriptContent, description } = config;
+  const { eventName, scriptPath, description } = config;
+  const getContent = () =>
+    typeof config.scriptContent === 'function' ? config.scriptContent() : config.scriptContent;
 
   const hasHook = (matchers: HookMatcher[]) =>
     matchers.some((entry) => entry.hooks?.some((h) => h.description === description));
@@ -134,7 +136,7 @@ function createScriptHook(config: ScriptHookConfig) {
 
     const scriptDir = path.dirname(scriptPath);
     if (!fs.existsSync(scriptDir)) fs.mkdirSync(scriptDir, { recursive: true });
-    fs.writeFileSync(scriptPath, scriptContent);
+    fs.writeFileSync(scriptPath, getContent());
     fs.chmodSync(scriptPath, 0o755);
 
     if (!Array.isArray(settings.hooks[eventName])) {
@@ -205,7 +207,9 @@ export const removeStopHook = stopHook.remove;
 
 // ── Freshness check script ───────────────────────────────────────────
 
-const FRESHNESS_SCRIPT = `#!/bin/sh
+function getFreshnessScript(): string {
+  const bin = resolveCaliber();
+  return `#!/bin/sh
 STATE_FILE=".caliber/.caliber-state.json"
 [ ! -f "$STATE_FILE" ] && exit 0
 LAST_SHA=$(grep -o '"lastRefreshSha":"[^"]*"' "$STATE_FILE" 2>/dev/null | cut -d'"' -f4)
@@ -214,16 +218,17 @@ CURRENT_SHA=$(git rev-parse HEAD 2>/dev/null)
 [ "$LAST_SHA" = "$CURRENT_SHA" ] && exit 0
 COMMITS_BEHIND=$(git rev-list --count "$LAST_SHA".."$CURRENT_SHA" 2>/dev/null || echo 0)
 if [ "$COMMITS_BEHIND" -gt 15 ]; then
-  printf '{"systemMessage":"Caliber: agent configs are %s commits behind. Run caliber refresh to sync."}' "$COMMITS_BEHIND"
+  printf '{"systemMessage":"Caliber: agent configs are %s commits behind. Run ${bin} refresh to sync."}' "$COMMITS_BEHIND"
 fi
 `;
+}
 
 // ── SessionStart hook (freshness check on session start) ────────────
 
 const sessionStartHook = createScriptHook({
   eventName: 'SessionStart',
   scriptPath: path.join('.claude', 'hooks', 'caliber-session-freshness.sh'),
-  scriptContent: FRESHNESS_SCRIPT,
+  scriptContent: getFreshnessScript,
   description: 'Caliber: check config freshness on session start',
 });
 
@@ -236,7 +241,7 @@ export const removeSessionStartHook = sessionStartHook.remove;
 const notificationHook = createScriptHook({
   eventName: 'Notification',
   scriptPath: path.join('.claude', 'hooks', 'caliber-freshness-notify.sh'),
-  scriptContent: FRESHNESS_SCRIPT,
+  scriptContent: getFreshnessScript,
   description: 'Caliber: warn when agent configs are stale',
 });
 
