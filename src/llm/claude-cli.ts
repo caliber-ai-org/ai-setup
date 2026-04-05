@@ -72,7 +72,11 @@ export function resetClaudeCliBin(): void {
 
 function spawnClaude(args: string[]): ChildProcess {
   const bin = resolveClaudeBin();
-  const env = { ...process.env, CLAUDE_CODE_SIMPLE: '1' };
+  // Do NOT forward CLAUDE_CODE_SIMPLE — newer Claude Code uses it to change the
+  // auth pathway, which causes "Not logged in" when set in child claude processes.
+  // The -p flag already handles headless/print mode; this var is redundant and harmful.
+  const { CLAUDE_CODE_SIMPLE: _stripped, ...parentEnv } = process.env;
+  const env = parentEnv;
   return IS_WINDOWS
     ? spawn([bin, ...args].join(' '), {
         cwd: process.cwd(),
