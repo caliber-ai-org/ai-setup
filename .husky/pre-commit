@@ -1,2 +1,7 @@
-export PATH="/opt/homebrew/bin:/opt/homebrew/Cellar/node/25.9.0_1/bin:$PATH"
+# Derive Homebrew prefix (works on Apple Silicon /opt/homebrew and Intel /usr/local)
+BREW_PREFIX=$(/opt/homebrew/bin/brew --prefix 2>/dev/null || /usr/local/bin/brew --prefix 2>/dev/null || echo "")
+if [ -n "$BREW_PREFIX" ]; then
+  export PATH="$BREW_PREFIX/bin:$PATH"
+fi
+
 npx lint-staged
