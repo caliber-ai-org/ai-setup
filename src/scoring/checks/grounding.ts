@@ -11,6 +11,7 @@ import {
   extractReferences,
   analyzeMarkdownStructure,
   calculateDensityPoints,
+  sumPathReferenceDensityWeights,
 } from '../utils.js';
 
 export function checkGrounding(dir: string): Check[] {
@@ -82,10 +83,18 @@ export function checkGrounding(dir: string): Check[] {
       : undefined,
   });
 
-  // 2. Reference density — how many specific references (backticks, paths) does the config have?
+  // 2. Reference density — path refs weighted when they resolve to this repo (files/dirs scan + disk); inline code density
   const refs = extractReferences(configContent);
   const mdStructure = analyzeMarkdownStructure(configContent);
-  const totalSpecificRefs = refs.length + mdStructure.inlineCodeCount;
+  const projectFiles = new Set(projectStructure.files);
+  const projectDirs = new Set(projectStructure.dirs);
+  const { weightedSum: weightedPathRefs, resolvedCount: refsResolvedInProject } = sumPathReferenceDensityWeights(
+    refs,
+    dir,
+    projectFiles,
+    projectDirs,
+  );
+  const totalSpecificRefs = weightedPathRefs + mdStructure.inlineCodeCount;
 
   const density = mdStructure.nonEmptyLines > 0
     ? (totalSpecificRefs / mdStructure.nonEmptyLines) * 100
@@ -104,14 +113,21 @@ export function checkGrounding(dir: string): Check[] {
     passed: densityPoints >= Math.round(POINTS_REFERENCE_DENSITY * 0.5),
     detail: configContent.length === 0
       ? 'No config content'
-      : `${totalSpecificRefs} specific references across ${mdStructure.nonEmptyLines} lines (${Math.round(density)}%)`,
+      : `${totalSpecificRefs} reference units (${refs.length} path-like, ${refsResolvedInProject} resolve to this repo, ${mdStructure.inlineCodeCount} inline marks) / ${mdStructure.nonEmptyLines} non-empty lines → ${Math.round(density)}% line-reference density`,
     suggestion: densityPoints < Math.round(POINTS_REFERENCE_DENSITY * 0.5) && configContent.length > 0
       ? 'Use backticks and paths to reference specific files, commands, and identifiers'
       : undefined,
     fix: densityPoints < Math.round(POINTS_REFERENCE_DENSITY * 0.5) && configContent.length > 0
       ? {
           action: 'add_inline_refs',
-          data: { currentDensity: Math.round(density), currentRefs: totalSpecificRefs, lines: mdStructure.nonEmptyLines },
+          data: {
+            densityPercent: Math.round(density),
+            referenceUnits: totalSpecificRefs,
+            pathLikeCount: refs.length,
+            pathLikeResolvedCount: refsResolvedInProject,
+            inlineMarkCount: mdStructure.inlineCodeCount,
+            nonEmptyLines: mdStructure.nonEmptyLines,
+          },
           instruction: 'Add more inline code references (backticks) for file paths, commands, and identifiers.',
         }
       : undefined,
