@@ -1,7 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { theme } from "./theme";
 
-// Scene 2: "Score + Init" (172-410, 238 frames) — HERO SCENE
+// Scene 3: "Score + Init" (354-591 in CaliberDemo, 238 frames) — HERO SCENE
 // Animation: opacity fades + SVG arc stroke. No springs.
 
 const terminalLines = [

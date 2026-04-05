@@ -3,7 +3,7 @@ import { theme } from "./theme";
 import { Logo } from "./Logo";
 import { ClaudeIcon, CursorIcon, CodexIcon, CopilotIcon } from "./ToolIcons";
 
-// Scene 4: "Team + CTA" (582-720, 138 frames)
+// Scene 5: "Team + CTA" (764-901 in CaliberDemo, 138 frames)
 // Phase A (0-80): The story — first dev creates configs, team gets them via git
 // Phase B (80-138): CTA
 // Animation: opacity fades only. Springs only for Logo.

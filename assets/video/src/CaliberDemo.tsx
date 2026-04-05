@@ -1,5 +1,6 @@
 import { AbsoluteFill, Sequence, useCurrentFrame, interpolate } from "remotion";
 import { ProblemHook } from "./components/ProblemHook";
+import { CompoundInterestScene } from "./components/CompoundInterestScene";
 import { InitScene } from "./components/InitScene";
 import { FreshScene } from "./components/FreshScene";
 import { TeamCTA } from "./components/TeamCTA";
@@ -24,12 +25,13 @@ const CrossFade: React.FC<{ children: React.ReactNode; from: number; duration: n
   return <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>;
 };
 
-// 24 seconds = 720 frames @ 30fps
+// ~30s = 902 frames @ 30fps
 // Scene breakdown (2-frame gaps prevent crossfade overlap):
 //   0-5.6s    (0-170):     ProblemHook — "Bad setup = bad agent" → "Caliber fixes that"
-//   5.7-13.7s (172-410):   InitScene — terminal + score arc (hero)
-//   13.7-19.3s(412-580):   FreshScene — diff → config update flow
-//   19.4-24s  (582-720):   TeamCTA — team sync + CTA
+//   5.7-11.7s (172-351):   CompoundInterestScene — CLAUDE.md infographic
+//   11.8-19.7s(354-591):   InitScene — terminal + score arc (hero)
+//   19.7-25.4s(594-761):   FreshScene — diff → config update flow
+//   25.5-30s  (764-901):   TeamCTA — team sync + CTA
 
 export const CaliberDemo: React.FC = () => {
   return (
@@ -52,23 +54,30 @@ export const CaliberDemo: React.FC = () => {
         </Sequence>
       </CrossFade>
 
-      {/* Scene 2: Init + Score (hero) */}
-      <CrossFade from={172} duration={238}>
-        <Sequence from={172} durationInFrames={238}>
+      {/* Scene 2: Compound interest infographic */}
+      <CrossFade from={172} duration={180}>
+        <Sequence from={172} durationInFrames={180}>
+          <CompoundInterestScene />
+        </Sequence>
+      </CrossFade>
+
+      {/* Scene 3: Init + Score (hero) */}
+      <CrossFade from={354} duration={238}>
+        <Sequence from={354} durationInFrames={238}>
           <InitScene />
         </Sequence>
       </CrossFade>
 
-      {/* Scene 3: Fresh */}
-      <CrossFade from={412} duration={168}>
-        <Sequence from={412} durationInFrames={168}>
+      {/* Scene 4: Fresh */}
+      <CrossFade from={594} duration={168}>
+        <Sequence from={594} durationInFrames={168}>
           <FreshScene />
         </Sequence>
       </CrossFade>
 
-      {/* Scene 4: Team + CTA */}
-      <CrossFade from={582} duration={138}>
-        <Sequence from={582} durationInFrames={138}>
+      {/* Scene 5: Team + CTA */}
+      <CrossFade from={764} duration={138}>
+        <Sequence from={764} durationInFrames={138}>
           <TeamCTA />
         </Sequence>
       </CrossFade>

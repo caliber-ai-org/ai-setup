@@ -1,7 +1,7 @@
 import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { theme } from "./theme";
 
-// Scene 3: "Stays Fresh" (412-580, 168 frames)
+// Scene 4: "Stays Fresh" (594-761 in CaliberDemo, 168 frames)
 // Animation: opacity fades + width interpolation for divider. No springs.
 
 // Redis logo — simplified diamond shape
