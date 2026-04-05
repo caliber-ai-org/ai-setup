@@ -1,1 +1,2 @@
+export PATH="/opt/homebrew/bin:/opt/homebrew/Cellar/node/25.9.0_1/bin:$PATH"
 npx lint-staged
