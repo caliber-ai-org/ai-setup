@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import type {
   LLMProvider,
@@ -14,34 +15,72 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
 
 /**
+ * Known installation paths for the Claude Code CLI binary, in probe order.
+ * Claude Code's installer places the binary at ~/.local/bin/claude on macOS/Linux,
+ * which is a user-space location that is NOT added to PATH by hooks or subprocesses
+ * that skip shell profile files (.zshrc, .bashrc).
+ */
+function candidateClaudePaths(): string[] {
+  if (IS_WINDOWS) return [];
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? '';
+  return [
+    `${home}/.local/bin/claude`, // Claude Code default installer path
+    '/usr/local/bin/claude', // Homebrew / manual install
+    '/opt/homebrew/bin/claude', // Apple Silicon Homebrew
+  ].filter(Boolean);
+}
+
+let _claudeBin: string | null = null;
+
+/**
  * Resolve the `claude` binary to an absolute path so spawn and execSync calls
  * work even when $PATH is stripped (e.g. Claude Code hook subprocesses on macOS
- * only have /usr/bin:/bin:/usr/sbin:/sbin).  Resolved once and cached.
+ * only have /usr/bin:/bin:/usr/sbin:/sbin).  Result is cached after first call.
  */
 function resolveClaudeBin(): string {
+  if (_claudeBin !== null) return _claudeBin;
+
+  // 1. Try PATH first — covers cases where the user has a custom install location
   try {
     const whichCmd = IS_WINDOWS ? 'where claude' : 'which claude';
     const out = execSync(whichCmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     const p = out.split('\n')[0].trim();
-    if (p) return p;
+    if (p) {
+      _claudeBin = p;
+      return _claudeBin;
+    }
   } catch {
-    // not on PATH — fall back to bare name
+    // not on PATH
   }
-  return 'claude';
+
+  // 2. Probe well-known install locations (PATH-independent — works in hook subprocesses)
+  for (const candidate of candidateClaudePaths()) {
+    if (fs.existsSync(candidate)) {
+      _claudeBin = candidate;
+      return _claudeBin;
+    }
+  }
+
+  _claudeBin = 'claude';
+  return _claudeBin;
 }
 
-const CLAUDE_CLI_BIN = resolveClaudeBin();
+/** Reset cached resolution — only for tests. */
+export function resetClaudeCliBin(): void {
+  _claudeBin = null;
+}
 
 function spawnClaude(args: string[]): ChildProcess {
+  const bin = resolveClaudeBin();
   const env = { ...process.env, CLAUDE_CODE_SIMPLE: '1' };
   return IS_WINDOWS
-    ? spawn([CLAUDE_CLI_BIN, ...args].join(' '), {
+    ? spawn([bin, ...args].join(' '), {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'] as const,
         env,
         shell: true,
       })
-    : spawn(CLAUDE_CLI_BIN, args, {
+    : spawn(bin, args, {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'],
         env,
@@ -212,7 +251,7 @@ export class ClaudeCliProvider implements LLMProvider {
 export function isClaudeCliAvailable(): boolean {
   // resolveClaudeBin() returns an absolute path when `which claude` succeeded,
   // or falls back to bare 'claude'. If we got an absolute path, the binary exists.
-  if (CLAUDE_CLI_BIN !== 'claude') return true;
+  if (resolveClaudeBin() !== 'claude') return true;
   try {
     execSync(IS_WINDOWS ? 'where claude' : 'which claude', { stdio: 'ignore' });
     return true;
@@ -232,7 +271,7 @@ export function resetClaudeCliLoginCache(): void {
 export function isClaudeCliLoggedIn(): boolean {
   if (cachedLoggedIn !== null) return cachedLoggedIn;
   try {
-    const result = execSync(`${CLAUDE_CLI_BIN} auth status`, {
+    const result = execSync(`${resolveClaudeBin()} auth status`, {
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 5000,
     });
