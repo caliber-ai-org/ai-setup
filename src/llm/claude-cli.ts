@@ -171,8 +171,9 @@ export class ClaudeCliProvider implements LLMProvider {
         callbacks.onEnd({ stopReason: 'end_turn' });
       } else {
         const stderr = Buffer.concat(stderrChunks).toString('utf-8').trim();
-        const friendly = parseSeatBasedError(stderr, code);
         const stdout = Buffer.concat(chunks).toString('utf-8').trim();
+        // claude CLI may write auth errors to stdout rather than stderr — check both
+        const friendly = parseSeatBasedError(stderr || stdout, code);
         const base = signal
           ? `Claude CLI killed (${signal})`
           : code != null
@@ -224,7 +225,8 @@ export class ClaudeCliProvider implements LLMProvider {
           resolve(stdout);
         } else {
           const stderr = Buffer.concat(stderrChunks).toString('utf-8').trim();
-          const friendly = parseSeatBasedError(stderr, code);
+          // claude CLI may write auth errors to stdout rather than stderr — check both
+          const friendly = parseSeatBasedError(stderr || stdout, code);
           const base = signal
             ? `Claude CLI killed (${signal})`
             : code != null

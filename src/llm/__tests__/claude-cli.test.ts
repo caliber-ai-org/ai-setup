@@ -223,6 +223,68 @@ describe('ClaudeCliProvider', () => {
     }
   });
 
+  it('call() surfaces auth error from stdout when stderr is empty', async () => {
+    let closeCb: (code: number) => void;
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: {
+        on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
+          if (ev === 'data')
+            setTimeout(() => fn(Buffer.from('Not logged in · Please run /login')), 0);
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: (code: number) => void) => {
+        if (ev === 'close') closeCb = fn;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const resultPromise = provider.call({ system: 'S', prompt: 'P' });
+
+    await new Promise((r) => setTimeout(r, 10));
+    closeCb!(1);
+
+    await expect(resultPromise).rejects.toThrow(/Not logged in/);
+    // Should use friendly message, not raw stdout
+    await expect(resultPromise).rejects.not.toThrow('Please run /login');
+  });
+
+  it('stream() surfaces auth error from stdout when stderr is empty', async () => {
+    let closeCb: (code: number) => void;
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: {
+        on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
+          if (ev === 'data')
+            setTimeout(() => fn(Buffer.from('Not logged in · Please run /login')), 0);
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: (code: number) => void) => {
+        if (ev === 'close') closeCb = fn;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const onError = vi.fn();
+    const streamPromise = provider.stream(
+      { system: 'S', prompt: 'P' },
+      { onText: vi.fn(), onEnd: vi.fn(), onError },
+    );
+
+    await new Promise((r) => setTimeout(r, 10));
+    closeCb!(1);
+    await streamPromise.catch(() => {});
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringMatching(/Not logged in/) }),
+    );
+    expect(onError.mock.calls[0][0].message).not.toContain('Please run /login');
+  });
+
   it('uses CALIBER_CLAUDE_CLI_TIMEOUT_MS when set', () => {
     const orig = process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS;
     process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS = '120000';
