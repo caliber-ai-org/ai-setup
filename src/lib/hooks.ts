@@ -250,15 +250,34 @@ const PRECOMMIT_START = '# caliber:pre-commit:start';
 const PRECOMMIT_END = '# caliber:pre-commit:end';
 
 function getPrecommitBlock(): string {
-  const bin = resolveCaliber();
+  const cmd = resolveCaliber();
   const npx = isNpxResolution();
 
-  // npx is multi-word — cannot be quoted as a single token in shell.
-  // Use `command -v npx` as guard and leave unquoted so the shell word-splits correctly.
-  const guard = npx
-    ? 'command -v npx >/dev/null 2>&1'
-    : `[ -x "${bin}" ] || command -v "${bin}" >/dev/null 2>&1`;
-  const invoke = npx ? bin : `"${bin}"`;
+  let guard: string;
+  let invoke: string;
+
+  if (npx) {
+    // cmd is either 'npx --yes @rely-ai/caliber' (bare) or '/abs/path/npx --yes @rely-ai/caliber'
+    const npxBin = cmd.split(' ')[0];
+    if (npxBin.startsWith('/')) {
+      // Absolute path — guard on the binary directly, no $PATH lookup needed
+      guard = `[ -x "${npxBin}" ]`;
+      const npxArgs = cmd.slice(npxBin.length); // ' --yes @rely-ai/caliber'
+      invoke = `"${npxBin}"${npxArgs}`;
+    } else {
+      // Bare 'npx' — fall back to PATH-based check; leave unquoted for word-splitting
+      guard = 'command -v npx >/dev/null 2>&1';
+      invoke = cmd;
+    }
+  } else {
+    // cmd is an absolute path (e.g. /opt/homebrew/bin/caliber) or bare 'caliber' as last resort
+    if (cmd.startsWith('/')) {
+      guard = `[ -x "${cmd}" ]`;
+    } else {
+      guard = `[ -x "${cmd}" ] || command -v "${cmd}" >/dev/null 2>&1`;
+    }
+    invoke = `"${cmd}"`;
+  }
 
   return `${PRECOMMIT_START}
 if ${guard}; then

@@ -11,8 +11,25 @@ import { parseSeatBasedError, isRateLimitError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
 
-const AGENT_BIN = 'agent';
 const IS_WINDOWS = process.platform === 'win32';
+
+/**
+ * Resolve the Cursor `agent` binary to an absolute path so it works even when
+ * $PATH is stripped (e.g. Claude Code hook subprocesses on macOS).
+ */
+function resolveAgentBin(): string {
+  try {
+    const whichCmd = IS_WINDOWS ? 'where agent' : 'which agent';
+    const out = execSync(whichCmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const p = out.split('\n')[0].trim();
+    if (p) return p;
+  } catch {
+    // not on PATH
+  }
+  return 'agent';
+}
+
+const AGENT_BIN = resolveAgentBin();
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const SIGKILL_DELAY_MS = 5000;
 const STDERR_MAX_BYTES = 10 * 1024;
@@ -363,9 +380,10 @@ export class CursorAcpProvider implements LLMProvider {
 
 /** Check if Cursor agent CLI is available. */
 export function isCursorAgentAvailable(): boolean {
+  // resolveAgentBin() returns an absolute path when `which agent` succeeded.
+  if (AGENT_BIN !== 'agent') return true;
   try {
-    const cmd = IS_WINDOWS ? `where ${AGENT_BIN}` : `which ${AGENT_BIN}`;
-    execSync(cmd, { stdio: 'ignore' });
+    execSync(IS_WINDOWS ? 'where agent' : 'which agent', { stdio: 'ignore' });
     return true;
   } catch {
     return false;

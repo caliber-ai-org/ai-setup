@@ -28,6 +28,9 @@ describe('pre-commit-block', () => {
   describe('appendPreCommitBlock', () => {
     it('uses npx command in doc block when in npx context', async () => {
       process.argv[1] = '/home/user/.npm/_npx/abc/node_modules/.bin/caliber';
+      mockedExecSync.mockImplementation(() => {
+        throw new Error('not found');
+      });
 
       const { appendPreCommitBlock } = await import('../pre-commit-block.js');
       const result = appendPreCommitBlock('# My Project');
@@ -50,6 +53,9 @@ describe('pre-commit-block', () => {
 
     it('does not duplicate the block', async () => {
       process.argv[1] = '/home/user/.npm/_npx/abc/node_modules/.bin/caliber';
+      mockedExecSync.mockImplementation(() => {
+        throw new Error('not found');
+      });
 
       const { appendPreCommitBlock } = await import('../pre-commit-block.js');
       const first = appendPreCommitBlock('# My Project');
@@ -134,6 +140,9 @@ describe('pre-commit-block', () => {
   describe('getCursorPreCommitRule', () => {
     it('uses npx command in Cursor rule when in npx context', async () => {
       process.argv[1] = '/home/user/.npm/_npx/abc/node_modules/.bin/caliber';
+      mockedExecSync.mockImplementation(() => {
+        throw new Error('not found');
+      });
 
       const { getCursorPreCommitRule } = await import('../pre-commit-block.js');
       const rule = getCursorPreCommitRule();

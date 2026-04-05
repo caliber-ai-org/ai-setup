@@ -10,9 +10,27 @@ import { parseSeatBasedError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
 
-const CLAUDE_CLI_BIN = 'claude';
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
+
+/**
+ * Resolve the `claude` binary to an absolute path so spawn and execSync calls
+ * work even when $PATH is stripped (e.g. Claude Code hook subprocesses on macOS
+ * only have /usr/bin:/bin:/usr/sbin:/sbin).  Resolved once and cached.
+ */
+function resolveClaudeBin(): string {
+  try {
+    const whichCmd = IS_WINDOWS ? 'where claude' : 'which claude';
+    const out = execSync(whichCmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const p = out.split('\n')[0].trim();
+    if (p) return p;
+  } catch {
+    // not on PATH — fall back to bare name
+  }
+  return 'claude';
+}
+
+const CLAUDE_CLI_BIN = resolveClaudeBin();
 
 function spawnClaude(args: string[]): ChildProcess {
   const env = { ...process.env, CLAUDE_CODE_SIMPLE: '1' };
@@ -190,12 +208,13 @@ export class ClaudeCliProvider implements LLMProvider {
   }
 }
 
-/** Whether the Claude Code CLI is on PATH (user has installed it and can run `claude -p`). */
+/** Whether the Claude Code CLI is available (resolved to absolute path or on PATH). */
 export function isClaudeCliAvailable(): boolean {
+  // resolveClaudeBin() returns an absolute path when `which claude` succeeded,
+  // or falls back to bare 'claude'. If we got an absolute path, the binary exists.
+  if (CLAUDE_CLI_BIN !== 'claude') return true;
   try {
-    const cmd =
-      process.platform === 'win32' ? `where ${CLAUDE_CLI_BIN}` : `which ${CLAUDE_CLI_BIN}`;
-    execSync(cmd, { stdio: 'ignore' });
+    execSync(IS_WINDOWS ? 'where claude' : 'which claude', { stdio: 'ignore' });
     return true;
   } catch {
     return false;
