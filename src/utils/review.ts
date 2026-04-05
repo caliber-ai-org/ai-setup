@@ -16,6 +16,7 @@ interface FileInfo {
 }
 
 export async function promptWantsReview(): Promise<boolean> {
+  if (!process.stdin.isTTY) return false;
   return select({
     message: 'Would you like to review the diffs before deciding?',
     choices: [
@@ -28,12 +29,16 @@ export async function promptWantsReview(): Promise<boolean> {
 export async function promptReviewMethod(): Promise<ReviewMethod> {
   const available = detectAvailableEditors();
   if (available.length === 1) return 'terminal';
+  if (!process.stdin.isTTY) return 'terminal';
 
-  const choices = available.map(method => {
+  const choices = available.map((method) => {
     switch (method) {
-      case 'cursor': return { name: 'Cursor (diff view)', value: 'cursor' as const };
-      case 'vscode': return { name: 'VS Code (diff view)', value: 'vscode' as const };
-      case 'terminal': return { name: 'Terminal', value: 'terminal' as const };
+      case 'cursor':
+        return { name: 'Cursor (diff view)', value: 'cursor' as const };
+      case 'vscode':
+        return { name: 'VS Code (diff view)', value: 'vscode' as const };
+      case 'terminal':
+        return { name: 'Terminal', value: 'terminal' as const };
     }
   });
 
@@ -42,15 +47,18 @@ export async function promptReviewMethod(): Promise<ReviewMethod> {
 
 export async function openReview(method: ReviewMethod, stagedFiles: StagedFile[]): Promise<void> {
   if (method === 'cursor' || method === 'vscode') {
-    openDiffsInEditor(method, stagedFiles.map(f => ({
-      originalPath: f.originalPath,
-      proposedPath: f.proposedPath,
-    })));
+    openDiffsInEditor(
+      method,
+      stagedFiles.map((f) => ({
+        originalPath: f.originalPath,
+        proposedPath: f.proposedPath,
+      })),
+    );
     console.log(chalk.dim('  Diffs opened in your editor.\n'));
     return;
   }
 
-  const fileInfos = stagedFiles.map(file => {
+  const fileInfos = stagedFiles.map((file) => {
     const proposed = fs.readFileSync(file.proposedPath, 'utf-8');
     const current = file.currentPath ? fs.readFileSync(file.currentPath, 'utf-8') : '';
     const patch = createTwoFilesPatch(
@@ -59,7 +67,8 @@ export async function openReview(method: ReviewMethod, stagedFiles: StagedFile[]
       current,
       proposed,
     );
-    let added = 0, removed = 0;
+    let added = 0,
+      removed = 0;
     for (const line of patch.split('\n')) {
       if (line.startsWith('+') && !line.startsWith('+++')) added++;
       if (line.startsWith('-') && !line.startsWith('---')) removed++;
