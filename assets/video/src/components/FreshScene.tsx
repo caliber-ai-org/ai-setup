@@ -1,7 +1,8 @@
 import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { theme } from "./theme";
+import { sceneT } from "../sceneSpeed";
 
-// Scene 4: "Stays Fresh" (594-761 in CaliberDemo, 168 frames)
+// Scene 4: "Stays Fresh" (frame range in CaliberDemo)
 // Animation: opacity fades + width interpolation for divider. No springs.
 
 // Redis logo — simplified diamond shape
@@ -59,35 +60,35 @@ const diffLines = [
 ];
 
 export const FreshScene: React.FC = () => {
-  const frame = useCurrentFrame();
+  const t = sceneT(useCurrentFrame());
 
-  const headlineOpacity = interpolate(frame, [0, 18], [0, 1], {
+  const headlineOpacity = interpolate(t, [0, 18], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const cardOpacity = interpolate(frame, [14, 28], [0, 1], {
+  const cardOpacity = interpolate(t, [14, 28], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const diffOpacity = interpolate(frame, [24, 38], [0, 1], {
+  const diffOpacity = interpolate(t, [24, 38], [0, 1], {
     extrapolateRight: "clamp",
   });
 
   // Warning banner appears after the diff — shows why stale configs are dangerous
-  const warningOpacity = interpolate(frame, [44, 58], [0, 1], {
+  const warningOpacity = interpolate(t, [44, 58], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const dividerWidth = interpolate(frame, [64, 82], [0, 100], {
+  const dividerWidth = interpolate(t, [64, 82], [0, 100], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  const updatesOpacity = interpolate(frame, [78, 92], [0, 1], {
+  const updatesOpacity = interpolate(t, [78, 92], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const pillsOpacity = interpolate(frame, [100, 114], [0, 1], {
+  const pillsOpacity = interpolate(t, [100, 114], [0, 1], {
     extrapolateRight: "clamp",
   });
 

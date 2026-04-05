@@ -6,17 +6,20 @@ import { FreshScene } from "./components/FreshScene";
 import { TeamCTA } from "./components/TeamCTA";
 import { theme } from "./components/theme";
 
+/** Crossfade length in frames (scaled down with ~1.3× faster pacing). */
+const FADE = 14;
+
 const CrossFade: React.FC<{ children: React.ReactNode; from: number; duration: number }> = ({
   children,
   from,
   duration,
 }) => {
   const frame = useCurrentFrame();
-  const fadeIn = interpolate(frame, [from, from + 18], [0, 1], {
+  const fadeIn = interpolate(frame, [from, from + FADE], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const fadeOut = interpolate(frame, [from + duration - 18, from + duration], [1, 0], {
+  const fadeOut = interpolate(frame, [from + duration - FADE, from + duration], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
@@ -25,13 +28,13 @@ const CrossFade: React.FC<{ children: React.ReactNode; from: number; duration: n
   return <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>;
 };
 
-// ~30s = 902 frames @ 30fps
+// ~23s = 695 frames @ 30fps (~1.3× faster than prior 902-frame cut)
 // Scene breakdown (2-frame gaps prevent crossfade overlap):
-//   0-5.6s    (0-170):     ProblemHook — "Bad setup = bad agent" → "Caliber fixes that"
-//   5.7-11.7s (172-351):   CompoundInterestScene — CLAUDE.md infographic
-//   11.8-19.7s(354-591):   InitScene — terminal + score arc (hero)
-//   19.7-25.4s(594-761):   FreshScene — diff → config update flow
-//   25.5-30s  (764-901):   TeamCTA — team sync + CTA
+//   0-4.4s    (0-130):     ProblemHook
+//   4.5-9.1s  (133-270):   CompoundInterestScene — bundled infographic PNG
+//   9.2-15.3s (273-455):   InitScene — terminal + score arc
+//   15.3-19.6s(458-586):   FreshScene
+//   19.6-23.2s(589-694):   TeamCTA
 
 export const CaliberDemo: React.FC = () => {
   return (
@@ -48,36 +51,36 @@ export const CaliberDemo: React.FC = () => {
       />
 
       {/* Scene 1: Hook */}
-      <CrossFade from={0} duration={170}>
-        <Sequence from={0} durationInFrames={170}>
+      <CrossFade from={0} duration={131}>
+        <Sequence from={0} durationInFrames={131}>
           <ProblemHook />
         </Sequence>
       </CrossFade>
 
       {/* Scene 2: Compound interest infographic */}
-      <CrossFade from={172} duration={180}>
-        <Sequence from={172} durationInFrames={180}>
+      <CrossFade from={133} duration={138}>
+        <Sequence from={133} durationInFrames={138}>
           <CompoundInterestScene />
         </Sequence>
       </CrossFade>
 
       {/* Scene 3: Init + Score (hero) */}
-      <CrossFade from={354} duration={238}>
-        <Sequence from={354} durationInFrames={238}>
+      <CrossFade from={273} duration={183}>
+        <Sequence from={273} durationInFrames={183}>
           <InitScene />
         </Sequence>
       </CrossFade>
 
       {/* Scene 4: Fresh */}
-      <CrossFade from={594} duration={168}>
-        <Sequence from={594} durationInFrames={168}>
+      <CrossFade from={458} duration={129}>
+        <Sequence from={458} durationInFrames={129}>
           <FreshScene />
         </Sequence>
       </CrossFade>
 
       {/* Scene 5: Team + CTA */}
-      <CrossFade from={764} duration={138}>
-        <Sequence from={764} durationInFrames={138}>
+      <CrossFade from={589} duration={106}>
+        <Sequence from={589} durationInFrames={106}>
           <TeamCTA />
         </Sequence>
       </CrossFade>

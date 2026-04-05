@@ -1,7 +1,8 @@
 import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
 import { theme } from "./theme";
+import { sceneT } from "../sceneSpeed";
 
-// Scene 3: "Score + Init" (354-591 in CaliberDemo, 238 frames) — HERO SCENE
+// Scene 3: "Score + Init" — HERO SCENE (frame range in CaliberDemo)
 // Animation: opacity fades + SVG arc stroke. No springs.
 
 const terminalLines = [
@@ -23,26 +24,26 @@ const getScoreColor = (progress: number): string => {
 };
 
 export const InitScene: React.FC = () => {
-  const frame = useCurrentFrame();
+  const t = sceneT(useCurrentFrame());
 
-  const subtitleOpacity = interpolate(frame, [0, 12], [0, 1], {
+  const subtitleOpacity = interpolate(t, [0, 12], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const cardOpacity = interpolate(frame, [6, 18], [0, 1], {
+  const cardOpacity = interpolate(t, [6, 18], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const arcProgress = interpolate(frame, [130, 180], [0, SCORE_TARGET / 100], {
+  const arcProgress = interpolate(t, [130, 180], [0, SCORE_TARGET / 100], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const arcOpacity = interpolate(frame, [124, 138], [0, 1], {
+  const arcOpacity = interpolate(t, [124, 138], [0, 1], {
     extrapolateRight: "clamp",
   });
 
   const scoreNumber = Math.round(
-    interpolate(frame, [130, 180], [0, SCORE_TARGET], {
+    interpolate(t, [130, 180], [0, SCORE_TARGET], {
       extrapolateLeft: "clamp",
       extrapolateRight: "clamp",
     }),
@@ -50,8 +51,8 @@ export const InitScene: React.FC = () => {
 
   const strokeDashoffset = ARC_CIRCUMFERENCE * (1 - arcProgress);
 
-  // Blinking cursor: toggles every 15 frames (0.5s)
-  const cursorVisible = Math.floor(frame / 15) % 2 === 0;
+  // Blinking cursor: toggles every 15 logical frames (~0.5s at 30fps baseline)
+  const cursorVisible = Math.floor(t / 15) % 2 === 0;
 
   return (
     <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
@@ -149,7 +150,7 @@ export const InitScene: React.FC = () => {
             {/* Terminal body */}
             <div style={{ padding: "28px 32px", display: "flex", flexDirection: "column", gap: 16 }}>
               {terminalLines.map((line) => {
-                const lineOpacity = interpolate(frame, [line.delay, line.delay + 12], [0, 1], {
+                const lineOpacity = interpolate(t, [line.delay, line.delay + 12], [0, 1], {
                   extrapolateLeft: "clamp",
                   extrapolateRight: "clamp",
                 });

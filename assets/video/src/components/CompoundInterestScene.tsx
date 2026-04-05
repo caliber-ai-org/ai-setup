@@ -1,25 +1,28 @@
 import {
   AbsoluteFill,
   Img,
-  staticFile,
   useCurrentFrame,
   interpolate,
   spring,
   useVideoConfig,
 } from "remotion";
 import { theme } from "./theme";
+import { sceneT } from "../sceneSpeed";
+import compoundInfographicSrc from "../media/claude-md-compound-interest.png";
 
-const INFOGRAPHIC = staticFile("claude-md-compound-interest.png");
+const IMG_NATURAL_W = 1024;
+const IMG_NATURAL_H = 765;
+const IMG_DISPLAY_W = 1080;
+const IMG_DISPLAY_H = Math.round((IMG_DISPLAY_W * IMG_NATURAL_H) / IMG_NATURAL_W);
 
-// Scene: CLAUDE.md compound-interest infographic (hero card on dark stage)
-// Relative frame 0 = sequence start.
+// Scene: CLAUDE.md compound-interest infographic (bundled PNG + explicit dimensions for GIF/MP4 render)
 
 export const CompoundInterestScene: React.FC = () => {
-  const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const t = sceneT(useCurrentFrame());
 
   const entrance = spring({
-    frame: frame - 5,
+    frame: t - 5,
     fps,
     config: { damping: 16, stiffness: 58 },
   });
@@ -28,20 +31,20 @@ export const CompoundInterestScene: React.FC = () => {
   const cardLift = interpolate(entrance, [0, 1], [56, 0]);
   const cardRotate = interpolate(entrance, [0, 1], [-2.4, 0]);
 
-  const labelOpacity = interpolate(frame, [10, 26], [0, 1], {
+  const labelOpacity = interpolate(t, [10, 26], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const sublabelOpacity = interpolate(frame, [22, 38], [0, 1], {
+  const sublabelOpacity = interpolate(t, [22, 38], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const float = Math.sin(frame * 0.055) * 2.5;
-  const kenBurns = interpolate(frame, [0, 175], [1, 1.028], {
+  const float = Math.sin(t * 0.055) * 2.5;
+  const kenBurns = interpolate(t, [0, 175], [1, 1.028], {
     extrapolateRight: "clamp",
   });
 
-  const rimPulse = 0.35 + Math.sin(frame * 0.09) * 0.08;
+  const rimPulse = 0.35 + Math.sin(t * 0.09) * 0.08;
 
   const combinedScale = cardScale * kenBurns;
 
@@ -52,7 +55,6 @@ export const CompoundInterestScene: React.FC = () => {
         alignItems: "center",
       }}
     >
-      {/* Edge vignette */}
       <div
         style={{
           position: "absolute",
@@ -63,7 +65,6 @@ export const CompoundInterestScene: React.FC = () => {
         }}
       />
 
-      {/* Warm spotlight — complements the infographic palette */}
       <div
         style={{
           position: "absolute",
@@ -137,7 +138,6 @@ export const CompoundInterestScene: React.FC = () => {
           </div>
         </div>
 
-        {/* Gradient frame + floating card */}
         <div
           style={{
             padding: 3,
@@ -162,10 +162,12 @@ export const CompoundInterestScene: React.FC = () => {
             }}
           >
             <Img
-              src={INFOGRAPHIC}
+              src={compoundInfographicSrc}
+              width={IMG_NATURAL_W}
+              height={IMG_NATURAL_H}
               style={{
-                width: 1180,
-                height: "auto",
+                width: IMG_DISPLAY_W,
+                height: IMG_DISPLAY_H,
                 display: "block",
               }}
             />

@@ -1,26 +1,27 @@
-import { AbsoluteFill, useCurrentFrame, interpolate } from "remotion";
+import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
 import { theme } from "./theme";
+import { sceneT } from "../sceneSpeed";
 
-// Scene 1: "The Hook" (0-170 frames, ~5.7s)
+// Scene 1: "The Hook" (see CaliberDemo frame range)
 // Animation: opacity fades only. Zero springs. Zero transforms.
 
 export const ProblemHook: React.FC = () => {
-  const frame = useCurrentFrame();
+  const t = sceneT(useCurrentFrame());
 
-  const headlineOpacity = interpolate(frame, [0, 18], [0, 1], {
+  const headlineOpacity = interpolate(t, [0, 18], [0, 1], {
     extrapolateRight: "clamp",
   });
 
-  const subtitleOpacity = interpolate(frame, [24, 42], [0, 1], {
+  const subtitleOpacity = interpolate(t, [24, 42], [0, 1], {
     extrapolateRight: "clamp",
   });
 
   // Sequential: fade OUT first (65-78), blank gap, then fade IN (84-97)
-  const headline1Opacity = interpolate(frame, [65, 78], [1, 0], {
+  const headline1Opacity = interpolate(t, [65, 78], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const headline2Opacity = interpolate(frame, [84, 97], [0, 1], {
+  const headline2Opacity = interpolate(t, [84, 97], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });

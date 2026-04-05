@@ -342,6 +342,14 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
+The hero GIF at the top (`assets/demo-header.gif`) is **not** rebuilt by CI. After you change the Remotion project under `assets/video/`, regenerate it locally (writes `assets/demo-header.gif` directly) and commit:
+
+```bash
+cd assets/video && pnpm install && pnpm run build:gif
+```
+
+More context: [assets/RECORDING.md](./assets/RECORDING.md).
+
 ```bash
 git clone https://github.com/caliber-ai-org/ai-setup.git
 cd caliber

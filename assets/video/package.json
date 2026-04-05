@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "remotion studio",
     "build": "remotion render CaliberDemo assets/demo.mp4 --codec h264",
-    "build:gif": "remotion render CaliberDemo assets/demo.gif --codec gif --every-nth-frame 2"
+    "build:gif": "remotion render CaliberDemo ../demo-header.gif --codec gif --every-nth-frame 2"
   },
   "dependencies": {
     "@remotion/cli": "^4.0.0",
