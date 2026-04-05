@@ -319,23 +319,33 @@ async function refreshSingleRepo(
     await refreshDir(repoDir, '.', diff, options);
   } else {
     log(quiet, chalk.dim(`${prefix}Found configs in ${configDirs.length} directories\n`));
+
+    const dirsWithChanges = configDirs
+      .map((dir) => ({ dir, scopedDiff: scopeDiffToDir(diff, dir, configDirs) }))
+      .filter(({ scopedDiff }) => scopedDiff.hasChanges);
+
+    const results = await Promise.allSettled(
+      dirsWithChanges.map(({ dir, scopedDiff }) => {
+        const dirLabel = dir === '.' ? 'root' : dir;
+        return refreshDir(repoDir, dir, scopedDiff, { ...options, label: dirLabel });
+      }),
+    );
+
     let hadFailure = false;
-    for (const dir of configDirs) {
-      const scopedDiff = scopeDiffToDir(diff, dir, configDirs);
-      if (!scopedDiff.hasChanges) continue;
-      const dirLabel = dir === '.' ? 'root' : dir;
-      try {
-        await refreshDir(repoDir, dir, scopedDiff, { ...options, label: dirLabel });
-      } catch (err) {
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      if (result.status === 'rejected') {
         hadFailure = true;
+        const dirLabel = dirsWithChanges[i].dir === '.' ? 'root' : dirsWithChanges[i].dir;
         log(
           quiet,
           chalk.yellow(
-            `  ${dirLabel}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`,
+            `  ${dirLabel}: refresh failed — ${result.reason instanceof Error ? result.reason.message : 'unknown error'}`,
           ),
         );
       }
     }
+
     if (hadFailure) {
       // Don't update state SHA — failed dirs need to be retried on next run
       return;
