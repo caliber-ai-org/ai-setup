@@ -6,29 +6,64 @@ let _resolved: string | null = null;
 /**
  * Resolve the absolute path to the `caliber` binary.
  * Caches the result so the lookup happens at most once per process.
+ *
+ * Always returns an absolute path when possible so that hook commands
+ * embedded in .git/hooks/pre-commit or .claude/settings.json continue
+ * to work even when the hook executor runs with a stripped $PATH
+ * (e.g. Claude Code hooks use /usr/bin:/bin:/usr/sbin:/sbin on macOS).
  */
 export function resolveCaliber(): string {
   if (_resolved) return _resolved;
 
-  // 0. Detect npx context — temp paths become stale after the npx process exits,
-  //    so use `npx --yes @rely-ai/caliber` which always resolves correctly.
-  const isNpx =
-    process.argv[1]?.includes('_npx') ||
-    process.env.npm_execpath?.includes('npx');
+  const whichCmd = process.platform === 'win32' ? 'where caliber' : 'which caliber';
+  const whichNpxCmd = process.platform === 'win32' ? 'where npx' : 'which npx';
+
+  // 0. Detect npx context — temp paths become stale after the npx process exits.
+  //    Prefer a globally-installed caliber (stable absolute path). If not found,
+  //    resolve npx to an absolute path so the hook command survives restricted $PATH.
+  const isNpx = process.argv[1]?.includes('_npx') || process.env.npm_execpath?.includes('npx');
   if (isNpx) {
+    // Prefer a globally-installed caliber over the ephemeral npx invocation
+    try {
+      const out = execSync(whichCmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      const caliberPath = out.split('\n')[0].trim();
+      if (caliberPath) {
+        _resolved = caliberPath;
+        return _resolved;
+      }
+    } catch {
+      // not globally installed — fall through to npx
+    }
+    // Resolve npx to an absolute path so hooks don't depend on $PATH at runtime
+    try {
+      const out = execSync(whichNpxCmd, {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
+      const npxPath = out.split('\n')[0].trim();
+      if (npxPath) {
+        _resolved = `${npxPath} --yes @rely-ai/caliber`;
+        return _resolved;
+      }
+    } catch {
+      // npx not found on PATH — fall back to bare name
+    }
     _resolved = 'npx --yes @rely-ai/caliber';
     return _resolved;
   }
 
-  // 1. Try to find caliber on PATH — use bare command to stay portable
+  // 1. Find caliber on PATH — capture the absolute path so hook commands work
+  //    in restricted $PATH environments (git hooks, Claude Code hooks, CI).
   try {
-    const whichCmd = process.platform === 'win32' ? 'where caliber' : 'which caliber';
-    execSync(whichCmd, {
+    const out = execSync(whichCmd, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    _resolved = 'caliber';
-    return _resolved;
+    }).trim();
+    const caliberPath = out.split('\n')[0].trim();
+    if (caliberPath) {
+      _resolved = caliberPath;
+      return _resolved;
+    }
   } catch {
     // not on PATH — fall through
   }
@@ -47,9 +82,10 @@ export function resolveCaliber(): string {
   return _resolved;
 }
 
-/** True when the resolved binary is a multi-word npx invocation. */
+/** True when the resolved binary is a multi-word npx invocation (bare or absolute path). */
 export function isNpxResolution(): boolean {
-  return resolveCaliber().startsWith('npx ');
+  const r = resolveCaliber();
+  return r === 'npx --yes @rely-ai/caliber' || r.endsWith('/npx --yes @rely-ai/caliber');
 }
 
 /** Reset cached resolution — only for tests. */
@@ -69,8 +105,11 @@ export function isCaliberCommand(command: string, subcommandTail: string): boole
   if (command === `caliber ${subcommandTail}`) return true;
   // Absolute-path match: ends with /caliber <tail>
   if (command.endsWith(`/caliber ${subcommandTail}`)) return true;
-  // npx match: `npx --yes @rely-ai/caliber <tail>` or `npx @rely-ai/caliber <tail>`
+  // Bare npx match
   if (command === `npx --yes @rely-ai/caliber ${subcommandTail}`) return true;
   if (command === `npx @rely-ai/caliber ${subcommandTail}`) return true;
+  // Absolute-path npx match: '/abs/path/npx --yes @rely-ai/caliber <tail>'
+  if (command.endsWith(`/npx --yes @rely-ai/caliber ${subcommandTail}`)) return true;
+  if (command.endsWith(`/npx @rely-ai/caliber ${subcommandTail}`)) return true;
   return false;
 }
