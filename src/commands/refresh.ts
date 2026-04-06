@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
+import pLimit from 'p-limit';
 import { isGitRepo } from '../fingerprint/git.js';
 import { collectDiff, scopeDiffToDir, type DiffResult } from '../lib/git-diff.js';
 import { readState, writeState, getCurrentHeadSha } from '../lib/state.js';
@@ -125,6 +126,9 @@ export function collectFilesToWrite(
 }
 
 const REFRESH_COOLDOWN_MS = 30_000;
+// Max simultaneous LLM calls when refreshing multiple monorepo directories.
+// Caps concurrency to avoid rate-limit storms on lower-tier provider plans.
+const PARALLEL_DIR_CONCURRENCY = 4;
 
 async function refreshDir(
   repoDir: string,
@@ -319,23 +323,54 @@ async function refreshSingleRepo(
     await refreshDir(repoDir, '.', diff, options);
   } else {
     log(quiet, chalk.dim(`${prefix}Found configs in ${configDirs.length} directories\n`));
+
+    // Pre-filter to dirs that actually have changes before launching parallel work.
+    const dirsWithChanges = configDirs
+      .map((dir) => ({ dir, scopedDiff: scopeDiffToDir(diff, dir, configDirs) }))
+      .filter(({ scopedDiff }) => scopedDiff.hasChanges);
+
+    // Use a single top-level spinner — multiple concurrent ora instances corrupt
+    // the terminal by racing over the same cursor position with ANSI sequences.
+    const parallelSpinner = quiet
+      ? null
+      : ora(
+          `${prefix}Refreshing ${dirsWithChanges.length} director${dirsWithChanges.length === 1 ? 'y' : 'ies'}...`,
+        ).start();
+
+    // Refresh all dirs in parallel with a concurrency cap to avoid provider rate limits.
+    // Promise.allSettled ensures a failure in one dir doesn't prevent the others.
+    const limit = pLimit(PARALLEL_DIR_CONCURRENCY);
+    const results = await Promise.allSettled(
+      dirsWithChanges.map(({ dir, scopedDiff }) => {
+        const dirLabel = dir === '.' ? 'root' : dir;
+        // Pass quiet:true to suppress per-dir spinners — managed by parallelSpinner above.
+        return limit(() =>
+          refreshDir(repoDir, dir, scopedDiff, { ...options, quiet: true, label: dirLabel }),
+        );
+      }),
+    );
+
+    parallelSpinner?.stop();
+
+    // Print results sequentially so output is readable after all promises settle.
     let hadFailure = false;
-    for (const dir of configDirs) {
-      const scopedDiff = scopeDiffToDir(diff, dir, configDirs);
-      if (!scopedDiff.hasChanges) continue;
-      const dirLabel = dir === '.' ? 'root' : dir;
-      try {
-        await refreshDir(repoDir, dir, scopedDiff, { ...options, label: dirLabel });
-      } catch (err) {
+    for (const [i, result] of results.entries()) {
+      const dirLabel = dirsWithChanges[i].dir === '.' ? 'root' : dirsWithChanges[i].dir;
+      if (result.status === 'rejected') {
         hadFailure = true;
         log(
           quiet,
           chalk.yellow(
-            `  ${dirLabel}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`,
+            `  ${dirLabel}: refresh failed — ${result.reason instanceof Error ? result.reason.message : 'unknown error'}`,
           ),
         );
+      } else {
+        for (const file of result.value.written) {
+          log(quiet, `  ${chalk.green('✓')} ${dirLabel}/${file}`);
+        }
       }
     }
+
     if (hadFailure) {
       // Don't update state SHA — failed dirs need to be retried on next run
       return;
