@@ -1,9 +1,9 @@
 import {
   AbsoluteFill,
   Img,
-  useCurrentFrame,
   interpolate,
   spring,
+  useCurrentFrame,
   useVideoConfig,
 } from "remotion";
 import { theme } from "./theme";
@@ -12,10 +12,10 @@ import compoundInfographicSrc from "../media/claude-md-compound-interest.png";
 
 const IMG_NATURAL_W = 1024;
 const IMG_NATURAL_H = 765;
-const IMG_DISPLAY_W = 1080;
+const IMG_DISPLAY_W = 860;
 const IMG_DISPLAY_H = Math.round((IMG_DISPLAY_W * IMG_NATURAL_H) / IMG_NATURAL_W);
 
-// Scene: CLAUDE.md compound-interest infographic (bundled PNG + explicit dimensions for GIF/MP4 render)
+// Side-by-side layout: copy + bundled infographic (readable at README scale)
 
 export const CompoundInterestScene: React.FC = () => {
   const { fps } = useVideoConfig();
@@ -27,9 +27,9 @@ export const CompoundInterestScene: React.FC = () => {
     config: { damping: 16, stiffness: 58 },
   });
 
-  const cardScale = interpolate(entrance, [0, 1], [0.82, 1]);
-  const cardLift = interpolate(entrance, [0, 1], [56, 0]);
-  const cardRotate = interpolate(entrance, [0, 1], [-2.4, 0]);
+  const cardScale = interpolate(entrance, [0, 1], [0.84, 1]);
+  const cardLift = interpolate(entrance, [0, 1], [40, 0]);
+  const cardRotate = interpolate(entrance, [0, 1], [-1.8, 0]);
 
   const labelOpacity = interpolate(t, [10, 26], [0, 1], {
     extrapolateRight: "clamp",
@@ -39,8 +39,8 @@ export const CompoundInterestScene: React.FC = () => {
     extrapolateRight: "clamp",
   });
 
-  const float = Math.sin(t * 0.055) * 2.5;
-  const kenBurns = interpolate(t, [0, 175], [1, 1.028], {
+  const float = Math.sin(t * 0.055) * 2;
+  const kenBurns = interpolate(t, [0, 175], [1, 1.022], {
     extrapolateRight: "clamp",
   });
 
@@ -60,7 +60,7 @@ export const CompoundInterestScene: React.FC = () => {
           position: "absolute",
           inset: 0,
           background:
-            "radial-gradient(ellipse 85% 75% at 50% 45%, transparent 0%, rgba(9,9,11,0.4) 55%, rgba(9,9,11,0.92) 100%)",
+            "radial-gradient(ellipse 90% 80% at 50% 48%, transparent 0%, rgba(9,9,11,0.35) 55%, rgba(9,9,11,0.9) 100%)",
           pointerEvents: "none",
         }}
       />
@@ -68,12 +68,12 @@ export const CompoundInterestScene: React.FC = () => {
       <div
         style={{
           position: "absolute",
-          width: "78%",
-          height: "72%",
+          width: "88%",
+          height: "75%",
           top: "50%",
           left: "50%",
-          transform: "translate(-50%, -52%)",
-          background: `radial-gradient(ellipse at 50% 42%, rgba(251,146,60,${0.14 + rimPulse * 0.06}) 0%, rgba(125,211,252,0.06) 38%, transparent 68%)`,
+          transform: "translate(-50%, -50%)",
+          background: `radial-gradient(ellipse at 58% 45%, rgba(251,146,60,${0.12 + rimPulse * 0.05}) 0%, rgba(125,211,252,0.05) 40%, transparent 65%)`,
           filter: "blur(2px)",
           pointerEvents: "none",
         }}
@@ -82,59 +82,59 @@ export const CompoundInterestScene: React.FC = () => {
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
+          flexDirection: "row",
           alignItems: "center",
-          gap: 28,
+          justifyContent: "center",
+          gap: 52,
+          padding: "0 56px",
           transform: `translateY(${cardLift + float}px)`,
         }}
       >
         <div
           style={{
+            flex: "0 0 520px",
             display: "flex",
             flexDirection: "column",
-            alignItems: "center",
-            gap: 10,
+            alignItems: "flex-start",
+            gap: 16,
             opacity: labelOpacity,
           }}
         >
           <div
             style={{
-              fontSize: 20,
+              fontSize: 19,
               fontFamily: theme.fontMono,
               color: theme.brand2,
               fontWeight: 600,
               textTransform: "uppercase",
-              letterSpacing: "0.2em",
+              letterSpacing: "0.18em",
             }}
           >
-            Agent memory
+            Context compounds
           </div>
           <div
             style={{
-              fontSize: 44,
+              fontSize: 46,
               fontWeight: 700,
               fontFamily: theme.fontSans,
               color: theme.text,
               letterSpacing: "-0.03em",
-              textAlign: "center",
-              maxWidth: 920,
-              lineHeight: 1.15,
+              lineHeight: 1.12,
             }}
           >
-            Your CLAUDE.md is compound interest
+            Great memory beats
+            <br />a bigger model
           </div>
           <div
             style={{
               fontSize: 22,
               fontFamily: theme.fontSans,
               color: theme.textSecondary,
-              textAlign: "center",
-              maxWidth: 640,
-              lineHeight: 1.4,
+              lineHeight: 1.45,
               opacity: sublabelOpacity,
             }}
           >
-            Sharper context → fewer mistakes every session.
+            Caliber fingerprints your stack and refreshes CLAUDE.md, rules, and agents when the code moves.
           </div>
         </div>
 
@@ -151,6 +151,7 @@ export const CompoundInterestScene: React.FC = () => {
             `,
             transform: `scale(${combinedScale}) rotate(${cardRotate}deg)`,
             transformOrigin: "center center",
+            flexShrink: 0,
           }}
         >
           <div

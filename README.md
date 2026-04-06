@@ -342,11 +342,17 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
-The hero GIF at the top (`assets/demo-header.gif`) is **not** rebuilt by CI. After you change the Remotion project under `assets/video/`, regenerate it locally (writes `assets/demo-header.gif` directly) and commit:
+The hero GIF at the top (`assets/demo-header.gif`) is **not** rebuilt by CI. After you change the Remotion project under `assets/video/`, regenerate it locally and commit:
 
 ```bash
-cd assets/video && pnpm install && pnpm run build:gif
+# Default: smaller GIF for README (~scale + frame skip), then optional gifsicle if installed
+cd assets/video && pnpm install && pnpm run build:readme-gif
 ```
+
+- `pnpm run build` — master **MP4** at `assets/video/assets/demo.mp4`
+- `pnpm run build:gif` — README GIF with `--scale 0.66` and `--every-nth-frame 3`
+- `pnpm run build:gif:hq` — full-res GIF while iterating in Studio
+- `pnpm run optimize:gif` — lossy optimize with **gifsicle** (`brew install gifsicle`) when you want an extra shrink
 
 More context: [assets/RECORDING.md](./assets/RECORDING.md).
 

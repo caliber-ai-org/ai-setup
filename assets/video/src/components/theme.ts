@@ -1,5 +1,7 @@
-// Design tokens matching the Caliber LP (caliber-ai.dev) exactly
-export const theme = {
+// Design tokens matching the Caliber LP (caliber-ai.dev). Sans/mono resolve via @remotion/google-fonts after ensureVideoFontsLoaded().
+import { getFontMono, getFontSans } from "../videoFontFamily";
+
+const colors = {
   bg: "#09090b",
   surface: "#18181b",
   surfaceHeader: "#27272a",
@@ -27,10 +29,6 @@ export const theme = {
   textSecondary: "#a1a1aa",
   textMuted: "#737373", // LP neutral-500
 
-  // Typography (LP fonts)
-  fontSans: "'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif",
-  fontMono: "'Geist Mono', 'JetBrains Mono', 'SF Mono', ui-monospace, monospace",
-
   // Radii
   radius: 12,
   radiusSm: 8,
@@ -48,3 +46,13 @@ export const theme = {
   gradientBorder:
     "linear-gradient(90deg, transparent, rgba(249,115,22,0.5), transparent)",
 } as const;
+
+export const theme = {
+  ...colors,
+  get fontSans(): string {
+    return getFontSans();
+  },
+  get fontMono(): string {
+    return getFontMono();
+  },
+};

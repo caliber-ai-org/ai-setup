@@ -120,16 +120,19 @@ export const FreshScene: React.FC = () => {
         {/* Headline */}
         <div
           style={{
-            fontSize: 64,
+            fontSize: 54,
             fontWeight: 700,
             fontFamily: theme.fontSans,
             color: theme.text,
             letterSpacing: "-0.03em",
             opacity: headlineOpacity,
             marginTop: -12,
+            textAlign: "center",
+            maxWidth: 1100,
+            lineHeight: 1.1,
           }}
         >
-          Configs that keep up.
+          When the code drifts, your agent configs should too.
         </div>
 
         {/* Migration visual: Redis → Aerospike with logos */}
@@ -239,7 +242,7 @@ export const FreshScene: React.FC = () => {
                   letterSpacing: "0.1em",
                 }}
               >
-                Code changes
+                Example: code changes
               </div>
               {/* Migration badge */}
               <div
@@ -258,7 +261,7 @@ export const FreshScene: React.FC = () => {
                     fontWeight: 500,
                   }}
                 >
-                  Redis → Aerospike
+                  Illustrative migration
                 </span>
               </div>
             </div>
@@ -332,7 +335,7 @@ export const FreshScene: React.FC = () => {
                     fontWeight: 600,
                   }}
                 >
-                  Agent configs still reference Redis APIs
+                  Agent rules still describe the old stack
                 </span>
                 <span
                   style={{
@@ -341,7 +344,7 @@ export const FreshScene: React.FC = () => {
                     color: theme.textMuted,
                   }}
                 >
-                  CLAUDE.md, .cursor/rules/ — outdated cache patterns
+                  CLAUDE.md & rules — stale after your dependency shift
                 </span>
               </div>
             </div>
@@ -376,8 +379,8 @@ export const FreshScene: React.FC = () => {
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {[
-                "CLAUDE.md — cache layer → Aerospike",
-                ".cursor/rules/ — Redis patterns removed",
+                "CLAUDE.md — refreshed to match the new cache layer",
+                ".cursor/rules/ — Redis-era patterns removed",
               ].map((text) => (
                 <div key={text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   <svg width={20} height={20} viewBox="0 0 20 20" fill="none">

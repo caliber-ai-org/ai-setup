@@ -6,10 +6,10 @@ import { sceneT } from "../sceneSpeed";
 // Animation: opacity fades + SVG arc stroke. No springs.
 
 const terminalLines = [
-  { text: "Scanning project...", color: theme.textMuted, delay: 16 },
-  { text: "Detected: Next.js + Drizzle + PostgreSQL", color: theme.brand2, delay: 40 },
-  { text: "Generated CLAUDE.md, .cursor/rules/, AGENTS.md", color: theme.accent, delay: 64 },
-  { text: "Installed 4 MCPs from community", color: theme.purple, delay: 88 },
+  { text: "Scanning project…", color: theme.textMuted, delay: 16 },
+  { text: "Detected: TypeScript monorepo · Next.js · PostgreSQL", color: theme.brand2, delay: 40 },
+  { text: "Wrote CLAUDE.md, .cursor/rules/, AGENTS.md", color: theme.accent, delay: 64 },
+  { text: "Registered MCPs matched to your stack", color: theme.purple, delay: 88 },
   { text: "Score: 94/100 — Grade A", color: theme.green, delay: 112 },
 ];
 
@@ -82,14 +82,17 @@ export const InitScene: React.FC = () => {
         {/* Subtitle */}
         <div
           style={{
-            fontSize: 36,
+            fontSize: 32,
             fontFamily: theme.fontSans,
             color: theme.textSecondary,
             fontWeight: 500,
             opacity: subtitleOpacity,
+            textAlign: "center",
+            maxWidth: 880,
+            lineHeight: 1.3,
           }}
         >
-          One command. Full setup.
+          One command fingerprints the repo and ships configs your agents can trust.
         </div>
 
         {/* Main content: terminal + score */}

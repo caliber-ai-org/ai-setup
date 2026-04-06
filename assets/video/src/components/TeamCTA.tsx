@@ -137,14 +137,17 @@ export const TeamCTA: React.FC = () => {
           </div>
           <div
             style={{
-              fontSize: 64,
+              fontSize: 52,
               fontWeight: 700,
               fontFamily: theme.fontSans,
               color: theme.text,
               letterSpacing: "-0.03em",
+              textAlign: "center",
+              maxWidth: 1200,
+              lineHeight: 1.12,
             }}
           >
-            One dev sets up. Everyone benefits.
+            One dev runs Caliber. Git ships the same score, rules, and refresh loop to everyone.
           </div>
         </div>
 
@@ -387,14 +390,17 @@ export const TeamCTA: React.FC = () => {
         {/* Bottom tagline */}
         <div
           style={{
-            fontSize: 28,
+            fontSize: 24,
             fontFamily: theme.fontSans,
             color: theme.textMuted,
             fontWeight: 400,
             opacity: checksOpacity,
+            textAlign: "center",
+            maxWidth: 900,
+            lineHeight: 1.35,
           }}
         >
-          Clone, code — same setup, every time.
+          Clone, pull, score — configs stay grounded in the repo everyone shares.
         </div>
       </div>
 
@@ -414,7 +420,7 @@ export const TeamCTA: React.FC = () => {
 
           <div
             style={{
-              fontSize: 64,
+              fontSize: 56,
               fontWeight: 700,
               fontFamily: theme.fontSans,
               color: theme.text,
@@ -427,30 +433,34 @@ export const TeamCTA: React.FC = () => {
 
           <div
             style={{
-              fontSize: 28,
+              fontSize: 26,
               fontFamily: theme.fontSans,
               color: theme.textMuted,
               fontWeight: 400,
+              textAlign: "center",
+              maxWidth: 720,
+              lineHeight: 1.35,
             }}
           >
-            AI setup tailored for your codebase.
+            Fingerprint your stack, generate configs, refresh when code drifts — then score the result.
           </div>
 
           <div
             style={{
-              padding: "18px 44px",
+              padding: "18px 40px",
               borderRadius: 8,
               backgroundColor: theme.cardBg,
               border: "1px solid rgba(249,115,22,0.3)",
               boxShadow: theme.cardGlowStrong,
               opacity: commandOpacity,
+              maxWidth: 920,
             }}
           >
-            <span style={{ fontSize: 26, fontFamily: theme.fontMono, color: theme.textMuted }}>
+            <span style={{ fontSize: 24, fontFamily: theme.fontMono, color: theme.textMuted }}>
               {"$ "}
             </span>
-            <span style={{ fontSize: 26, fontFamily: theme.fontMono, color: theme.text }}>
-              npm install -g @rely-ai/caliber
+            <span style={{ fontSize: 24, fontFamily: theme.fontMono, color: theme.text }}>
+              npx @rely-ai/caliber init
             </span>
           </div>
 
@@ -472,7 +482,7 @@ export const TeamCTA: React.FC = () => {
                 <p.Icon size={22} color={p.color} />
                 <span
                   style={{
-                    fontSize: 22,
+                    fontSize: 20,
                     fontFamily: theme.fontSans,
                     color: p.color,
                     fontWeight: 500,

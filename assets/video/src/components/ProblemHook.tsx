@@ -1,12 +1,20 @@
-import { AbsoluteFill, interpolate, useCurrentFrame } from "remotion";
+import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
 import { theme } from "./theme";
 import { sceneT } from "../sceneSpeed";
 
 // Scene 1: "The Hook" (see CaliberDemo frame range)
-// Animation: opacity fades only. Zero springs. Zero transforms.
 
 export const ProblemHook: React.FC = () => {
+  const { fps } = useVideoConfig();
   const t = sceneT(useCurrentFrame());
+
+  const enter = spring({
+    frame: t - 2,
+    fps,
+    config: { damping: 22, stiffness: 120 },
+  });
+  const groupY = interpolate(enter, [0, 1], [28, 0]);
+  const groupScale = interpolate(enter, [0, 1], [0.97, 1]);
 
   const headlineOpacity = interpolate(t, [0, 18], [0, 1], {
     extrapolateRight: "clamp",
@@ -16,7 +24,6 @@ export const ProblemHook: React.FC = () => {
     extrapolateRight: "clamp",
   });
 
-  // Sequential: fade OUT first (65-78), blank gap, then fade IN (84-97)
   const headline1Opacity = interpolate(t, [65, 78], [1, 0], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
@@ -26,6 +33,18 @@ export const ProblemHook: React.FC = () => {
     extrapolateRight: "clamp",
   });
 
+  const beat3Opacity = interpolate(t, [102, 118], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const settle = spring({
+    frame: t - 86,
+    fps,
+    config: { damping: 14, stiffness: 100 },
+  });
+  const h2Lift = headline2Opacity * interpolate(settle, [0, 1], [14, 0]);
+
   return (
     <AbsoluteFill style={{ justifyContent: "center", alignItems: "center" }}>
       <div
@@ -33,16 +52,17 @@ export const ProblemHook: React.FC = () => {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          gap: 24,
+          gap: 22,
+          transform: `translateY(${groupY}px) scale(${groupScale})`,
+          transformOrigin: "center center",
         }}
       >
-        {/* LP section label */}
         <div
           style={{
-            fontSize: 22,
+            fontSize: 20,
             fontFamily: theme.fontMono,
             color: theme.brand2,
-            fontWeight: 500,
+            fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.15em",
             opacity: headlineOpacity * headline1Opacity,
@@ -51,11 +71,11 @@ export const ProblemHook: React.FC = () => {
           THE PROBLEM
         </div>
 
-        {/* Headline crossfade */}
         <div
           style={{
             position: "relative",
-            height: 100,
+            height: 168,
+            width: 1680,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -64,54 +84,80 @@ export const ProblemHook: React.FC = () => {
           <div
             style={{
               position: "absolute",
-              fontSize: 80,
+              fontSize: 68,
               fontWeight: 700,
               fontFamily: theme.fontSans,
               color: theme.text,
               letterSpacing: "-0.03em",
               opacity: headlineOpacity * headline1Opacity,
-              whiteSpace: "nowrap",
+              textAlign: "center",
+              lineHeight: 1.12,
+              maxWidth: 1500,
+              padding: "0 40px",
             }}
           >
-            Bad setup = bad agent.
+            Your agent only knows
+            <br />
+            what your repo says.
           </div>
           <div
             style={{
               position: "absolute",
-              fontSize: 80,
+              fontSize: 68,
               fontWeight: 700,
               fontFamily: theme.fontSans,
               letterSpacing: "-0.03em",
               opacity: headline2Opacity,
-              whiteSpace: "nowrap",
+              textAlign: "center",
+              lineHeight: 1.12,
+              maxWidth: 1500,
+              padding: "0 40px",
               color: theme.brand3,
+              transform: `translateY(${-h2Lift}px)`,
             }}
           >
-            Caliber fixes that.
+            Caliber audits, generates,
+            <br />
+            and keeps configs honest.
           </div>
         </div>
 
-        {/* Subtitle */}
         <div
           style={{
-            fontSize: 32,
+            fontSize: 28,
             fontFamily: theme.fontSans,
             color: theme.textMuted,
             fontWeight: 400,
             opacity: subtitleOpacity * headline1Opacity,
+            textAlign: "center",
+            maxWidth: 920,
+            lineHeight: 1.35,
           }}
         >
-          Scores your AI setup. Generates what's missing.
+          Score your setup — then ship CLAUDE.md, rules, and skills that match your code.
         </div>
 
-        {/* Accent line */}
+        <div
+          style={{
+            fontSize: 22,
+            fontFamily: theme.fontMono,
+            color: theme.accent,
+            fontWeight: 500,
+            opacity: beat3Opacity * headline2Opacity,
+            letterSpacing: "0.04em",
+          }}
+        >
+          caliber score · init · refresh
+        </div>
+
         <div
           style={{
             width: 80,
             height: 2,
             backgroundColor: theme.brand3,
             borderRadius: 1,
-            opacity: subtitleOpacity * headline1Opacity * 0.3,
+            opacity: subtitleOpacity * Math.max(headline1Opacity, headline2Opacity * 0.9) * 0.35,
+            marginTop: 4,
           }}
         />
       </div>

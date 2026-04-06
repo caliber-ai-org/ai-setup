@@ -84,6 +84,34 @@ gifsicle -O3 --lossy=80 assets/demo.gif -o assets/demo.gif
 ffmpeg -i assets/demo.mp4 -vf "fps=15,scale=800:-1" -gifflags +transdiff assets/demo.gif
 ```
 
+## Remotion README hero (`assets/demo-header.gif`)
+
+The marketing GIF is authored under `assets/video/` (composition **CaliberDemo**). It is **not** produced by VHS.
+
+1. **MP4 master** (full quality, good for LinkedIn / uploads):
+
+   ```bash
+   cd assets/video && pnpm install && pnpm run build
+   ```
+
+   Output: `assets/video/assets/demo.mp4`.
+
+2. **README GIF** (default pipeline targets smaller files — scale + frame skip):
+
+   ```bash
+   cd assets/video && pnpm run build:readme-gif
+   ```
+
+   Writes `assets/demo-header.gif`, then runs `scripts/optimize-gif.sh` if `gifsicle` is installed.
+
+3. **ffmpeg from MP4** (alternative palette GIF):
+
+   ```bash
+   ffmpeg -y -i assets/video/assets/demo.mp4 -vf "fps=12,scale=900:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse" assets/demo-header.gif
+   ```
+
+Aim for **under ~8MB** for GitHub README load times; tighten `--scale`, `--every-nth-frame`, or gifsicle `--lossy` if the file grows.
+
 ## Using in the README
 
 The `demo-score.gif` is the primary README visual. The full `demo.mp4` can be

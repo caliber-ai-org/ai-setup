@@ -4,7 +4,9 @@ import { CompoundInterestScene } from "./components/CompoundInterestScene";
 import { InitScene } from "./components/InitScene";
 import { FreshScene } from "./components/FreshScene";
 import { TeamCTA } from "./components/TeamCTA";
+import { SceneProgress } from "./components/SceneProgress";
 import { theme } from "./components/theme";
+import { ensureVideoFontsLoaded } from "./videoFontFamily";
 
 /** Crossfade length in frames (scaled down with ~1.3× faster pacing). */
 const FADE = 14;
@@ -31,15 +33,16 @@ const CrossFade: React.FC<{ children: React.ReactNode; from: number; duration: n
 // ~23s = 695 frames @ 30fps (~1.3× faster than prior 902-frame cut)
 // Scene breakdown (2-frame gaps prevent crossfade overlap):
 //   0-4.4s    (0-130):     ProblemHook
-//   4.5-9.1s  (133-270):   CompoundInterestScene — bundled infographic PNG
-//   9.2-15.3s (273-455):   InitScene — terminal + score arc
+//   4.5-9.1s  (133-270):   CompoundInterestScene
+//   9.2-15.3s (273-455):   InitScene
 //   15.3-19.6s(458-586):   FreshScene
 //   19.6-23.2s(589-694):   TeamCTA
 
 export const CaliberDemo: React.FC = () => {
+  ensureVideoFontsLoaded();
+
   return (
     <AbsoluteFill style={{ backgroundColor: theme.bg, fontFamily: theme.fontSans }}>
-      {/* LP ambient orange glow */}
       <div
         style={{
           position: "absolute",
@@ -49,6 +52,8 @@ export const CaliberDemo: React.FC = () => {
           pointerEvents: "none",
         }}
       />
+
+      <SceneProgress />
 
       {/* Scene 1: Hook */}
       <CrossFade from={0} duration={131}>
