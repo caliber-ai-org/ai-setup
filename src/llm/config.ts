@@ -10,6 +10,7 @@ export const DEFAULT_MODELS: Record<ProviderType, string> = {
   anthropic: 'claude-sonnet-4-6',
   vertex: 'claude-sonnet-4-6',
   openai: 'gpt-5.4-mini',
+  minimax: 'MiniMax-M2.7',
   cursor: 'sonnet-4.6',
   'claude-cli': 'default',
 };
@@ -23,6 +24,8 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'gpt-4o': 128_000,
   'gpt-4o-mini': 128_000,
   'sonnet-4.6': 200_000,
+  'MiniMax-M2.7': 1_000_000,
+  'MiniMax-M2.7-highspeed': 1_000_000,
 };
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
@@ -85,6 +88,15 @@ export function resolveFromEnv(): LLMConfig | null {
     };
   }
 
+  if (process.env.MINIMAX_API_KEY) {
+    return {
+      provider: 'minimax',
+      apiKey: process.env.MINIMAX_API_KEY,
+      model: process.env.CALIBER_MODEL || DEFAULT_MODELS.minimax,
+      baseUrl: process.env.MINIMAX_BASE_URL,
+    };
+  }
+
   // Prefer Cursor seat when explicitly requested (no API key; uses agent acp + agent login)
   if (
     process.env.CALIBER_USE_CURSOR_SEAT === '1' ||
@@ -114,7 +126,9 @@ export function readConfigFile(): LLMConfig | null {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     if (
       !parsed.provider ||
-      !['anthropic', 'vertex', 'openai', 'cursor', 'claude-cli'].includes(parsed.provider as string)
+      !['anthropic', 'vertex', 'openai', 'minimax', 'cursor', 'claude-cli'].includes(
+        parsed.provider as string,
+      )
     ) {
       return null;
     }

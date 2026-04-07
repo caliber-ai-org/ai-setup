@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { buildGeneratePrompt, sampleFileTree } from '../generate.js';
 import type { Fingerprint } from '../../fingerprint/index.js';
 
@@ -13,7 +13,37 @@ function makeFingerprint(overrides: Partial<Fingerprint> = {}): Fingerprint {
   };
 }
 
+const API_KEY_VARS = [
+  'ANTHROPIC_API_KEY',
+  'OPENAI_API_KEY',
+  'MINIMAX_API_KEY',
+  'MINIMAX_BASE_URL',
+  'VERTEX_PROJECT_ID',
+  'GCP_PROJECT_ID',
+  'CALIBER_MODEL',
+  'CALIBER_USE_CURSOR_SEAT',
+  'CALIBER_USE_CLAUDE_CLI',
+];
+
 describe('buildGeneratePrompt', () => {
+  const savedEnv: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    for (const key of API_KEY_VARS) {
+      savedEnv[key] = process.env[key];
+      delete process.env[key];
+    }
+  });
+
+  afterEach(() => {
+    for (const key of API_KEY_VARS) {
+      if (savedEnv[key] !== undefined) {
+        process.env[key] = savedEnv[key];
+      } else {
+        delete process.env[key];
+      }
+    }
+  });
   it('says "Generate initial" when no existing configs', () => {
     const prompt = buildGeneratePrompt(makeFingerprint(), ['claude']);
     expect(prompt).toContain('Generate an initial coding agent configuration');
