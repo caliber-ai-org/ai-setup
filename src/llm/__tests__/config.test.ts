@@ -27,6 +27,8 @@ describe('config', () => {
     process.env = { ...originalEnv };
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
+    delete process.env.MINIMAX_API_KEY;
+    delete process.env.MINIMAX_BASE_URL;
     delete process.env.VERTEX_PROJECT_ID;
     delete process.env.GCP_PROJECT_ID;
     delete process.env.CALIBER_MODEL;

@@ -25,6 +25,7 @@ const KNOWN_MODELS: Record<ProviderType, string[]> = {
     'claude-opus-4-1-20250620',
   ],
   openai: ['gpt-5.4-mini', 'gpt-4o', 'gpt-4o-mini', 'o3-mini'],
+  minimax: ['MiniMax-M2.7', 'MiniMax-M2.7-highspeed'],
   cursor: ['auto', 'composer-1.5'],
   'claude-cli': [],
 };
