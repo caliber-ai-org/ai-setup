@@ -376,7 +376,8 @@ export function isCursorAgentAvailable(): boolean {
 export function isCursorLoggedIn(): boolean {
   try {
     const result = execSync(`${AGENT_BIN} status`, {
-      stdio: ['ignore', 'pipe', 'ignore'],
+      input: '',
+      stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 5000,
     });
     return !result.toString().includes('not logged in');
