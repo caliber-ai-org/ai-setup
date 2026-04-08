@@ -214,7 +214,8 @@ export function isClaudeCliLoggedIn(): boolean {
   if (cachedLoggedIn !== null) return cachedLoggedIn;
   try {
     const result = execSync(`${CLAUDE_CLI_BIN} auth status`, {
-      stdio: ['ignore', 'pipe', 'pipe'],
+      input: '',
+      stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 5000,
     });
     const output = result.toString().trim();
