@@ -18,6 +18,7 @@ import { loadConfig, getFastModel, getDisplayModel, writeConfigFile } from '../l
 import { validateModel } from '../llm/index.js';
 import { runInteractiveProviderSetup } from './interactive-provider-setup.js';
 import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
+import { isOpenCodeAvailable } from '../llm/opencode.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
 import confirm from '@inquirer/confirm';
 import { computeLocalScore } from '../scoring/index.js';
@@ -129,9 +130,27 @@ export async function initCommand(options: InitOptions) {
 
   // 1a. LLM provider — auto-detect before prompting
   let config = loadConfig();
+  const prefersOpenCode = options.agent?.includes('opencode');
+
+  // If user explicitly requested opencode agent, override existing config
+  if (prefersOpenCode && isOpenCodeAvailable()) {
+    const autoConfig = { provider: 'opencode' as const, model: 'default' };
+    writeConfigFile(autoConfig);
+    config = autoConfig;
+    console.log(chalk.dim('  Using OpenCode as LLM provider (requested via --agent opencode)\n'));
+  }
+
   if (!config && !options.autoApprove) {
     // Try seat-based auto-detection
-    if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
+    if (prefersOpenCode && isOpenCodeAvailable()) {
+      console.log(chalk.dim('  Detected: OpenCode (uses opencode auth login)\n'));
+      const useIt = await confirm({ message: 'Use OpenCode as your LLM provider?' });
+      if (useIt) {
+        const autoConfig = { provider: 'opencode' as const, model: 'default' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      }
+    } else if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
       console.log(chalk.dim('  Detected: Claude Code CLI (uses your Pro/Max/Team subscription)\n'));
       const useIt = await confirm({ message: 'Use Claude Code as your LLM provider?' });
       if (useIt) {
@@ -152,7 +171,11 @@ export async function initCommand(options: InitOptions) {
   if (!config) {
     if (options.autoApprove) {
       // In auto-approve mode, try seat-based silently
-      if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
+      if (prefersOpenCode && isOpenCodeAvailable()) {
+        const autoConfig = { provider: 'opencode' as const, model: 'default' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      } else if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
         const autoConfig = { provider: 'claude-cli' as const, model: 'default' };
         writeConfigFile(autoConfig);
         config = autoConfig;
@@ -518,10 +541,12 @@ export async function initCommand(options: InitOptions) {
 
     // Get project description if empty
     const isEmpty = fingerprint.fileTree.length < 3;
-    if (isEmpty) {
+    if (isEmpty && !options.autoApprove) {
       display.stop();
       fingerprint.description = await promptInput('What will you build in this project?');
       display.start();
+    } else if (isEmpty && options.autoApprove) {
+      fingerprint.description = 'A new project';
     }
 
     // Phase B: Generate + search in parallel (search always runs)
