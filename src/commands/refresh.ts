@@ -130,14 +130,15 @@ async function refreshDir(
   repoDir: string,
   dir: string,
   diff: DiffResult,
-  options: RefreshOptions & { label?: string },
+  options: RefreshOptions & { label?: string; suppressSpinner?: boolean },
 ): Promise<{ written: string[] }> {
   const quiet = !!options.quiet;
   const prefix = options.label ? `${chalk.bold(options.label)} ` : '';
   const absDir = dir === '.' ? repoDir : path.resolve(repoDir, dir);
   const scope = dir === '.' ? undefined : dir;
 
-  const spinner = quiet ? null : ora(`${prefix}Analyzing changes...`).start();
+  const spinner =
+    quiet || options.suppressSpinner ? null : ora(`${prefix}Analyzing changes...`).start();
 
   const learnedSection = readLearnedSection();
   const fingerprint = await collectFingerprint(absDir);
@@ -320,40 +321,46 @@ async function refreshSingleRepo(
   } else {
     log(quiet, chalk.dim(`${prefix}Found configs in ${configDirs.length} directories\n`));
 
-    // Build the list of dirs that actually have changes before launching parallel work
     const dirsWithChanges = configDirs
       .map((dir) => ({ dir, scopedDiff: scopeDiffToDir(diff, dir, configDirs) }))
       .filter(({ scopedDiff }) => scopedDiff.hasChanges);
 
-    // Refresh all subdirectories in parallel — each is independent (separate fingerprint,
-    // separate doc set, separate LLM call). Promise.allSettled ensures that a failure in
-    // one directory does not prevent the others from completing.
+    const topSpinner = quiet
+      ? null
+      : ora(`${prefix}Refreshing ${dirsWithChanges.length} directories...`).start();
+
     const results = await Promise.allSettled(
       dirsWithChanges.map(({ dir, scopedDiff }) => {
         const dirLabel = dir === '.' ? 'root' : dir;
-        return refreshDir(repoDir, dir, scopedDiff, { ...options, label: dirLabel });
+        return refreshDir(repoDir, dir, scopedDiff, {
+          ...options,
+          label: dirLabel,
+          suppressSpinner: true,
+        });
       }),
     );
 
     let hadFailure = false;
-    for (let i = 0; i < results.length; i++) {
-      const result = results[i];
+    for (const [i, result] of results.entries()) {
+      const dirLabel = dirsWithChanges[i].dir === '.' ? 'root' : dirsWithChanges[i].dir;
       if (result.status === 'rejected') {
         hadFailure = true;
-        const dirLabel = dirsWithChanges[i].dir === '.' ? 'root' : dirsWithChanges[i].dir;
         log(
           quiet,
           chalk.yellow(
-            `  ${dirLabel}: refresh failed — ${result.reason instanceof Error ? result.reason.message : 'unknown error'}`,
+            `  ${dirLabel}: refresh failed -- ${result.reason instanceof Error ? result.reason.message : 'unknown error'}`,
           ),
         );
+      } else if (result.value.written.length > 0) {
+        log(quiet, chalk.green(`  ${dirLabel}: updated ${result.value.written.length} doc(s)`));
       }
     }
 
     if (hadFailure) {
-      // Don't update state SHA — failed dirs need to be retried on next run
+      topSpinner?.fail(`${prefix}Some directories failed to refresh`);
       return;
     }
+    topSpinner?.succeed(`${prefix}Refreshed ${dirsWithChanges.length} directories`);
   }
 
   const builtinWritten = ensureBuiltinSkills();
