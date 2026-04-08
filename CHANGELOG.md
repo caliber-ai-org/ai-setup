@@ -1,3 +1,9 @@
+## v1.41.1 (2026-04-08)
+
+### Bug Fixes
+
+- windows auth check stdin handling (#137)
+
 ## v1.41.0 (2026-04-04)
 
 ### Features
