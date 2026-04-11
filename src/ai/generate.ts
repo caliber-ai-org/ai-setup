@@ -171,9 +171,15 @@ export async function generateSetup(
     ),
   );
 
-  const { failed: failedCount } = mergeSkillResults(skillResults, setup);
+  const { succeeded, failed: failedCount } = mergeSkillResults(skillResults, setup);
+
   if (failedCount > 0 && callbacks) {
-    callbacks.onStatus(`${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate`);
+    // Skills are supplementary — core CLAUDE.md/AGENTS.md is still valid even when skills fail.
+    // Route through onStatus (not onError) so callers don't treat this as a hard failure.
+    const msg = succeeded === 0
+      ? `${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate — config saved without skills`
+      : `Warning: ${failedCount} of ${failedCount + succeeded} skill${failedCount === 1 ? '' : 's'} failed to generate`;
+    callbacks.onStatus(msg);
   }
 
   return coreResult;
