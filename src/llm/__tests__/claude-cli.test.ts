@@ -212,6 +212,48 @@ describe('ClaudeCliProvider', () => {
     expect(provider).toBeDefined();
     process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS = orig;
   });
+
+  it('strips CLAUDECODE and CLAUDE_CODE_ENTRYPOINT from subprocess env', async () => {
+    // Root cause: when caliber runs inside Claude Code, these vars are set in process.env.
+    // Passing them to the claude subprocess triggers its anti-recursion check, causing
+    // exit code 1 with "Not logged in" even when the user IS authenticated.
+    const origClaudeCode = process.env.CLAUDECODE;
+    const origEntrypoint = process.env.CLAUDE_CODE_ENTRYPOINT;
+    process.env.CLAUDECODE = '1';
+    process.env.CLAUDE_CODE_ENTRYPOINT = 'cli';
+
+    let closeCb: (code: number) => void;
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: { on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
+        if (ev === 'data') setTimeout(() => fn(Buffer.from('ok')), 0);
+      }) },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: (code: number) => void) => {
+        if (ev === 'close') closeCb = fn;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const resultPromise = provider.call({ system: 'S', prompt: 'P' });
+    await new Promise((r) => setTimeout(r, 10));
+    closeCb!(0);
+    await resultPromise;
+
+    // The env passed to spawn must NOT contain the Claude Code session markers
+    const spawnedEnv = IS_WINDOWS
+      ? spawn.mock.calls[0][1].env
+      : spawn.mock.calls[0][2].env;
+    expect(spawnedEnv).not.toHaveProperty('CLAUDECODE');
+    expect(spawnedEnv).not.toHaveProperty('CLAUDE_CODE_ENTRYPOINT');
+
+    // Restore
+    if (origClaudeCode === undefined) delete process.env.CLAUDECODE;
+    else process.env.CLAUDECODE = origClaudeCode;
+    if (origEntrypoint === undefined) delete process.env.CLAUDE_CODE_ENTRYPOINT;
+    else process.env.CLAUDE_CODE_ENTRYPOINT = origEntrypoint;
+  });
 });
 
 describe('isClaudeCliAvailable', () => {

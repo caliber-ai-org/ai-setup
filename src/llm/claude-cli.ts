@@ -7,17 +7,25 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
 
 function spawnClaude(args: string[]): ChildProcess {
+  // Strip Claude Code's session markers before spawning. When caliber runs inside
+  // a Claude Code session, CLAUDECODE=1 and CLAUDE_CODE_ENTRYPOINT are set.
+  // The claude subprocess inherits these and its anti-recursion check fires,
+  // causing it to exit with code 1 ("Not logged in") even though the user is
+  // authenticated. Removing them lets the subprocess authenticate normally.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, ...safeEnv } = process.env;
+
   return IS_WINDOWS
     ? spawn([CLAUDE_CLI_BIN, ...args].join(' '), {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'] as const,
-        env: process.env,
+        env: safeEnv,
         shell: true,
       })
     : spawn(CLAUDE_CLI_BIN, args, {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: process.env,
+        env: safeEnv,
       });
 }
 
