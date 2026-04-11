@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { buildGeneratePrompt, sampleFileTree } from '../generate.js';
 import type { Fingerprint } from '../../fingerprint/index.js';
 
@@ -377,6 +377,103 @@ describe('buildGeneratePrompt', () => {
 
     // Trimming indicator shown
     expect(prompt).toContain('trimmed to');
+  });
+});
+
+describe('generateSetup skill failure reporting', () => {
+  // Mock all LLM + IO dependencies so we can call generateSetup in isolation
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('calls onStatus with all-fail message when every skill fails', async () => {
+    vi.doMock('../../llm/index.js', () => ({
+      getProvider: () => ({
+        stream: (_opts: unknown, callbacks: { onEnd: (m: { stopReason: string }) => void }) => {
+          // Return a valid setup JSON with skillTopics so Phase 2 runs
+          callbacks.onEnd({ stopReason: 'end_turn' });
+          return Promise.resolve();
+        },
+      }),
+      // llmJsonCall is used by generateSkill — make it reject to simulate skill failure
+      llmJsonCall: vi.fn().mockRejectedValue(new Error('LLM error')),
+      TRANSIENT_ERRORS: [] as string[],
+    }));
+    vi.doMock('../../llm/config.js', () => ({
+      getFastModel: () => undefined,
+      getMaxPromptTokens: () => 4000,
+    }));
+    vi.doMock('../../utils/dependencies.js', () => ({ extractAllDeps: () => [] }));
+    vi.doMock('../../fingerprint/sources.js', () => ({ formatSourcesForPrompt: () => '' }));
+
+    // Dynamic import after mocks are in place
+    const { generateSetup } = await import('../generate.js');
+
+    const onStatus = vi.fn();
+    const onError = vi.fn();
+    const onComplete = vi.fn();
+
+    const fingerprint: Fingerprint = {
+      languages: [],
+      frameworks: [],
+      tools: [],
+      fileTree: [],
+      existingConfigs: {},
+    };
+
+    await generateSetup(fingerprint, ['claude'], undefined, { onStatus, onError, onComplete });
+
+    // onError must NOT be called — skills are supplementary, not a hard error
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it('calls onStatus with Warning prefix on partial skill failure', async () => {
+    let callCount = 0;
+    vi.doMock('../../llm/index.js', () => ({
+      getProvider: () => ({
+        stream: (_opts: unknown, callbacks: { onEnd: (m: { stopReason: string }) => void }) => {
+          callbacks.onEnd({ stopReason: 'end_turn' });
+          return Promise.resolve();
+        },
+      }),
+      llmJsonCall: vi.fn().mockImplementation(() => {
+        callCount++;
+        // First skill succeeds, subsequent ones fail
+        if (callCount === 1) {
+          return Promise.resolve({ name: 'test-skill', description: 'desc', content: 'content' });
+        }
+        return Promise.reject(new Error('LLM error'));
+      }),
+      TRANSIENT_ERRORS: [] as string[],
+    }));
+    vi.doMock('../../llm/config.js', () => ({
+      getFastModel: () => undefined,
+      getMaxPromptTokens: () => 4000,
+    }));
+    vi.doMock('../../utils/dependencies.js', () => ({ extractAllDeps: () => [] }));
+    vi.doMock('../../fingerprint/sources.js', () => ({ formatSourcesForPrompt: () => '' }));
+
+    const { generateSetup } = await import('../generate.js');
+
+    const onStatus = vi.fn();
+    const onError = vi.fn();
+
+    const fingerprint: Fingerprint = {
+      languages: [],
+      frameworks: [],
+      tools: [],
+      fileTree: [],
+      existingConfigs: {},
+    };
+
+    await generateSetup(fingerprint, ['claude'], undefined, { onStatus, onError, onComplete: vi.fn() });
+
+    // onError must NOT be called regardless of how many skills fail
+    expect(onError).not.toHaveBeenCalled();
   });
 });
 
