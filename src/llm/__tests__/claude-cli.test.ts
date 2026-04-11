@@ -212,6 +212,35 @@ describe('ClaudeCliProvider', () => {
     expect(provider).toBeDefined();
     process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS = orig;
   });
+
+  it('call() does not double-reject when both error and close events fire', async () => {
+    let errorCb: (err: Error) => void;
+    let closeCb: (code: number | null) => void;
+
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: { on: vi.fn() },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: unknown) => {
+        if (ev === 'error') errorCb = fn as (err: Error) => void;
+        if (ev === 'close') closeCb = fn as (code: number | null) => void;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const rejectSpy = vi.fn();
+
+    const resultPromise = provider.call({ system: 'S', prompt: 'P' }).catch(rejectSpy);
+
+    await new Promise((r) => setTimeout(r, 10));
+    errorCb!(new Error('spawn ENOENT'));
+    closeCb!(1);
+    await resultPromise;
+
+    expect(rejectSpy).toHaveBeenCalledTimes(1);
+    expect(rejectSpy).toHaveBeenCalledWith(new Error('spawn ENOENT'));
+  });
 });
 
 describe('isClaudeCliAvailable', () => {
