@@ -32,6 +32,8 @@ export function isCaliberRunning(): boolean {
     const raw = fs.readFileSync(lockFile, 'utf-8').trim();
     const { pid, ts } = JSON.parse(raw);
 
+    if (pid === process.pid) return false; // lock belongs to this process, not another
+
     if (Date.now() - ts > STALE_MS) return false;
 
     try {
