@@ -645,6 +645,21 @@ const LIMITS = {
   RULES_MAX: 10,
 } as const;
 
+/** Generate prompts must stay within a predictable cap (large-context models use a higher getMaxPromptTokens()). */
+const BUILD_GENERATE_PROMPT_MAX_TOKENS = 120_000;
+/** Room for the dynamic “Project Files” header line before measuring code payload. */
+const PROJECT_FILES_HEADER_RESERVE_TOKENS = 160;
+
+function maxCharsForCodeFileContent(
+  runningJoinedLen: number,
+  pathLine: string,
+  budgetTokens: number,
+): number {
+  const maxTotalChars = budgetTokens * 4;
+  const overhead = runningJoinedLen + 1 + pathLine.length + 1;
+  return Math.max(0, maxTotalChars - overhead);
+}
+
 function truncate(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return text.slice(0, maxChars) + `\n... (truncated at ${maxChars} chars)`;
@@ -868,9 +883,12 @@ export function buildGeneratePrompt(
   if (fingerprint.codeAnalysis) {
     const ca = fingerprint.codeAnalysis;
     const basePrompt = parts.join('\n');
-    const maxPromptTokens = getMaxPromptTokens();
+    const effectiveMaxTokens = Math.min(getMaxPromptTokens(), BUILD_GENERATE_PROMPT_MAX_TOKENS);
     const baseTokens = estimateTokens(basePrompt);
-    const tokenBudgetForCode = Math.max(0, maxPromptTokens - baseTokens);
+    const tokenBudgetForCode = Math.max(
+      0,
+      effectiveMaxTokens - baseTokens - PROJECT_FILES_HEADER_RESERVE_TOKENS,
+    );
 
     const codeLines: string[] = [];
     let codeChars = 0;
@@ -884,11 +902,22 @@ export function buildGeneratePrompt(
 
     let includedFiles = 0;
     for (const f of sortedFiles) {
-      const entry = `[${f.path}]\n${f.content}\n`;
+      const pathLine = `[${f.path}]\n`;
+      const maxContent = maxCharsForCodeFileContent(runningCodeLen, pathLine, tokenBudgetForCode);
+      if (maxContent < 1) {
+        if (includedFiles > 0) break;
+        continue;
+      }
+      const content = f.content.slice(0, Math.min(f.content.length, maxContent));
+      const entry = `${pathLine}${content}\n`;
       const projectedLen = runningCodeLen + 1 + entry.length;
-      if (Math.ceil(projectedLen / 4) > tokenBudgetForCode && includedFiles > 0) break;
+      const projectedTokens = Math.ceil(projectedLen / 4);
+      if (projectedTokens > tokenBudgetForCode) {
+        if (includedFiles > 0) break;
+        continue;
+      }
       codeLines.push(entry);
-      codeChars += f.content.length;
+      codeChars += content.length;
       runningCodeLen = projectedLen;
       includedFiles++;
     }
