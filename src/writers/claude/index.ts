@@ -1,31 +1,51 @@
 import fs from 'fs';
 import path from 'path';
-import { appendPreCommitBlock, appendLearningsBlock } from '../pre-commit-block.js';
+import {
+  appendPreCommitBlock,
+  appendLearningsBlock,
+  appendSyncBlock,
+} from '../pre-commit-block.js';
 
 interface ClaudeConfig {
   claudeMd: string;
-  skills?: Array<{ name: string; description: string; content: string }>;
+  rules?: Array<{ filename: string; content: string }>;
+  skills?: Array<{ name: string; description: string; content: string; paths?: string[] }>;
   mcpServers?: Record<string, { command: string; args?: string[]; env?: Record<string, string> }>;
 }
 
 export function writeClaudeConfig(config: ClaudeConfig): string[] {
   const written: string[] = [];
 
-  fs.writeFileSync('CLAUDE.md', appendLearningsBlock(appendPreCommitBlock(config.claudeMd)));
+  fs.writeFileSync(
+    'CLAUDE.md',
+    appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(config.claudeMd))),
+  );
   written.push('CLAUDE.md');
+
+  if (config.rules?.length) {
+    const rulesDir = path.join('.claude', 'rules');
+    if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
+    for (const rule of config.rules) {
+      const rulePath = path.join(rulesDir, rule.filename);
+      fs.writeFileSync(rulePath, rule.content);
+      written.push(rulePath);
+    }
+  }
 
   if (config.skills?.length) {
     for (const skill of config.skills) {
       const skillDir = path.join('.claude', 'skills', skill.name);
       if (!fs.existsSync(skillDir)) fs.mkdirSync(skillDir, { recursive: true });
       const skillPath = path.join(skillDir, 'SKILL.md');
-      const frontmatter = [
-        '---',
-        `name: ${skill.name}`,
-        `description: ${skill.description}`,
-        '---',
-        '',
-      ].join('\n');
+      const frontmatterLines = ['---', `name: ${skill.name}`, `description: ${skill.description}`];
+      if (skill.paths?.length) {
+        frontmatterLines.push('paths:');
+        for (const p of skill.paths) {
+          frontmatterLines.push(`  - ${p}`);
+        }
+      }
+      frontmatterLines.push('---', '');
+      const frontmatter = frontmatterLines.join('\n');
       fs.writeFileSync(skillPath, frontmatter + skill.content);
       written.push(skillPath);
     }

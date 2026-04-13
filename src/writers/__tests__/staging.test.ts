@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 
@@ -19,9 +19,7 @@ describe('staging', () => {
 
   describe('stageFiles', () => {
     it('creates proposed files and counts new vs modified', () => {
-      vi.mocked(fs.existsSync)
-        .mockReturnValue(false)
-        .mockReturnValueOnce(false); // cleanup check
+      vi.mocked(fs.existsSync).mockReturnValue(false).mockReturnValueOnce(false); // cleanup check
 
       const files = [
         { path: 'CLAUDE.md', content: '# Hello' },
@@ -41,21 +39,19 @@ describe('staging', () => {
       // Then for each file: existsSync is called twice (normalize check + staging check)
       vi.mocked(fs.existsSync)
         .mockReturnValueOnce(false) // cleanup: staged dir doesn't exist
-        .mockReturnValueOnce(true)  // normalize: CLAUDE.md exists in project
+        .mockReturnValueOnce(true) // normalize: CLAUDE.md exists in project
         .mockReturnValueOnce(true); // staging: CLAUDE.md exists in project
 
       // Existing file has different content so it counts as modified
       vi.mocked(fs.readFileSync).mockReturnValueOnce('# Old content');
 
-      const files = [
-        { path: 'CLAUDE.md', content: '# Updated' },
-      ];
+      const files = [{ path: 'CLAUDE.md', content: '# Updated' }];
 
       const result = stageFiles(files, '/project');
 
       expect(fs.copyFileSync).toHaveBeenCalledWith(
         path.join('/project', 'CLAUDE.md'),
-        expect.stringContaining('current')
+        expect.stringContaining('current'),
       );
       expect(result.newFiles).toBe(0);
       expect(result.modifiedFiles).toBe(1);
@@ -74,10 +70,10 @@ describe('staging', () => {
     it('removes staged directory if it exists', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       cleanupStaging();
-      expect(fs.rmSync).toHaveBeenCalledWith(
-        expect.stringContaining('staged'),
-        { recursive: true, force: true }
-      );
+      expect(fs.rmSync).toHaveBeenCalledWith(expect.stringContaining('staged'), {
+        recursive: true,
+        force: true,
+      });
     });
 
     it('does nothing if staged directory does not exist', () => {

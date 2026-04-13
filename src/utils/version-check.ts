@@ -7,9 +7,7 @@ import ora from 'ora';
 import confirm from '@inquirer/confirm';
 
 const __dirname_vc = path.dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname_vc, '..', 'package.json'), 'utf-8')
-);
+const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname_vc, '..', 'package.json'), 'utf-8'));
 
 export function getChannel(version: string): string {
   const match = version.match(/-(dev|next)\./);
@@ -35,7 +33,10 @@ export function isNewer(registry: string, current: string): boolean {
 
 function getInstalledVersion(): string | null {
   try {
-    const globalRoot = execSync('npm root -g', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const globalRoot = execSync('npm root -g', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
     const pkgPath = path.join(globalRoot, '@rely-ai', 'caliber', 'package.json');
     return JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version;
   } catch {
@@ -72,24 +73,25 @@ export async function checkForUpdates(): Promise<void> {
       const installTag = channel === 'latest' ? '' : `@${channel}`;
       console.log(
         chalk.yellow(
-          `\nUpdate available: ${current} -> ${latest}\nRun ${chalk.bold(`npm install -g @rely-ai/caliber${installTag}`)} to upgrade.\n`
-        )
+          `\nUpdate available: ${current} -> ${latest}\nRun ${chalk.bold(`npm install -g @rely-ai/caliber${installTag}`)} to upgrade.\n`,
+        ),
       );
       return;
     }
 
-    console.log(
-      chalk.yellow(`\nUpdate available: ${current} -> ${latest}`)
-    );
+    console.log(chalk.yellow(`\nUpdate available: ${current} -> ${latest}`));
 
-    const shouldUpdate = await confirm({ message: 'Would you like to update now? (Y/n)', default: true });
+    const shouldUpdate = await confirm({
+      message: 'Would you like to update now? (Y/n)',
+      default: true,
+    });
     if (!shouldUpdate) {
       console.log();
       return;
     }
 
     const tag = channel === 'latest' ? latest : channel;
-    if (!/^[\w.\-]+$/.test(tag)) return;
+    if (!/^[\w.-]+$/.test(tag)) return;
     const spinner = ora('Updating caliber...').start();
     try {
       execFileSync('npm', ['install', '-g', `@rely-ai/caliber@${tag}`], {
@@ -101,7 +103,9 @@ export async function checkForUpdates(): Promise<void> {
       const installed = getInstalledVersion();
       if (installed !== latest) {
         spinner.fail(`Update incomplete — got ${installed ?? 'unknown'}, expected ${latest}`);
-        console.log(chalk.yellow(`Run ${chalk.bold(`npm install -g @rely-ai/caliber@${tag}`)} manually.\n`));
+        console.log(
+          chalk.yellow(`Run ${chalk.bold(`npm install -g @rely-ai/caliber@${tag}`)} manually.\n`),
+        );
         return;
       }
 
@@ -118,13 +122,15 @@ export async function checkForUpdates(): Promise<void> {
       spinner.fail('Update failed');
       if (err instanceof Error) {
         const stderr = (err as unknown as Record<string, unknown>).stderr;
-        const errMsg = stderr ? String(stderr).trim().split('\n').pop() : err.message.split('\n')[0];
+        const errMsg = stderr
+          ? String(stderr).trim().split('\n').pop()
+          : err.message.split('\n')[0];
         if (errMsg && !errMsg.includes('SIGTERM')) console.log(chalk.dim(`  ${errMsg}`));
       }
       console.log(
         chalk.yellow(
-          `Run ${chalk.bold(`npm install -g @rely-ai/caliber@${tag}`)} manually to upgrade.\n`
-        )
+          `Run ${chalk.bold(`npm install -g @rely-ai/caliber@${tag}`)} manually to upgrade.\n`,
+        ),
       );
     }
   } catch {

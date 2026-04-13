@@ -1,4 +1,3 @@
-import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import type { Check } from '../index.js';
 import {
@@ -35,12 +34,10 @@ export function checkQuality(dir: string): Check[] {
   const primaryInstructions = claudeMd ?? agentsMd ?? cursorrules;
 
   // 1. Executable content — does the config have code blocks?
-  const structure = primaryInstructions
-    ? analyzeMarkdownStructure(primaryInstructions)
-    : null;
+  const structure = primaryInstructions ? analyzeMarkdownStructure(primaryInstructions) : null;
 
   const codeBlockCount = structure?.codeBlockCount ?? 0;
-  const codeBlockThreshold = CODE_BLOCK_THRESHOLDS.find(t => codeBlockCount >= t.minBlocks);
+  const codeBlockThreshold = CODE_BLOCK_THRESHOLDS.find((t) => codeBlockCount >= t.minBlocks);
   const execPoints = codeBlockThreshold?.points ?? 0;
 
   checks.push({
@@ -53,25 +50,26 @@ export function checkQuality(dir: string): Check[] {
     detail: primaryInstructions
       ? `${codeBlockCount} code block${codeBlockCount === 1 ? '' : 's'} found`
       : 'No instructions file to check',
-    suggestion: execPoints < 6
-      ? 'Add code blocks with project commands, build steps, and common workflows'
-      : undefined,
-    fix: execPoints < 6
-      ? {
-          action: 'add_code_blocks',
-          data: { currentCount: codeBlockCount, targetCount: 3 },
-          instruction: `Add code blocks with executable commands. Currently ${codeBlockCount}, need at least 3 for full points.`,
-        }
-      : undefined,
+    suggestion:
+      execPoints < 6
+        ? 'Add code blocks with project commands, build steps, and common workflows'
+        : undefined,
+    fix:
+      execPoints < 6
+        ? {
+            action: 'add_code_blocks',
+            data: { currentCount: codeBlockCount, targetCount: 3 },
+            instruction: `Add code blocks with executable commands. Currently ${codeBlockCount}, need at least 3 for full points.`,
+          }
+        : undefined,
   });
 
   // 2. Concise config — token budget for primary config files (not skills — they use progressive disclosure)
   const totalContent = collectPrimaryConfigContent(dir);
   const totalTokens = estimateTokens(totalContent);
-  const tokenThreshold = TOKEN_BUDGET_THRESHOLDS.find(t => totalTokens <= t.maxTokens);
-  const tokenPoints = totalContent.length === 0
-    ? POINTS_CONCISE_CONFIG
-    : tokenThreshold?.points ?? 0;
+  const tokenThreshold = TOKEN_BUDGET_THRESHOLDS.find((t) => totalTokens <= t.maxTokens);
+  const tokenPoints =
+    totalContent.length === 0 ? POINTS_CONCISE_CONFIG : (tokenThreshold?.points ?? 0);
 
   checks.push({
     id: 'concise_config',
@@ -80,19 +78,22 @@ export function checkQuality(dir: string): Check[] {
     maxPoints: POINTS_CONCISE_CONFIG,
     earnedPoints: tokenPoints,
     passed: tokenPoints >= 4,
-    detail: totalContent.length === 0
-      ? 'No config files to measure'
-      : `~${totalTokens} tokens total across all config files`,
-    suggestion: tokenPoints < 4 && totalContent.length > 0
-      ? `Total config is ~${totalTokens} tokens — reduce to under 5000 for better agent performance`
-      : undefined,
-    fix: tokenPoints < 4 && totalContent.length > 0
-      ? {
-          action: 'reduce_size',
-          data: { currentTokens: totalTokens, targetTokens: 5000 },
-          instruction: `Reduce total config from ~${totalTokens} tokens to under 5000.`,
-        }
-      : undefined,
+    detail:
+      totalContent.length === 0
+        ? 'No config files to measure'
+        : `~${totalTokens} tokens total across all config files`,
+    suggestion:
+      tokenPoints < 4 && totalContent.length > 0
+        ? `Config is ~${totalTokens} tokens. Agents work best under ~5000 tokens (~4 pages of text) — trim verbose sections`
+        : undefined,
+    fix:
+      tokenPoints < 4 && totalContent.length > 0
+        ? {
+            action: 'reduce_size',
+            data: { currentTokens: totalTokens, targetTokens: 5000 },
+            instruction: `Reduce total config from ~${totalTokens} tokens to under 5000.`,
+          }
+        : undefined,
   });
 
   // 3. Concreteness — ratio of concrete lines vs abstract prose
@@ -103,7 +104,10 @@ export function checkQuality(dir: string): Check[] {
   if (primaryInstructions && abstractCount > 0) {
     let inCb = false;
     for (const line of primaryInstructions.split('\n')) {
-      if (line.trim().startsWith('```')) { inCb = !inCb; continue; }
+      if (line.trim().startsWith('```')) {
+        inCb = !inCb;
+        continue;
+      }
       if (!inCb && classifyLine(line, false) === 'abstract' && abstractExamples.length < 3) {
         abstractExamples.push(line.trim().slice(0, 80));
       }
@@ -112,10 +116,8 @@ export function checkQuality(dir: string): Check[] {
 
   const totalMeaningful = concreteCount + abstractCount;
   const concreteRatio = totalMeaningful > 0 ? concreteCount / totalMeaningful : 1;
-  const concretenessThreshold = CONCRETENESS_THRESHOLDS.find(t => concreteRatio >= t.minRatio);
-  const concretenessPoints = totalMeaningful === 0
-    ? 0
-    : concretenessThreshold?.points ?? 0;
+  const concretenessThreshold = CONCRETENESS_THRESHOLDS.find((t) => concreteRatio >= t.minRatio);
+  const concretenessPoints = totalMeaningful === 0 ? 0 : (concretenessThreshold?.points ?? 0);
 
   checks.push({
     id: 'concreteness',
@@ -124,19 +126,27 @@ export function checkQuality(dir: string): Check[] {
     maxPoints: POINTS_CONCRETENESS,
     earnedPoints: concretenessPoints,
     passed: concretenessPoints >= 3,
-    detail: totalMeaningful === 0
-      ? 'No content to analyze'
-      : `${Math.round(concreteRatio * 100)}% of lines reference specific files, paths, or code`,
-    suggestion: concretenessPoints < 3 && totalMeaningful > 0
-      ? `${abstractCount} lines are generic prose — replace with specific instructions referencing project files`
-      : undefined,
-    fix: concretenessPoints < 3 && totalMeaningful > 0
-      ? {
-          action: 'replace_vague',
-          data: { abstractLines: abstractExamples, abstractCount, concreteCount, ratio: Math.round(concreteRatio * 100) },
-          instruction: `Replace generic prose with specific references. Examples of vague lines: ${abstractExamples.join('; ')}`,
-        }
-      : undefined,
+    detail:
+      totalMeaningful === 0
+        ? 'No content to analyze'
+        : `${Math.round(concreteRatio * 100)}% of lines reference specific files, paths, or code`,
+    suggestion:
+      concretenessPoints < 3 && totalMeaningful > 0
+        ? `${abstractCount} lines are generic prose — replace with specific instructions referencing project files`
+        : undefined,
+    fix:
+      concretenessPoints < 3 && totalMeaningful > 0
+        ? {
+            action: 'replace_vague',
+            data: {
+              abstractLines: abstractExamples,
+              abstractCount,
+              concreteCount,
+              ratio: Math.round(concreteRatio * 100),
+            },
+            instruction: `Replace generic prose with specific references. Examples of vague lines: ${abstractExamples.join('; ')}`,
+          }
+        : undefined,
   });
 
   // 4. No directory tree listings
@@ -159,15 +169,15 @@ export function checkQuality(dir: string): Check[] {
       ? {
           action: 'remove_tree',
           data: { treeLines: treeLineCount },
-          instruction: 'Remove directory tree listings from code blocks. Reference key directories inline instead.',
+          instruction:
+            'Remove directory tree listings from code blocks. Reference key directories inline instead.',
         }
       : undefined,
   });
 
   // 5. No duplicate content across files
-  const duplicatePercent = claudeMd && cursorrules
-    ? calculateDuplicatePercent(claudeMd, cursorrules)
-    : 0;
+  const duplicatePercent =
+    claudeMd && cursorrules ? calculateDuplicatePercent(claudeMd, cursorrules) : 0;
 
   const hasDuplicates = duplicatePercent > 50;
   checks.push({
@@ -177,11 +187,12 @@ export function checkQuality(dir: string): Check[] {
     maxPoints: POINTS_NO_DUPLICATES,
     earnedPoints: hasDuplicates ? 0 : POINTS_NO_DUPLICATES,
     passed: !hasDuplicates,
-    detail: claudeMd && cursorrules
-      ? hasDuplicates
-        ? `${duplicatePercent}% overlap between CLAUDE.md and .cursorrules`
-        : `${duplicatePercent}% overlap — acceptable`
-      : 'Only one context file (no duplication possible)',
+    detail:
+      claudeMd && cursorrules
+        ? hasDuplicates
+          ? `${duplicatePercent}% overlap between CLAUDE.md and .cursorrules`
+          : `${duplicatePercent}% overlap — acceptable`
+        : 'Only one context file (no duplication possible)',
     suggestion: hasDuplicates
       ? 'CLAUDE.md and .cursorrules share >50% content — deduplicate to save tokens'
       : undefined,
@@ -189,7 +200,8 @@ export function checkQuality(dir: string): Check[] {
       ? {
           action: 'deduplicate',
           data: { overlapPercent: duplicatePercent },
-          instruction: 'Deduplicate content between CLAUDE.md and .cursorrules. Each file should contain platform-specific instructions only.',
+          instruction:
+            'Deduplicate content between CLAUDE.md and .cursorrules. Each file should contain platform-specific instructions only.',
         }
       : undefined,
   });
@@ -209,16 +221,19 @@ export function checkQuality(dir: string): Check[] {
     detail: primaryInstructions
       ? `${structure!.h2Count} sections, ${structure!.listItemCount} list items`
       : 'No instructions file to check',
-    suggestion: structureScore < 2 && primaryInstructions
-      ? 'Add at least 3 markdown sections (##) and use lists for multi-item instructions'
-      : undefined,
-    fix: structureScore < 2 && primaryInstructions
-      ? {
-          action: 'add_structure',
-          data: { currentH2: structure!.h2Count, currentLists: structure!.listItemCount },
-          instruction: 'Organize content into sections with ## headings and use bullet lists for instructions.',
-        }
-      : undefined,
+    suggestion:
+      structureScore < 2 && primaryInstructions
+        ? 'Add at least 3 markdown sections (##) and use lists for multi-item instructions'
+        : undefined,
+    fix:
+      structureScore < 2 && primaryInstructions
+        ? {
+            action: 'add_structure',
+            data: { currentH2: structure!.h2Count, currentLists: structure!.listItemCount },
+            instruction:
+              'Organize content into sections with ## headings and use bullet lists for instructions.',
+          }
+        : undefined,
   });
 
   return checks;

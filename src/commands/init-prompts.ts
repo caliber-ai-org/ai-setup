@@ -11,7 +11,7 @@ import { llmJsonCall } from '../llm/index.js';
 import { promptReviewMethod, openReview } from '../utils/review.js';
 import type { StageResult } from '../writers/staging.js';
 
-export type TargetAgent = ('claude' | 'cursor' | 'codex' | 'github-copilot')[];
+export type TargetAgent = ('claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot')[];
 type ReviewAction = 'accept' | 'refine' | 'decline';
 
 export function detectAgents(dir: string): TargetAgent {
@@ -19,6 +19,7 @@ export function detectAgents(dir: string): TargetAgent {
   if (fs.existsSync(`${dir}/.claude`)) agents.push('claude');
   if (fs.existsSync(`${dir}/.cursor`)) agents.push('cursor');
   if (fs.existsSync(`${dir}/.agents`) || fs.existsSync(`${dir}/AGENTS.md`)) agents.push('codex');
+  if (fs.existsSync(`${dir}/.opencode`)) agents.push('opencode');
   if (fs.existsSync(`${dir}/.github/copilot-instructions.md`)) agents.push('github-copilot');
   return agents;
 }
@@ -28,6 +29,7 @@ export async function promptAgent(detected?: TargetAgent): Promise<TargetAgent> 
     { name: 'Claude Code', value: 'claude' as const, checked: detected?.includes('claude') ?? false },
     { name: 'Cursor', value: 'cursor' as const, checked: detected?.includes('cursor') ?? false },
     { name: 'Codex (OpenAI)', value: 'codex' as const, checked: detected?.includes('codex') ?? false },
+    { name: 'OpenCode', value: 'opencode' as const, checked: detected?.includes('opencode') ?? false },
     { name: 'GitHub Copilot', value: 'github-copilot' as const, checked: detected?.includes('github-copilot') ?? false },
   ];
 

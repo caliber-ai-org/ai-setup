@@ -1,5 +1,5 @@
 export function extractJson(text: string): string | null {
-  const startIdx = text.search(/[\[{]/);
+  const startIdx = text.search(/[[{]/);
   if (startIdx === -1) return null;
 
   let depth = 0;
@@ -8,9 +8,18 @@ export function extractJson(text: string): string | null {
 
   for (let i = startIdx; i < text.length; i++) {
     const ch = text[i];
-    if (escaped) { escaped = false; continue; }
-    if (ch === '\\' && inString) { escaped = true; continue; }
-    if (ch === '"') { inString = !inString; continue; }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (ch === '\\' && inString) {
+      escaped = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
     if (inString) continue;
     if (ch === '{' || ch === '[') depth++;
     if (ch === '}' || ch === ']') {

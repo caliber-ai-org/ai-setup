@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import fs from 'fs';
-import { getUsageSummary } from '../llm/index.js';
+import { getUsageSummary, loadConfig } from '../llm/index.js';
+import { isSeatBased } from '../llm/types.js';
 import type { Fingerprint } from '../fingerprint/index.js';
 
 export function formatProjectPreview(fingerprint: Fingerprint): string {
@@ -32,36 +33,54 @@ export function formatWhatChanged(setup: Record<string, unknown>): string[] {
     lines.push(`${action} CLAUDE.md`);
   }
 
-  if (codex?.agentsMd) {
+  const opencode = setup.opencode as Record<string, unknown> | undefined;
+
+  if (codex?.agentsMd || opencode?.agentsMd) {
     const action = fs.existsSync('AGENTS.md') ? 'Updated' : 'Created';
     lines.push(`${action} AGENTS.md`);
   }
 
   const allSkills: string[] = [];
-  for (const [platform, obj] of [['claude', claude], ['codex', codex], ['cursor', cursor]] as const) {
-    const skills = (obj as Record<string, unknown> | undefined)?.skills as Array<{ name: string }> | undefined;
+  for (const [_platform, obj] of [
+    ['claude', claude],
+    ['codex', codex],
+    ['opencode', opencode],
+    ['cursor', cursor],
+  ] as const) {
+    const skills = (obj as Record<string, unknown> | undefined)?.skills as
+      | Array<{ name: string }>
+      | undefined;
     if (Array.isArray(skills)) {
       for (const s of skills) allSkills.push(s.name);
     }
   }
   if (allSkills.length > 0) {
-    const names = allSkills.length <= 4
-      ? allSkills.join(', ')
-      : `${allSkills.slice(0, 3).join(', ')} +${allSkills.length - 3} more`;
+    const names =
+      allSkills.length <= 4
+        ? allSkills.join(', ')
+        : `${allSkills.slice(0, 3).join(', ')} +${allSkills.length - 3} more`;
     lines.push(`${allSkills.length} skill${allSkills.length === 1 ? '' : 's'}: ${names}`);
   }
 
-  const rules = (cursor as Record<string, unknown> | undefined)?.rules as Array<{ filename: string }> | undefined;
+  const rules = (cursor as Record<string, unknown> | undefined)?.rules as
+    | Array<{ filename: string }>
+    | undefined;
   if (Array.isArray(rules) && rules.length > 0) {
-    const names = rules.length <= 3
-      ? rules.map(r => r.filename.replace('.mdc', '')).join(', ')
-      : `${rules.slice(0, 2).map(r => r.filename.replace('.mdc', '')).join(', ')} +${rules.length - 2} more`;
+    const names =
+      rules.length <= 3
+        ? rules.map((r) => r.filename.replace('.mdc', '')).join(', ')
+        : `${rules
+            .slice(0, 2)
+            .map((r) => r.filename.replace('.mdc', ''))
+            .join(', ')} +${rules.length - 2} more`;
     lines.push(`${rules.length} cursor rule${rules.length === 1 ? '' : 's'}: ${names}`);
   }
 
   const deletions = setup.deletions as Array<{ filePath: string }> | undefined;
   if (Array.isArray(deletions) && deletions.length > 0) {
-    lines.push(`Removing ${deletions.length} file${deletions.length === 1 ? '' : 's'}: ${deletions.map(d => d.filePath).join(', ')}`);
+    lines.push(
+      `Removing ${deletions.length} file${deletions.length === 1 ? '' : 's'}: ${deletions.map((d) => d.filePath).join(', ')}`,
+    );
   }
 
   return lines;
@@ -89,7 +108,9 @@ export function printSetupSummary(setup: Record<string, unknown>) {
       console.log('');
     }
 
-    const skills = claude.skills as Array<{ name: string; description: string; content: string }> | undefined;
+    const skills = claude.skills as
+      | Array<{ name: string; description: string; content: string }>
+      | undefined;
     if (Array.isArray(skills) && skills.length > 0) {
       for (const skill of skills) {
         const skillPath = `.claude/skills/${skill.name}/SKILL.md`;
@@ -113,10 +134,38 @@ export function printSetupSummary(setup: Record<string, unknown>) {
       console.log('');
     }
 
-    const codexSkills = codex.skills as Array<{ name: string; description: string; content: string }> | undefined;
+    const codexSkills = codex.skills as
+      | Array<{ name: string; description: string; content: string }>
+      | undefined;
     if (Array.isArray(codexSkills) && codexSkills.length > 0) {
       for (const skill of codexSkills) {
         const skillPath = `.agents/skills/${skill.name}/SKILL.md`;
+        const icon = fs.existsSync(skillPath) ? chalk.yellow('~') : chalk.green('+');
+        const desc = getDescription(skillPath);
+        console.log(`  ${icon} ${chalk.bold(skillPath)}`);
+        console.log(chalk.dim(`    ${desc || skill.description || skill.name}`));
+        console.log('');
+      }
+    }
+  }
+
+  const opencode = setup.opencode as Record<string, unknown> | undefined;
+
+  if (opencode) {
+    if (opencode.agentsMd && !codex?.agentsMd) {
+      const icon = fs.existsSync('AGENTS.md') ? chalk.yellow('~') : chalk.green('+');
+      const desc = getDescription('AGENTS.md');
+      console.log(`  ${icon} ${chalk.bold('AGENTS.md')} ${chalk.dim('(OpenCode)')}`);
+      if (desc) console.log(chalk.dim(`    ${desc}`));
+      console.log('');
+    }
+
+    const opencodeSkills = opencode.skills as
+      | Array<{ name: string; description: string; content: string }>
+      | undefined;
+    if (Array.isArray(opencodeSkills) && opencodeSkills.length > 0) {
+      for (const skill of opencodeSkills) {
+        const skillPath = `.opencode/skills/${skill.name}/SKILL.md`;
         const icon = fs.existsSync(skillPath) ? chalk.yellow('~') : chalk.green('+');
         const desc = getDescription(skillPath);
         console.log(`  ${icon} ${chalk.bold(skillPath)}`);
@@ -135,7 +184,9 @@ export function printSetupSummary(setup: Record<string, unknown>) {
       console.log('');
     }
 
-    const cursorSkills = cursor.skills as Array<{ name: string; description: string; content: string }> | undefined;
+    const cursorSkills = cursor.skills as
+      | Array<{ name: string; description: string; content: string }>
+      | undefined;
     if (Array.isArray(cursorSkills) && cursorSkills.length > 0) {
       for (const skill of cursorSkills) {
         const skillPath = `.cursor/skills/${skill.name}/SKILL.md`;
@@ -157,7 +208,9 @@ export function printSetupSummary(setup: Record<string, unknown>) {
         if (desc) {
           console.log(chalk.dim(`    ${desc}`));
         } else {
-          const firstLine = rule.content.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'))[0];
+          const firstLine = rule.content
+            .split('\n')
+            .filter((l) => l.trim() && !l.trim().startsWith('#'))[0];
           if (firstLine) console.log(chalk.dim(`    ${firstLine.trim().slice(0, 80)}`));
         }
         console.log('');
@@ -173,7 +226,9 @@ export function printSetupSummary(setup: Record<string, unknown>) {
     }
   }
 
-  console.log(`  ${chalk.green('+')} ${chalk.dim('new')}  ${chalk.yellow('~')} ${chalk.dim('modified')}  ${chalk.red('-')} ${chalk.dim('removed')}`);
+  console.log(
+    `  ${chalk.green('+')} ${chalk.dim('new')}  ${chalk.yellow('~')} ${chalk.dim('modified')}  ${chalk.red('-')} ${chalk.dim('removed')}`,
+  );
   console.log('');
 }
 
@@ -184,19 +239,32 @@ export function displayTokenUsage(): void {
     return;
   }
 
-  console.log(chalk.bold('  Token usage:\n'));
+  const config = loadConfig();
+  const isEstimated = config != null && isSeatBased(config.provider);
+  const label = isEstimated ? 'Estimated token usage:' : 'Token usage:';
+  console.log(chalk.bold(`  ${label}\n`));
   let totalIn = 0;
   let totalOut = 0;
   for (const m of summary) {
     totalIn += m.inputTokens;
     totalOut += m.outputTokens;
-    const cacheInfo = m.cacheReadTokens > 0 || m.cacheWriteTokens > 0
-      ? chalk.dim(` (cache: ${m.cacheReadTokens.toLocaleString()} read, ${m.cacheWriteTokens.toLocaleString()} write)`)
-      : '';
-    console.log(`    ${chalk.dim(m.model)}: ${m.inputTokens.toLocaleString()} in / ${m.outputTokens.toLocaleString()} out  (${m.calls} call${m.calls === 1 ? '' : 's'})${cacheInfo}`);
+    const cacheInfo =
+      m.cacheReadTokens > 0 || m.cacheWriteTokens > 0
+        ? chalk.dim(
+            ` (cache: ${m.cacheReadTokens.toLocaleString()} read, ${m.cacheWriteTokens.toLocaleString()} write)`,
+          )
+        : '';
+    console.log(
+      `    ${chalk.dim(m.model)}: ${m.inputTokens.toLocaleString()} in / ${m.outputTokens.toLocaleString()} out  (${m.calls} call${m.calls === 1 ? '' : 's'})${cacheInfo}`,
+    );
   }
   if (summary.length > 1) {
-    console.log(`    ${chalk.dim('Total')}: ${totalIn.toLocaleString()} in / ${totalOut.toLocaleString()} out`);
+    console.log(
+      `    ${chalk.dim('Total')}: ${totalIn.toLocaleString()} in / ${totalOut.toLocaleString()} out`,
+    );
+  }
+  if (isEstimated) {
+    console.log(chalk.dim('  (Estimated from character count)'));
   }
   console.log('');
 }

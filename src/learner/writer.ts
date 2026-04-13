@@ -7,14 +7,14 @@ const LEARNINGS_FILE = 'CALIBER_LEARNINGS.md';
 const LEARNINGS_HEADER = `# Caliber Learnings
 
 Accumulated patterns and anti-patterns from development sessions.
-Auto-managed by [caliber](https://github.com/rely-ai-org/caliber) — do not edit manually.
+Auto-managed by [caliber](https://github.com/caliber-ai-org/ai-setup) — do not edit manually.
 
 `;
 
 const PERSONAL_LEARNINGS_HEADER = `# Personal Learnings
 
 Developer-specific patterns and preferences.
-Auto-managed by [caliber](https://github.com/rely-ai-org/caliber) — do not edit manually.
+Auto-managed by [caliber](https://github.com/caliber-ai-org/ai-setup) — do not edit manually.
 
 `;
 

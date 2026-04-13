@@ -6,23 +6,62 @@ vi.unmock('../index.js');
 const {
   mockLoadConfig,
   mockIsCursorAgentAvailable,
+  mockIsCursorLoggedIn,
   mockIsClaudeCliAvailable,
+  mockIsClaudeCliLoggedIn,
   MockAnthropicProvider,
   MockVertexProvider,
   MockOpenAIProvider,
   MockCursorAcpProvider,
   MockClaudeCliProvider,
 } = vi.hoisted(() => {
-  class MockAnthropicProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockVertexProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockOpenAIProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockCursorAcpProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
-  class MockClaudeCliProvider { config: unknown; call = vi.fn(); stream = vi.fn(); constructor(c: unknown) { this.config = c; } }
+  class MockAnthropicProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockVertexProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockOpenAIProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockCursorAcpProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
+  class MockClaudeCliProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
 
   return {
     mockLoadConfig: vi.fn(),
     mockIsCursorAgentAvailable: vi.fn(),
+    mockIsCursorLoggedIn: vi.fn(),
     mockIsClaudeCliAvailable: vi.fn(),
+    mockIsClaudeCliLoggedIn: vi.fn(),
     MockAnthropicProvider,
     MockVertexProvider,
     MockOpenAIProvider,
@@ -52,11 +91,13 @@ vi.mock('../openai-compat.js', () => ({
 vi.mock('../cursor-acp.js', () => ({
   CursorAcpProvider: MockCursorAcpProvider,
   isCursorAgentAvailable: () => mockIsCursorAgentAvailable(),
+  isCursorLoggedIn: () => mockIsCursorLoggedIn(),
 }));
 
 vi.mock('../claude-cli.js', () => ({
   ClaudeCliProvider: MockClaudeCliProvider,
   isClaudeCliAvailable: () => mockIsClaudeCliAvailable(),
+  isClaudeCliLoggedIn: () => mockIsClaudeCliLoggedIn(),
 }));
 
 import { getProvider, getConfig, resetProvider } from '../index.js';
@@ -68,19 +109,26 @@ describe('getProvider', () => {
   });
 
   it('creates AnthropicProvider for anthropic config', () => {
-    mockLoadConfig.mockReturnValue({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test' });
+    mockLoadConfig.mockReturnValue({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-test',
+    });
 
     const provider = getProvider();
 
     expect(provider).toBeInstanceOf(MockAnthropicProvider);
     expect((provider as InstanceType<typeof MockAnthropicProvider>).config).toEqual({
-      provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-test',
     });
   });
 
-  it('creates CursorAcpProvider when cursor is configured and agent is available', () => {
+  it('creates CursorAcpProvider when cursor is configured, available, and logged in', () => {
     mockLoadConfig.mockReturnValue({ provider: 'cursor', model: 'default' });
     mockIsCursorAgentAvailable.mockReturnValue(true);
+    mockIsCursorLoggedIn.mockReturnValue(true);
 
     const provider = getProvider();
 
@@ -94,9 +142,18 @@ describe('getProvider', () => {
     expect(() => getProvider()).toThrow('Cursor provider requires the Cursor Agent CLI');
   });
 
-  it('creates ClaudeCliProvider when claude-cli is configured and CLI is available', () => {
+  it('throws when cursor is configured but not logged in', () => {
+    mockLoadConfig.mockReturnValue({ provider: 'cursor', model: 'default' });
+    mockIsCursorAgentAvailable.mockReturnValue(true);
+    mockIsCursorLoggedIn.mockReturnValue(false);
+
+    expect(() => getProvider()).toThrow('not logged in');
+  });
+
+  it('creates ClaudeCliProvider when claude-cli is configured and CLI is available and logged in', () => {
     mockLoadConfig.mockReturnValue({ provider: 'claude-cli', model: 'default' });
     mockIsClaudeCliAvailable.mockReturnValue(true);
+    mockIsClaudeCliLoggedIn.mockReturnValue(true);
 
     const provider = getProvider();
 
@@ -110,6 +167,14 @@ describe('getProvider', () => {
     expect(() => getProvider()).toThrow('Claude Code provider requires the Claude Code CLI');
   });
 
+  it('throws when claude-cli is configured but not logged in', () => {
+    mockLoadConfig.mockReturnValue({ provider: 'claude-cli', model: 'default' });
+    mockIsClaudeCliAvailable.mockReturnValue(true);
+    mockIsClaudeCliLoggedIn.mockReturnValue(false);
+
+    expect(() => getProvider()).toThrow('not logged in');
+  });
+
   it('throws when no config is available', () => {
     mockLoadConfig.mockReturnValue(null);
 
@@ -117,7 +182,11 @@ describe('getProvider', () => {
   });
 
   it('caches provider on subsequent calls', () => {
-    mockLoadConfig.mockReturnValue({ provider: 'anthropic', model: 'claude-sonnet-4-6', apiKey: 'sk-test' });
+    mockLoadConfig.mockReturnValue({
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      apiKey: 'sk-test',
+    });
 
     const first = getProvider();
     const second = getProvider();
@@ -140,12 +209,16 @@ describe('getConfig', () => {
   });
 
   it('returns config from loadConfig', () => {
-    mockLoadConfig.mockReturnValue({ provider: 'openai', model: 'gpt-4.1', apiKey: 'sk-test' });
+    mockLoadConfig.mockReturnValue({
+      provider: 'openai',
+      model: 'gpt-5.4-mini',
+      apiKey: 'sk-test',
+    });
 
     const config = getConfig();
 
     expect(config.provider).toBe('openai');
-    expect(config.model).toBe('gpt-4.1');
+    expect(config.model).toBe('gpt-5.4-mini');
   });
 
   it('throws when no config is available', () => {

@@ -3,8 +3,7 @@ import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { isGitRepo } from '../fingerprint/git.js';
-import { readExistingConfigs } from '../fingerprint/existing-config.js';
-import { collectDiff } from '../lib/git-diff.js';
+import { collectDiff, scopeDiffToDir, type DiffResult } from '../lib/git-diff.js';
 import { readState, writeState, getCurrentHeadSha } from '../lib/state.js';
 import { writeRefreshDocs } from '../writers/refresh.js';
 import { collectFingerprint } from '../fingerprint/index.js';
@@ -19,10 +18,62 @@ import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
 import { computeLocalScore, detectTargetAgent } from '../scoring/index.js';
 import { recordScore } from '../scoring/history.js';
+import { CALIBER_DIR, REFRESH_LAST_ERROR_FILE } from '../constants.js';
+import { discoverConfigDirs } from '../lib/config-discovery.js';
+
+function writeRefreshError(error: unknown): void {
+  try {
+    if (!fs.existsSync(CALIBER_DIR)) fs.mkdirSync(CALIBER_DIR, { recursive: true });
+    fs.writeFileSync(
+      REFRESH_LAST_ERROR_FILE,
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          cwd: process.cwd(),
+          nodeVersion: process.version,
+        },
+        null,
+        2,
+      ),
+    );
+  } catch {
+    // best-effort — don't let crash logging crash
+  }
+}
+
+function readRefreshError(): { timestamp: string; error: string } | null {
+  try {
+    if (!fs.existsSync(REFRESH_LAST_ERROR_FILE)) return null;
+    return JSON.parse(fs.readFileSync(REFRESH_LAST_ERROR_FILE, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function clearRefreshError(): void {
+  try {
+    if (fs.existsSync(REFRESH_LAST_ERROR_FILE)) fs.unlinkSync(REFRESH_LAST_ERROR_FILE);
+  } catch {
+    // best-effort
+  }
+}
 
 interface RefreshOptions {
   quiet?: boolean;
   dryRun?: boolean;
+}
+
+function detectSyncedAgents(writtenFiles: string[]): string[] {
+  const agents: string[] = [];
+  const joined = writtenFiles.join(' ');
+  if (joined.includes('CLAUDE.md') || joined.includes('.claude/')) agents.push('Claude Code');
+  if (joined.includes('.cursor/') || joined.includes('.cursorrules')) agents.push('Cursor');
+  if (joined.includes('copilot-instructions') || joined.includes('.github/instructions/'))
+    agents.push('Copilot');
+  if (joined.includes('AGENTS.md') || joined.includes('.agents/')) agents.push('Codex');
+  return agents;
 }
 
 function log(quiet: boolean, ...args: unknown[]) {
@@ -46,40 +97,51 @@ function discoverGitRepos(parentDir: string): string[] {
   return repos.sort();
 }
 
+export function collectFilesToWrite(
+  updatedDocs: Record<string, unknown>,
+  dir: string = '.',
+): string[] {
+  const files: string[] = [];
+  const p = (relPath: string): string =>
+    (dir === '.' ? relPath : path.join(dir, relPath)).replace(/\\/g, '/');
+  if (updatedDocs.agentsMd) files.push(p('AGENTS.md'));
+  if (updatedDocs.claudeMd) files.push(p('CLAUDE.md'));
+  if (Array.isArray(updatedDocs.claudeRules)) {
+    for (const r of updatedDocs.claudeRules as Array<{ filename: string }>)
+      files.push(p(`.claude/rules/${r.filename}`));
+  }
+  if (updatedDocs.readmeMd) files.push(p('README.md'));
+  if (updatedDocs.cursorrules) files.push(p('.cursorrules'));
+  if (Array.isArray(updatedDocs.cursorRules)) {
+    for (const r of updatedDocs.cursorRules as Array<{ filename: string }>)
+      files.push(p(`.cursor/rules/${r.filename}`));
+  }
+  if (updatedDocs.copilotInstructions) files.push(p('.github/copilot-instructions.md'));
+  if (Array.isArray(updatedDocs.copilotInstructionFiles)) {
+    for (const f of updatedDocs.copilotInstructionFiles as Array<{ filename: string }>)
+      files.push(p(`.github/instructions/${f.filename}`));
+  }
+  return files;
+}
+
 const REFRESH_COOLDOWN_MS = 30_000;
 
-async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { label?: string }): Promise<void> {
+async function refreshDir(
+  repoDir: string,
+  dir: string,
+  diff: DiffResult,
+  options: RefreshOptions & { label?: string },
+): Promise<{ written: string[] }> {
   const quiet = !!options.quiet;
   const prefix = options.label ? `${chalk.bold(options.label)} ` : '';
-
-  const state = readState();
-  const lastSha = state?.lastRefreshSha ?? null;
-
-  // Rate-limit: skip if last refresh was within cooldown period
-  if (state?.lastRefreshTimestamp) {
-    const elapsed = Date.now() - new Date(state.lastRefreshTimestamp).getTime();
-    if (elapsed < REFRESH_COOLDOWN_MS && elapsed > 0) {
-      log(quiet, chalk.dim(`${prefix}Skipped — last refresh was ${Math.round(elapsed / 1000)}s ago.`));
-      return;
-    }
-  }
-
-  const diff = collectDiff(lastSha);
-  const currentSha = getCurrentHeadSha();
-
-  if (!diff.hasChanges) {
-    if (currentSha) {
-      writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
-    }
-    log(quiet, chalk.dim(`${prefix}No changes since last refresh.`));
-    return;
-  }
+  const absDir = dir === '.' ? repoDir : path.resolve(repoDir, dir);
+  const scope = dir === '.' ? undefined : dir;
 
   const spinner = quiet ? null : ora(`${prefix}Analyzing changes...`).start();
 
-  const existingDocs = readExistingConfigs(repoDir);
   const learnedSection = readLearnedSection();
-  const fingerprint = await collectFingerprint(repoDir);
+  const fingerprint = await collectFingerprint(absDir);
+  const existingDocs = fingerprint.existingConfigs;
   const projectContext = {
     languages: fingerprint.languages,
     frameworks: fingerprint.frameworks,
@@ -87,9 +149,8 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
     fileTree: fingerprint.fileTree,
   };
 
-  // Resolve sources for context
-  const workspaces = getDetectedWorkspaces(repoDir);
-  const sources = resolveAllSources(repoDir, [], workspaces);
+  const workspaces = getDetectedWorkspaces(absDir);
+  const sources = resolveAllSources(absDir, [], workspaces);
 
   const diffPayload = {
     committed: diff.committedDiff,
@@ -102,14 +163,29 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
 
   let response;
   try {
-    response = await refreshDocs(diffPayload, existingDocs, projectContext, learnedSection, sourcesPayload);
+    response = await refreshDocs(
+      diffPayload,
+      existingDocs,
+      projectContext,
+      learnedSection,
+      sourcesPayload,
+      scope,
+    );
   } catch (firstErr) {
-    const isTransient = firstErr instanceof Error &&
-      TRANSIENT_ERRORS.some(e => firstErr.message.toLowerCase().includes(e.toLowerCase()));
+    const isTransient =
+      firstErr instanceof Error &&
+      TRANSIENT_ERRORS.some((e) => firstErr.message.toLowerCase().includes(e.toLowerCase()));
     if (!isTransient) throw firstErr;
-    // Retry once on transient LLM failure — refresh runs from hooks, silent failure means stale docs
+    // Retry once — refresh runs from hooks, silent failure means stale docs
     try {
-      response = await refreshDocs(diffPayload, existingDocs, projectContext, learnedSection, sourcesPayload);
+      response = await refreshDocs(
+        diffPayload,
+        existingDocs,
+        projectContext,
+        learnedSection,
+        sourcesPayload,
+        scope,
+      );
     } catch {
       spinner?.fail(`${prefix}Refresh failed after retry`);
       throw firstErr;
@@ -118,10 +194,7 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
 
   if (!response.docsUpdated || response.docsUpdated.length === 0) {
     spinner?.succeed(`${prefix}No doc updates needed`);
-    if (currentSha) {
-      writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
-    }
-    return;
+    return { written: [] };
   }
 
   if (options.dryRun) {
@@ -132,15 +205,12 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
     if (response.changesSummary) {
       console.log(chalk.dim(`\n  ${response.changesSummary}`));
     }
-    return;
+    return { written: [] };
   }
 
-  // Quality gate: snapshot pre-refresh score and file contents
-  const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
-  const preScore = computeLocalScore(repoDir, targetAgent);
-  const filesToWrite = response.docsUpdated || [];
+  const allFilesToWrite = collectFilesToWrite(response.updatedDocs, dir);
   const preRefreshContents = new Map<string, string | null>();
-  for (const filePath of filesToWrite) {
+  for (const filePath of allFilesToWrite) {
     const fullPath = path.resolve(repoDir, filePath);
     try {
       preRefreshContents.set(filePath, fs.readFileSync(fullPath, 'utf-8'));
@@ -149,38 +219,127 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
     }
   }
 
-  const written = writeRefreshDocs(response.updatedDocs);
-  trackRefreshCompleted(written.length, Date.now());
+  // Quality gate: skip for subdirectories — infra checks (hooks, permissions)
+  // only exist at root and would produce artificially low scores.
+  const state = readState();
+  const targetAgent = state?.targetAgent ?? detectTargetAgent(repoDir);
+  const runQualityGate = dir === '.';
+  const preScore = runQualityGate ? computeLocalScore(absDir, targetAgent) : null;
 
-  // Quality gate: check for score regression
-  const postScore = computeLocalScore(repoDir, targetAgent);
-  if (postScore.score < preScore.score) {
-    // Revert: restore pre-refresh file contents
-    for (const [filePath, content] of preRefreshContents) {
-      const fullPath = path.resolve(repoDir, filePath);
-      if (content === null) {
-        try { fs.unlinkSync(fullPath); } catch { /* file may not exist */ }
-      } else {
-        fs.writeFileSync(fullPath, content);
+  const written = writeRefreshDocs(response.updatedDocs, dir);
+  const trigger = quiet ? ('hook' as const) : ('manual' as const);
+  trackRefreshCompleted(written.length, Date.now(), trigger);
+
+  if (runQualityGate && preScore) {
+    const postScore = computeLocalScore(absDir, targetAgent);
+    if (postScore.score < preScore.score) {
+      for (const [filePath, content] of preRefreshContents) {
+        const fullPath = path.resolve(repoDir, filePath);
+        if (content === null) {
+          try {
+            fs.unlinkSync(fullPath);
+          } catch {
+            /* file may not exist */
+          }
+        } else {
+          fs.writeFileSync(fullPath, content);
+        }
       }
+      spinner?.warn(
+        `${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`,
+      );
+      log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
+      return { written: [] };
     }
-    spinner?.warn(`${prefix}Refresh reverted — score would drop from ${preScore.score} to ${postScore.score}`);
-    log(quiet, chalk.dim(`  Config quality gate prevented a regression. No files were changed.`));
-    if (currentSha) {
-      writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
-    }
-    return;
+    recordScore(postScore, 'refresh');
   }
 
-  recordScore(postScore, 'refresh');
   spinner?.succeed(`${prefix}Updated ${written.length} doc${written.length === 1 ? '' : 's'}`);
 
+  const fileChangesMap = new Map(
+    (response.fileChanges || []).map((fc: { file: string; description: string }) => [
+      fc.file,
+      fc.description,
+    ]),
+  );
+
   for (const file of written) {
-    log(quiet, `  ${chalk.green('✓')} ${file}`);
+    const desc = fileChangesMap.get(file);
+    const suffix = desc ? chalk.dim(` — ${desc}`) : '';
+    log(quiet, `  ${chalk.green('✓')} ${file}${suffix}`);
+  }
+
+  const agents = detectSyncedAgents(written);
+  if (agents.length > 1) {
+    log(quiet, chalk.cyan(`\n  ${agents.length} agent formats in sync (${agents.join(', ')})`));
   }
 
   if (response.changesSummary) {
     log(quiet, chalk.dim(`\n  ${response.changesSummary}`));
+  }
+
+  return { written };
+}
+
+async function refreshSingleRepo(
+  repoDir: string,
+  options: RefreshOptions & { label?: string },
+): Promise<void> {
+  const quiet = !!options.quiet;
+  const prefix = options.label ? `${chalk.bold(options.label)} ` : '';
+
+  const state = readState();
+  const lastSha = state?.lastRefreshSha ?? null;
+  const currentSha = getCurrentHeadSha();
+
+  if (state?.lastRefreshTimestamp && lastSha && currentSha === lastSha) {
+    const elapsed = Date.now() - new Date(state.lastRefreshTimestamp).getTime();
+    if (elapsed < REFRESH_COOLDOWN_MS && elapsed > 0) {
+      log(
+        quiet,
+        chalk.dim(`${prefix}Skipped — last refresh was ${Math.round(elapsed / 1000)}s ago.`),
+      );
+      return;
+    }
+  }
+
+  const diff = collectDiff(lastSha);
+
+  if (!diff.hasChanges) {
+    if (currentSha) {
+      writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
+    }
+    log(quiet, chalk.dim(`${prefix}No changes since last refresh.`));
+    return;
+  }
+
+  const configDirs = discoverConfigDirs(repoDir);
+
+  if (configDirs.length <= 1) {
+    await refreshDir(repoDir, '.', diff, options);
+  } else {
+    log(quiet, chalk.dim(`${prefix}Found configs in ${configDirs.length} directories\n`));
+    let hadFailure = false;
+    for (const dir of configDirs) {
+      const scopedDiff = scopeDiffToDir(diff, dir, configDirs);
+      if (!scopedDiff.hasChanges) continue;
+      const dirLabel = dir === '.' ? 'root' : dir;
+      try {
+        await refreshDir(repoDir, dir, scopedDiff, { ...options, label: dirLabel });
+      } catch (err) {
+        hadFailure = true;
+        log(
+          quiet,
+          chalk.yellow(
+            `  ${dirLabel}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`,
+          ),
+        );
+      }
+    }
+    if (hadFailure) {
+      // Don't update state SHA — failed dirs need to be retried on next run
+      return;
+    }
   }
 
   const builtinWritten = ensureBuiltinSkills();
@@ -188,6 +347,7 @@ async function refreshSingleRepo(repoDir: string, options: RefreshOptions & { la
     log(quiet, `  ${chalk.green('✓')} ${file} ${chalk.dim('(built-in)')}`);
   }
 
+  clearRefreshError();
   if (currentSha) {
     writeState({ lastRefreshSha: currentSha, lastRefreshTimestamp: new Date().toISOString() });
   }
@@ -202,11 +362,30 @@ export async function refreshCommand(options: RefreshOptions) {
     if (isCaliberRunning()) return;
   }
 
+  // Show last refresh error if running interactively
+  if (!quiet) {
+    const lastError = readRefreshError();
+    if (lastError) {
+      console.log(chalk.yellow(`\n  ⚠  Last refresh failed (${lastError.timestamp}):`));
+      console.log(chalk.dim(`     ${lastError.error}`));
+      console.log(
+        chalk.dim(
+          `     Run with --debug for full details, or report at https://github.com/caliber-ai-org/ai-setup/issues\n`,
+        ),
+      );
+      clearRefreshError();
+    }
+  }
+
   try {
     const config = loadConfig();
     if (!config) {
       if (quiet) return;
-      console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')(`${resolveCaliber()} config`) + chalk.red(' (e.g. choose Cursor) or set an API key.'));
+      console.log(
+        chalk.red('No LLM provider configured. Run ') +
+          chalk.hex('#83D1EB')(`${resolveCaliber()} config`) +
+          chalk.red(' (e.g. choose Cursor) or set an API key.'),
+      );
       throw new Error('__exit__');
     }
 
@@ -221,7 +400,9 @@ export async function refreshCommand(options: RefreshOptions) {
     const repos = discoverGitRepos(process.cwd());
     if (repos.length === 0) {
       if (quiet) return;
-      console.log(chalk.red('Not inside a git repository and no git repos found in child directories.'));
+      console.log(
+        chalk.red('Not inside a git repository and no git repos found in child directories.'),
+      );
       throw new Error('__exit__');
     }
 
@@ -235,12 +416,20 @@ export async function refreshCommand(options: RefreshOptions) {
         await refreshSingleRepo(repo, { ...options, label: repoName });
       } catch (err) {
         if (err instanceof Error && err.message === '__exit__') continue;
-        log(quiet, chalk.yellow(`${repoName}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`));
+        writeRefreshError(err);
+        log(
+          quiet,
+          chalk.yellow(
+            `${repoName}: refresh failed — ${err instanceof Error ? err.message : 'unknown error'}`,
+          ),
+        );
+      } finally {
+        process.chdir(originalDir);
       }
     }
-    process.chdir(originalDir);
   } catch (err) {
     if (err instanceof Error && err.message === '__exit__') throw err;
+    writeRefreshError(err);
     if (quiet) return;
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.log(chalk.red(`Refresh failed: ${msg}`));

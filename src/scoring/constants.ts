@@ -16,7 +16,7 @@ export const CATEGORY_MAX = {
   bonus: 7,
 } as const;
 
-// ── Existence checks (25 pts) ─────────────────────────────────────────
+// ── Existence checks (per-target subset of these; normalized to 100) ──
 export const POINTS_CLAUDE_MD_EXISTS = 6;
 export const POINTS_CURSOR_RULES_EXIST = 3;
 export const POINTS_SKILLS_EXIST = 6;
@@ -24,6 +24,7 @@ export const POINTS_SKILLS_BONUS_PER_EXTRA = 1;
 export const POINTS_SKILLS_BONUS_CAP = 2;
 export const POINTS_CURSOR_MDC_RULES = 3;
 export const POINTS_MCP_SERVERS = 3;
+export const POINTS_CLAUDE_RULES = 3;
 export const POINTS_CROSS_PLATFORM_PARITY = 2;
 
 // ── Quality checks (25 pts) ──────────────────────────────────────────
@@ -75,11 +76,11 @@ export const POINTS_SOURCES_REFERENCED = 3;
 
 /** Token budget thresholds for total config size (all files combined). */
 export const TOKEN_BUDGET_THRESHOLDS = [
-  { maxTokens: 2000, points: 6 },
-  { maxTokens: 3500, points: 5 },
-  { maxTokens: 5000, points: 4 },
-  { maxTokens: 8000, points: 2 },
-  { maxTokens: 12000, points: 1 },
+  { maxTokens: 5000, points: 6 },
+  { maxTokens: 8000, points: 5 },
+  { maxTokens: 12000, points: 4 },
+  { maxTokens: 16000, points: 2 },
+  { maxTokens: 24000, points: 1 },
 ] as const;
 
 /** Code block count thresholds for executable content (graduated). */
@@ -119,8 +120,8 @@ export const SECRET_PATTERNS = [
   /AKIA[A-Z0-9]{16}/,
   /ghp_[a-zA-Z0-9]{36}/,
   /ghu_[a-zA-Z0-9]{36}/,
-  /glpat-[a-zA-Z0-9\-_]{20,}/,
-  /xox[bpors]-[a-zA-Z0-9\-]{10,}/,
+  /glpat-[a-zA-Z0-9_-]{20,}/,
+  /xox[bpors]-[a-zA-Z0-9-]{10,}/,
   /(?:password|secret|token|api_key)\s*[:=]\s*["'][^"']{8,}["']/i,
 ] as const;
 
@@ -136,39 +137,25 @@ export const SECRET_PLACEHOLDER_PATTERNS = [
 ] as const;
 
 // ── Platform-specific check IDs ───────────────────────────────────────
-export const CURSOR_ONLY_CHECKS = new Set([
-  'cursor_rules_exist',
-  'cursor_mdc_rules',
-]);
+export const CURSOR_ONLY_CHECKS = new Set(['cursor_rules_exist', 'cursor_mdc_rules']);
 
 export const CLAUDE_ONLY_CHECKS = new Set([
   'claude_md_exists',
   'claude_md_freshness',
+  'claude_rules_exist',
 ]);
 
-export const BOTH_ONLY_CHECKS = new Set([
-  'cross_platform_parity',
-  'no_duplicate_content',
-]);
+export const BOTH_ONLY_CHECKS = new Set(['cross_platform_parity', 'no_duplicate_content']);
 
-export const CODEX_ONLY_CHECKS = new Set([
-  'codex_agents_md_exists',
-]);
+export const CODEX_ONLY_CHECKS = new Set(['codex_agents_md_exists']);
 
-export const COPILOT_ONLY_CHECKS = new Set([
-  'copilot_instructions_exists',
-]);
+export const COPILOT_ONLY_CHECKS = new Set(['copilot_instructions_exists']);
 
 /** Checks that should NOT appear for codex targets (avoid double-counting). */
-export const NON_CODEX_CHECKS = new Set([
-  'agents_md_exists',
-]);
+export const NON_CODEX_CHECKS = new Set(['agents_md_exists']);
 
 /** Checks relevant only to Claude or Codex (skills live in .claude/skills/ or .agents/skills/). */
-export const CLAUDE_OR_CODEX_CHECKS = new Set([
-  'skills_exist',
-  'open_skills_format',
-]);
+export const CLAUDE_OR_CODEX_CHECKS = new Set(['skills_exist', 'open_skills_format']);
 
 // ── Grading ────────────────────────────────────────────────────────────
 export const GRADE_THRESHOLDS = [

@@ -1,13 +1,20 @@
 import chalk from 'chalk';
 import fs from 'fs';
 import {
-  isHookInstalled, installHook, removeHook,
-  isPreCommitHookInstalled, installPreCommitHook, removePreCommitHook,
+  isHookInstalled,
+  installHook,
+  removeHook,
+  isPreCommitHookInstalled,
+  installPreCommitHook,
+  removePreCommitHook,
+  isNotificationHookInstalled,
+  installNotificationHook,
+  removeNotificationHook,
+  isSessionStartHookInstalled,
+  installSessionStartHook,
+  removeSessionStartHook,
 } from '../lib/hooks.js';
-import {
-  installLearningHooks,
-  installCursorLearningHooks,
-} from '../lib/learning-hooks.js';
+import { installLearningHooks, installCursorLearningHooks } from '../lib/learning-hooks.js';
 
 interface HookDef {
   id: string;
@@ -35,6 +42,22 @@ const HOOKS: HookDef[] = [
     install: installPreCommitHook,
     remove: removePreCommitHook,
   },
+  {
+    id: 'session-start',
+    label: 'Claude Code SessionStart',
+    description: 'Check config freshness when a session starts',
+    isInstalled: isSessionStartHookInstalled,
+    install: installSessionStartHook,
+    remove: removeSessionStartHook,
+  },
+  {
+    id: 'notification',
+    label: 'Claude Code Notification',
+    description: 'Warn when agent configs are stale (>15 commits behind)',
+    isInstalled: isNotificationHookInstalled,
+    install: installNotificationHook,
+    remove: removeNotificationHook,
+  },
 ];
 
 function printStatus() {
@@ -53,8 +76,12 @@ function printStatus() {
 
 export async function hooksCommand(options: { install?: boolean; remove?: boolean }) {
   if (!options.install && !options.remove) {
-    console.log(chalk.dim('\n  Note: caliber now adds refresh instructions directly to config files.'));
-    console.log(chalk.dim('  These hooks are available for non-agent workflows (manual commits).\n'));
+    console.log(
+      chalk.dim('\n  Note: caliber now adds refresh instructions directly to config files.'),
+    );
+    console.log(
+      chalk.dim('  These hooks are available for non-agent workflows (manual commits).\n'),
+    );
   }
 
   if (options.install) {
@@ -101,7 +128,7 @@ export async function hooksCommand(options: { install?: boolean; remove?: boolea
   let lineCount = 0;
 
   // Snapshot current state into a mutable array
-  const states = HOOKS.map(h => h.isInstalled());
+  const states = HOOKS.map((h) => h.isInstalled());
 
   function render(): string {
     const lines: string[] = [];

@@ -1,6 +1,6 @@
 {
   "name": "@rely-ai/caliber",
-  "version": "1.30.2",
+  "version": "1.41.4",
   "description": "AI context infrastructure for coding agents — keeps CLAUDE.md, Cursor rules, and skills in sync as your codebase evolves",
   "type": "module",
   "bin": {
@@ -9,9 +9,15 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "dev:install": "npm run build && npm link",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.78.0",
@@ -53,19 +59,32 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rely-ai-org/caliber.git"
+    "url": "git+https://github.com/caliber-ai-org/ai-setup.git"
   },
   "bugs": {
-    "url": "https://github.com/rely-ai-org/caliber/issues"
+    "url": "https://github.com/caliber-ai-org/ai-setup/issues"
   },
-  "homepage": "https://github.com/rely-ai-org/caliber#readme",
+  "homepage": "https://github.com/caliber-ai-org/ai-setup#readme",
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/diff": "^7.0.2",
     "@types/node": "^22.0.0",
     "@vitest/coverage-v8": "^4.0.18",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "memfs": "^4.56.10",
+    "prettier": "^3.8.1",
     "tsup": "^8.3.0",
     "typescript": "^5.7.0",
+    "typescript-eslint": "^8.57.2",
     "vitest": "^4.0.18"
   }
 }

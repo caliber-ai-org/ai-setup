@@ -3,25 +3,22 @@
   "hooks": {
     "postToolUse": [
       {
-        "command": "/Users/alonpe/.nvm/versions/node/v20.19.4/bin/caliber learn observe"
+        "command": "caliber learn observe"
       }
     ],
     "postToolUseFailure": [
       {
-        "command": "/Users/alonpe/.nvm/versions/node/v20.19.4/bin/caliber learn observe --failure"
-      }
-    ],
-    "sessionEnd": [
-      {
-        "command": "/Users/alonpe/.nvm/versions/node/v20.19.4/bin/caliber learn finalize"
-      },
-      {
-        "command": "/Users/alonpe/.nvm/versions/node/v20.19.4/bin/caliber learn finalize --auto"
+        "command": "caliber learn observe --failure"
       }
     ],
     "userPromptSubmit": [
       {
-        "command": "/Users/alonpe/.nvm/versions/node/v20.19.4/bin/caliber learn observe --prompt"
+        "command": "caliber learn observe --prompt"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "caliber learn finalize --auto"
       }
     ]
   }

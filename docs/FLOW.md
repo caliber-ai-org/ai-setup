@@ -24,7 +24,7 @@ Caliber installed successfully!
 
 So the flow is: **install → postinstall message → user runs `caliber config` or sets env → user runs `caliber init`**.
 
-With **npx**, there is no postinstall (npx runs the binary from cache). The user goes straight to `npx @caliber-ai/caliber init`; if no LLM is configured, init prints the same options and exits.
+With **npx**, there is no postinstall (npx runs the binary from cache). The user goes straight to `npx @rely-ai/caliber init`; if no LLM is configured, init prints the same options and exits.
 
 ---
 

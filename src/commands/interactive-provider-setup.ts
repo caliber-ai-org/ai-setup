@@ -4,8 +4,10 @@ import confirm from '@inquirer/confirm';
 import { writeConfigFile, DEFAULT_MODELS } from '../llm/config.js';
 import type { ProviderType, LLMConfig } from '../llm/types.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
-import { isClaudeCliAvailable } from '../llm/claude-cli.js';
+import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
 import { promptInput } from '../utils/prompt.js';
+
+const IS_WINDOWS = process.platform === 'win32';
 
 const PROVIDER_CHOICES: Array<{ name: string; value: ProviderType }> = [
   { name: 'Claude Code — use your existing subscription (no API key)', value: 'claude-cli' },
@@ -40,17 +42,26 @@ export async function runInteractiveProviderSetup(options?: {
         console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'));
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
+      } else if (!isClaudeCliLoggedIn()) {
+        console.log(chalk.yellow('\n  Claude Code CLI found but not logged in.'));
+        console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'));
+        const proceed = await confirm({ message: 'Continue anyway?' });
+        if (!proceed) throw new Error('__exit__');
       } else {
         console.log(chalk.dim("  Run `claude` once and log in with your Pro/Max/Team account if you haven't."));
       }
       break;
     }
     case 'cursor': {
-      config.model = DEFAULT_MODELS.cursor;
       if (!isCursorAgentAvailable()) {
         console.log(chalk.yellow('\n  Cursor Agent CLI not found.'));
-        console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('curl https://cursor.com/install -fsS | bash'));
-        console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' to authenticate.\n'));
+        if (IS_WINDOWS) {
+          console.log(chalk.dim('  Install it from: ') + chalk.hex('#83D1EB')('https://www.cursor.com/downloads'));
+          console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' in PowerShell to authenticate.\n'));
+        } else {
+          console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('curl https://cursor.com/install -fsS | bash'));
+          console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' to authenticate.\n'));
+        }
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       } else if (!isCursorLoggedIn()) {
@@ -59,6 +70,7 @@ export async function runInteractiveProviderSetup(options?: {
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       }
+      config.model = await promptInput(`Model (default: ${DEFAULT_MODELS.cursor}):`) || DEFAULT_MODELS.cursor;
       break;
     }
     case 'anthropic': {

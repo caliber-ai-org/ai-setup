@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-const IGNORE_DIRS = new Set([
+export const IGNORE_DIRS = new Set([
   'node_modules', '.git', '.next', 'dist', 'build', '.cache',
   '.turbo', 'coverage', '.caliber', '__pycache__', '.venv',
   'vendor', 'target',

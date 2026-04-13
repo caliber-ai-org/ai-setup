@@ -89,7 +89,7 @@ describe('telemetry', () => {
       expect(mockCapture).toHaveBeenCalledWith(
         expect.objectContaining({
           event: 'test_event',
-          properties: { foo: 'bar' },
+          properties: expect.objectContaining({ foo: 'bar' }),
         })
       );
     });
@@ -128,7 +128,7 @@ describe('telemetry', () => {
       expect(mockCapture).toHaveBeenCalledWith(
         expect.objectContaining({
           event: 'init_provider_selected',
-          properties: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
+          properties: expect.objectContaining({ provider: 'anthropic', model: 'claude-sonnet-4-6' }),
         })
       );
     });
@@ -141,7 +141,7 @@ describe('telemetry', () => {
       expect(mockCapture).toHaveBeenCalledWith(
         expect.objectContaining({
           event: 'score_computed',
-          properties: { score: 85, agent: ['claude'] },
+          properties: expect.objectContaining({ score: 85, agent: ['claude'] }),
         })
       );
     });

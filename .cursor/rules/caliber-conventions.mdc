@@ -1,20 +1,14 @@
 ---
-description: Core conventions for the @rely-ai/caliber CLI — ES module imports, error handling, commit format
+description: Caliber project conventions for TypeScript CLI development
 alwaysApply: true
 ---
-- ES module imports require `.js` extension for `.ts` source files
-- Prefer `unknown` over `any`; explicit types on params/returns
-- Use `ora` spinners with `.fail()` before rethrowing async errors
-- `throw new Error('__exit__')` for clean CLI exits (no stack trace)
-- Build: `npm run build` (tsup) · Test: `npm run test` (vitest) · Type-check: `npx tsc --noEmit`
-- Commit format: `<type>[(scope)]: <description>` — feat/fix/refactor/chore/docs/test/ci
-- Do NOT include Co-Authored-By headers in commits
-- Never commit API keys or credentials
-- Key deps: commander, chalk, ora, diff, glob, tsup, @inquirer/confirm, @inquirer/select, @inquirer/checkbox
-- LLM calls go through `src/llm/index.ts` (`llmCall`, `llmJsonCall`) — never import provider SDKs directly
-- All commands in `src/commands/` must be registered in `src/cli.ts` wrapped with `tracked()`
-- Backups written to `.caliber/backups/` · manifest at `.caliber/manifest.json`
-- Seat-based providers (`cursor`, `claude-cli`): spawn with `stdio: ['pipe', 'pipe', 'pipe']` — never `inherit` for stderr
-- Use `parseSeatBasedError()` from `src/llm/seat-based-errors.ts` for Cursor and Claude CLI error parsing
-- Stream parsing for `agent --print --output-format stream-json`: use `src/ai/stream-parser.ts`
-- Staged files written to `.caliber/staged/proposed/` via `src/writers/staging.ts`
+
+- ESM imports with `.js` extensions (even for `.ts` sources)
+- `unknown` over `any` — ESLint warns on explicit any
+- Tests in `__tests__/` dirs next to source, global setup in `src/test/setup.ts`
+- Conventional commits: `feat:`, `fix:`, `refactor:`, `chore:`
+- No hardcoded file→language mappings — detection is LLM-driven via `src/ai/detect.ts`
+- `collectFingerprint()` in `src/fingerprint/index.ts` is async with internal LLM enrichment
+- Constants in `src/constants.ts` and `src/scoring/constants.ts`
+- `resolveCaliber()` from `src/lib/resolve-caliber.ts` for CLI binary path resolution
+- Dev branch: `next` · Stable: `master` · Node >= 20

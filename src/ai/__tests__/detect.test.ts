@@ -12,7 +12,11 @@ describe('detectProjectStack', () => {
     vi.clearAllMocks();
     delete process.env.CALIBER_FAST_MODEL;
     delete process.env.ANTHROPIC_SMALL_FAST_MODEL;
-    mockLlmJsonCall.mockResolvedValue({ languages: ['TypeScript'], frameworks: ['Express'], tools: ['PostgreSQL'] });
+    mockLlmJsonCall.mockResolvedValue({
+      languages: ['TypeScript'],
+      frameworks: ['Express'],
+      tools: ['PostgreSQL'],
+    });
   });
 
   it('returns languages, frameworks, and tools from LLM', async () => {
@@ -23,12 +27,12 @@ describe('detectProjectStack', () => {
   });
 
   it('passes CALIBER_FAST_MODEL as model override when set', async () => {
-    process.env.CALIBER_FAST_MODEL = 'gpt-4.1-mini';
+    process.env.CALIBER_FAST_MODEL = 'gpt-5.4-mini';
 
     await detectProjectStack(['src/index.ts'], {});
 
     const callArgs = mockLlmJsonCall.mock.calls[0][0];
-    expect(callArgs.model).toBe('gpt-4.1-mini');
+    expect(callArgs.model).toBe('gpt-5.4-mini');
   });
 
   it('falls back to ANTHROPIC_SMALL_FAST_MODEL for backwards compat', async () => {
@@ -42,19 +46,19 @@ describe('detectProjectStack', () => {
   });
 
   it('prefers CALIBER_FAST_MODEL over ANTHROPIC_SMALL_FAST_MODEL', async () => {
-    process.env.CALIBER_FAST_MODEL = 'gpt-4.1-mini';
+    process.env.CALIBER_FAST_MODEL = 'gpt-5.4-mini';
     process.env.ANTHROPIC_SMALL_FAST_MODEL = 'claude-haiku-4-5';
 
     await detectProjectStack(['src/index.ts'], {});
 
     const callArgs = mockLlmJsonCall.mock.calls[0][0];
-    expect(callArgs.model).toBe('gpt-4.1-mini');
+    expect(callArgs.model).toBe('gpt-5.4-mini');
   });
 
   it('uses provider default fast model when no env override is set', async () => {
     await detectProjectStack(['src/index.ts'], {});
 
-    const callArgs = mockLlmJsonCall.mock.calls[0][0];
+    const _options = mockLlmJsonCall.mock.calls[0][0];
     // getFastModel() auto-resolves to provider default when no env var is set
     // Result depends on configured provider — may be undefined or a default model
   });

@@ -3,6 +3,8 @@ import { getFastModel } from '../llm/config.js';
 import { REFRESH_SYSTEM_PROMPT } from './prompts.js';
 import type { SourceSummary } from '../fingerprint/sources.js';
 import { formatSourcesForPrompt } from '../fingerprint/sources.js';
+import { stripManagedBlocks } from '../writers/pre-commit-block.js';
+import { CALIBER_MANAGED_PREFIX } from '../fingerprint/existing-config.js';
 
 interface RefreshDiff {
   committed: string;
@@ -13,12 +15,17 @@ interface RefreshDiff {
 }
 
 interface ExistingDocs {
+  agentsMd?: string;
   claudeMd?: string;
   readmeMd?: string;
   claudeSettings?: Record<string, unknown>;
   claudeSkills?: Array<{ filename: string; content: string }>;
+  claudeRules?: Array<{ filename: string; content: string }>;
   cursorrules?: string;
   cursorRules?: Array<{ filename: string; content: string }>;
+  copilotInstructions?: string;
+  copilotInstructionFiles?: Array<{ filename: string; content: string }>;
+  includableDocs?: string[];
 }
 
 interface ProjectContext {
@@ -28,15 +35,25 @@ interface ProjectContext {
   fileTree?: string[];
 }
 
+interface FileChangeSummary {
+  file: string;
+  description: string;
+}
+
 interface RefreshResponse {
   updatedDocs: {
+    agentsMd?: string | null;
     claudeMd?: string | null;
+    claudeRules?: Array<{ filename: string; content: string }> | null;
     readmeMd?: string | null;
     cursorrules?: string | null;
     cursorRules?: Array<{ filename: string; content: string }> | null;
     claudeSkills?: Array<{ filename: string; content: string }> | null;
+    copilotInstructions?: string | null;
+    copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
   };
   changesSummary: string;
+  fileChanges?: FileChangeSummary[];
   docsUpdated: string[];
 }
 
@@ -46,8 +63,16 @@ export async function refreshDocs(
   projectContext: ProjectContext,
   learnedSection?: string | null,
   sources?: SourceSummary[],
+  scope?: string,
 ): Promise<RefreshResponse> {
-  const prompt = buildRefreshPrompt(diff, existingDocs, projectContext, learnedSection, sources);
+  const prompt = buildRefreshPrompt(
+    diff,
+    existingDocs,
+    projectContext,
+    learnedSection,
+    sources,
+    scope,
+  );
   const fastModel = getFastModel();
 
   const raw = await llmCall({
@@ -66,18 +91,30 @@ function buildRefreshPrompt(
   projectContext: ProjectContext,
   learnedSection?: string | null,
   sources?: SourceSummary[],
+  scope?: string,
 ): string {
   const parts: string[] = [];
+
+  if (scope) {
+    parts.push(`You are updating docs for the \`${scope}\` subdirectory of a monorepo.`);
+    parts.push('Only include changes relevant to files under this directory.');
+    parts.push('The changed files list has been filtered to this directory already.');
+    parts.push('Ignore diff content for files outside this directory.\n');
+  }
 
   parts.push('Update documentation based on the following code changes.\n');
 
   if (projectContext.packageName) parts.push(`Project: ${projectContext.packageName}`);
-  if (projectContext.languages?.length) parts.push(`Languages: ${projectContext.languages.join(', ')}`);
-  if (projectContext.frameworks?.length) parts.push(`Frameworks: ${projectContext.frameworks.join(', ')}`);
+  if (projectContext.languages?.length)
+    parts.push(`Languages: ${projectContext.languages.join(', ')}`);
+  if (projectContext.frameworks?.length)
+    parts.push(`Frameworks: ${projectContext.frameworks.join(', ')}`);
 
   if (projectContext.fileTree?.length) {
     const tree = projectContext.fileTree.slice(0, 200);
-    parts.push(`\nFile tree (${tree.length}/${projectContext.fileTree.length} — only reference paths from this list):\n${tree.join('\n')}`);
+    parts.push(
+      `\nFile tree (${tree.length}/${projectContext.fileTree.length} — only reference paths from this list):\n${tree.join('\n')}`,
+    );
   }
 
   parts.push(`\nChanged files: ${diff.changedFiles.join(', ')}`);
@@ -98,9 +135,13 @@ function buildRefreshPrompt(
 
   parts.push('\n--- Current Documentation ---');
 
+  if (existingDocs.agentsMd) {
+    parts.push('\n[AGENTS.md]');
+    parts.push(stripManagedBlocks(existingDocs.agentsMd));
+  }
   if (existingDocs.claudeMd) {
     parts.push('\n[CLAUDE.md]');
-    parts.push(existingDocs.claudeMd);
+    parts.push(stripManagedBlocks(existingDocs.claudeMd));
   }
   if (existingDocs.readmeMd) {
     parts.push('\n[README.md]');
@@ -116,10 +157,38 @@ function buildRefreshPrompt(
       parts.push(skill.content);
     }
   }
+  if (existingDocs.claudeRules?.length) {
+    for (const rule of existingDocs.claudeRules) {
+      if (rule.filename.startsWith(CALIBER_MANAGED_PREFIX)) continue;
+      parts.push(`\n[.claude/rules/${rule.filename}]`);
+      parts.push(rule.content);
+    }
+  }
   if (existingDocs.cursorRules?.length) {
     for (const rule of existingDocs.cursorRules) {
+      if (rule.filename.startsWith(CALIBER_MANAGED_PREFIX)) continue;
       parts.push(`\n[.cursor/rules/${rule.filename}]`);
       parts.push(rule.content);
+    }
+  }
+  if (existingDocs.copilotInstructions) {
+    parts.push('\n[.github/copilot-instructions.md]');
+    parts.push(stripManagedBlocks(existingDocs.copilotInstructions));
+  }
+  if (existingDocs.copilotInstructionFiles?.length) {
+    for (const file of existingDocs.copilotInstructionFiles) {
+      parts.push(`\n[.github/instructions/${file.filename}]`);
+      parts.push(file.content);
+    }
+  }
+
+  if (existingDocs.includableDocs?.length) {
+    parts.push(`\n--- Existing Documentation Files (use @include) ---`);
+    parts.push(
+      'These files exist in the project and can be referenced in CLAUDE.md using @./path:',
+    );
+    for (const doc of existingDocs.includableDocs) {
+      parts.push(`- ${doc}`);
     }
   }
 

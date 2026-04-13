@@ -10,7 +10,10 @@ interface CodexConfig {
 export function writeCodexConfig(config: CodexConfig): string[] {
   const written: string[] = [];
 
-  fs.writeFileSync('AGENTS.md', appendLearningsBlock(appendPreCommitBlock(config.agentsMd)));
+  fs.writeFileSync(
+    'AGENTS.md',
+    appendLearningsBlock(appendPreCommitBlock(config.agentsMd, 'codex')),
+  );
   written.push('AGENTS.md');
 
   if (config.skills?.length) {

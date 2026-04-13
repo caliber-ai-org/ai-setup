@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ClaudeCliProvider, isClaudeCliAvailable } from '../claude-cli.js';
+import { ClaudeCliProvider, isClaudeCliAvailable, isClaudeCliLoggedIn, resetClaudeCliLoginCache } from '../claude-cli.js';
 import type { LLMConfig } from '../types.js';
 
 const IS_WINDOWS = process.platform === 'win32';
@@ -212,6 +212,35 @@ describe('ClaudeCliProvider', () => {
     expect(provider).toBeDefined();
     process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS = orig;
   });
+
+  it('call() does not double-reject when both error and close events fire', async () => {
+    let errorCb: (err: Error) => void;
+    let closeCb: (code: number | null) => void;
+
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: { on: vi.fn() },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: unknown) => {
+        if (ev === 'error') errorCb = fn as (err: Error) => void;
+        if (ev === 'close') closeCb = fn as (code: number | null) => void;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const rejectSpy = vi.fn();
+
+    const resultPromise = provider.call({ system: 'S', prompt: 'P' }).catch(rejectSpy);
+
+    await new Promise((r) => setTimeout(r, 10));
+    errorCb!(new Error('spawn ENOENT'));
+    closeCb!(1);
+    await resultPromise;
+
+    expect(rejectSpy).toHaveBeenCalledTimes(1);
+    expect(rejectSpy).toHaveBeenCalledWith(new Error('spawn ENOENT'));
+  });
 });
 
 describe('isClaudeCliAvailable', () => {
@@ -233,5 +262,45 @@ describe('isClaudeCliAvailable', () => {
       throw new Error('not found');
     });
     expect(isClaudeCliAvailable()).toBe(false);
+  });
+});
+
+describe('isClaudeCliLoggedIn', () => {
+  beforeEach(() => {
+    execSync.mockReset();
+    resetClaudeCliLoginCache();
+  });
+
+  it('returns true when auth status reports loggedIn true', () => {
+    execSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: true })));
+    expect(isClaudeCliLoggedIn()).toBe(true);
+  });
+
+  it('returns false when auth status reports loggedIn false', () => {
+    execSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: false })));
+    expect(isClaudeCliLoggedIn()).toBe(false);
+  });
+
+  it('returns false when auth status command fails', () => {
+    execSync.mockImplementation(() => { throw new Error('exit code 1'); });
+    expect(isClaudeCliLoggedIn()).toBe(false);
+  });
+
+  it('returns true for non-JSON output without not logged in', () => {
+    execSync.mockReturnValue(Buffer.from('some unexpected output'));
+    expect(isClaudeCliLoggedIn()).toBe(true);
+  });
+
+  it('returns false for non-JSON output containing not logged in', () => {
+    execSync.mockReturnValue(Buffer.from('not logged in'));
+    expect(isClaudeCliLoggedIn()).toBe(false);
+  });
+
+  it('caches the result across calls', () => {
+    execSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: true })));
+    expect(isClaudeCliLoggedIn()).toBe(true);
+    execSync.mockReset();
+    expect(isClaudeCliLoggedIn()).toBe(true);
+    expect(execSync).not.toHaveBeenCalled();
   });
 });

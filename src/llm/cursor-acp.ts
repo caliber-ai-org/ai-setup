@@ -1,7 +1,15 @@
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
 import os from 'node:os';
-import type { LLMProvider, LLMCallOptions, LLMStreamOptions, LLMStreamCallbacks, LLMConfig } from './types.js';
+import type {
+  LLMProvider,
+  LLMCallOptions,
+  LLMStreamOptions,
+  LLMStreamCallbacks,
+  LLMConfig,
+} from './types.js';
 import { parseSeatBasedError, isRateLimitError } from './seat-based-errors.js';
+import { trackUsage } from './usage.js';
+import { estimateTokens } from './utils.js';
 
 const AGENT_BIN = 'agent';
 const IS_WINDOWS = process.platform === 'win32';
@@ -35,13 +43,34 @@ export class CursorAcpProvider implements LLMProvider {
   async call(options: LLMCallOptions): Promise<string> {
     const prompt = this.buildPrompt(options);
     const model = options.model || this.defaultModel;
-    return this.runPrint(model, prompt);
+    const result = await this.runPrint(model, prompt);
+    trackUsage(model, {
+      inputTokens: estimateTokens(prompt),
+      outputTokens: estimateTokens(result),
+    });
+    return result;
   }
 
   async stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void> {
     const prompt = this.buildPrompt(options);
     const model = options.model || this.defaultModel;
-    return this.runPrintStream(model, prompt, callbacks);
+    const inputEstimate = estimateTokens(prompt);
+    let outputChars = 0;
+    const wrappedCallbacks: LLMStreamCallbacks = {
+      onText: (text) => {
+        outputChars += text.length;
+        callbacks.onText(text);
+      },
+      onEnd: (meta) => {
+        trackUsage(model, {
+          inputTokens: inputEstimate,
+          outputTokens: Math.ceil(outputChars / 4),
+        });
+        callbacks.onEnd(meta);
+      },
+      onError: (err) => callbacks.onError(err),
+    };
+    return this.runPrintStream(model, prompt, wrappedCallbacks);
   }
 
   /**
@@ -73,7 +102,7 @@ export class CursorAcpProvider implements LLMProvider {
   private buildArgs(model: string, streaming: boolean): string[] {
     const args = ['--print', '--trust', '--workspace', os.tmpdir()];
 
-    if (model && model !== 'auto' && model !== 'default') {
+    if (model && model !== 'default') {
       args.push('--model', model);
     }
 
@@ -98,7 +127,10 @@ export class CursorAcpProvider implements LLMProvider {
     return null;
   }
 
-  private spawnAgent(model: string, streaming: boolean): { child: ChildProcess; stderrChunks: Buffer[] } {
+  private spawnAgent(
+    model: string,
+    streaming: boolean,
+  ): { child: ChildProcess; stderrChunks: Buffer[] } {
     const warm = this.takeWarmProcess(model, streaming);
     if (warm) {
       const stderrChunks: Buffer[] = [];
@@ -151,14 +183,21 @@ export class CursorAcpProvider implements LLMProvider {
         this.killWithEscalation(child);
         if (!settled) {
           settled = true;
-          reject(new Error(`Cursor agent timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CURSOR_TIMEOUT_MS to increase.`));
+          reject(
+            new Error(
+              `Cursor agent timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CURSOR_TIMEOUT_MS to increase.`,
+            ),
+          );
         }
       }, this.timeoutMs);
       timer.unref();
 
       child.on('error', (err) => {
         clearTimeout(timer);
-        if (!settled) { settled = true; reject(err); }
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
       });
 
       child.on('close', (code) => {
@@ -178,7 +217,11 @@ export class CursorAcpProvider implements LLMProvider {
     });
   }
 
-  private runPrintStream(model: string, prompt: string, callbacks: LLMStreamCallbacks): Promise<void> {
+  private runPrintStream(
+    model: string,
+    prompt: string,
+    callbacks: LLMStreamCallbacks,
+  ): Promise<void> {
     return new Promise((resolve, reject) => {
       const { child, stderrChunks } = this.spawnAgent(model, true);
       let buffer = '';
@@ -189,7 +232,9 @@ export class CursorAcpProvider implements LLMProvider {
         this.killWithEscalation(child);
         if (!settled) {
           settled = true;
-          const err = new Error(`Cursor agent timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CURSOR_TIMEOUT_MS to increase.`);
+          const err = new Error(
+            `Cursor agent timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CURSOR_TIMEOUT_MS to increase.`,
+          );
           callbacks.onError(err);
           reject(err);
         }
@@ -236,7 +281,11 @@ export class CursorAcpProvider implements LLMProvider {
 
       child.on('error', (err) => {
         clearTimeout(timer);
-        if (!settled) { settled = true; callbacks.onError(err); reject(err); }
+        if (!settled) {
+          settled = true;
+          callbacks.onError(err);
+          reject(err);
+        }
       });
 
       child.on('close', (code) => {
@@ -247,7 +296,13 @@ export class CursorAcpProvider implements LLMProvider {
         // Flush remaining buffer
         if (buffer.trim()) {
           try {
-            const event = JSON.parse(buffer) as { type?: string; content?: string; result?: string; is_error?: boolean; message?: { content?: Array<{ type?: string; text?: string }> } };
+            const event = JSON.parse(buffer) as {
+              type?: string;
+              content?: string;
+              result?: string;
+              is_error?: boolean;
+              message?: { content?: Array<{ type?: string; text?: string }> };
+            };
             if (event.type === 'assistant') {
               const isDelta = 'timestamp_ms' in (event as Record<string, unknown>);
               if (isDelta) {
@@ -320,7 +375,11 @@ export function isCursorAgentAvailable(): boolean {
 /** Check if user is logged in to Cursor agent. */
 export function isCursorLoggedIn(): boolean {
   try {
-    const result = execSync(`${AGENT_BIN} status`, { stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000 });
+    const result = execSync(`${AGENT_BIN} status`, {
+      input: '',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000,
+    });
     return !result.toString().includes('not logged in');
   } catch {
     return false;

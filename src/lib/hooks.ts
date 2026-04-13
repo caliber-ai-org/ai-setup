@@ -46,8 +46,8 @@ function writeSettings(settings: ClaudeSettings): void {
 }
 
 function findHookIndex(sessionEnd: HookMatcher[]): number {
-  return sessionEnd.findIndex(entry =>
-    entry.hooks?.some(h => isCaliberCommand(h.command, REFRESH_TAIL))
+  return sessionEnd.findIndex((entry) =>
+    entry.hooks?.some((h) => isCaliberCommand(h.command, REFRESH_TAIL)),
   );
 }
 
@@ -102,6 +102,148 @@ export function removeHook(): { removed: boolean; notFound: boolean } {
   return { removed: true, notFound: false };
 }
 
+// ── Script hook factory ─────────────────────────────────────────────
+
+interface ScriptHookConfig {
+  eventName: string;
+  scriptPath: string;
+  scriptContent: string;
+  description: string;
+}
+
+function createScriptHook(config: ScriptHookConfig) {
+  const { eventName, scriptPath, scriptContent, description } = config;
+
+  const hasHook = (matchers: HookMatcher[]) =>
+    matchers.some((entry) => entry.hooks?.some((h) => h.description === description));
+
+  function isInstalled(): boolean {
+    const settings = readSettings();
+    const matchers = settings.hooks?.[eventName] as HookMatcher[] | undefined;
+    return Array.isArray(matchers) && hasHook(matchers);
+  }
+
+  function install(): { installed: boolean; alreadyInstalled: boolean } {
+    const settings = readSettings();
+    if (!settings.hooks) settings.hooks = {};
+
+    const matchers = settings.hooks[eventName] as HookMatcher[] | undefined;
+    if (Array.isArray(matchers) && hasHook(matchers)) {
+      return { installed: false, alreadyInstalled: true };
+    }
+
+    const scriptDir = path.dirname(scriptPath);
+    if (!fs.existsSync(scriptDir)) fs.mkdirSync(scriptDir, { recursive: true });
+    fs.writeFileSync(scriptPath, scriptContent);
+    fs.chmodSync(scriptPath, 0o755);
+
+    if (!Array.isArray(settings.hooks[eventName])) {
+      settings.hooks[eventName] = [];
+    }
+    (settings.hooks[eventName] as HookMatcher[]).push({
+      matcher: '',
+      hooks: [{ type: 'command', command: scriptPath, description }],
+    });
+
+    writeSettings(settings);
+    return { installed: true, alreadyInstalled: false };
+  }
+
+  function remove(): { removed: boolean; notFound: boolean } {
+    const settings = readSettings();
+    const matchers = settings.hooks?.[eventName] as HookMatcher[] | undefined;
+
+    if (!Array.isArray(matchers)) return { removed: false, notFound: true };
+
+    const idx = matchers.findIndex((entry) =>
+      entry.hooks?.some((h) => h.description === description),
+    );
+    if (idx === -1) return { removed: false, notFound: true };
+
+    matchers.splice(idx, 1);
+    if (matchers.length === 0) delete settings.hooks![eventName];
+    if (settings.hooks && Object.keys(settings.hooks).length === 0) delete settings.hooks;
+
+    writeSettings(settings);
+
+    try {
+      fs.unlinkSync(scriptPath);
+    } catch {
+      /* best effort */
+    }
+
+    return { removed: true, notFound: false };
+  }
+
+  return { isInstalled, install, remove };
+}
+
+// ── Stop hook (onboarding nudge) ────────────────────────────────────
+
+const STOP_HOOK_SCRIPT_CONTENT = `#!/bin/sh
+if grep -q "caliber" .git/hooks/pre-commit 2>/dev/null; then
+  exit 0
+fi
+FLAG="/tmp/caliber-nudge-$(echo "$PWD" | (shasum 2>/dev/null || sha1sum 2>/dev/null || md5sum 2>/dev/null || cksum) | cut -c1-8)"
+find /tmp -maxdepth 1 -name "caliber-nudge-*" -mmin +120 -delete 2>/dev/null
+if [ -f "$FLAG" ]; then
+  exit 0
+fi
+touch "$FLAG"
+printf '{"decision":"block","reason":"Caliber agent config sync is not set up on this machine. Tell the user: This project uses Caliber to keep agent configs in sync — it is not set up yet. Want me to run /setup-caliber? (~30 seconds)"}'
+`;
+
+const stopHook = createScriptHook({
+  eventName: 'Stop',
+  scriptPath: path.join('.claude', 'hooks', 'caliber-check-sync.sh'),
+  scriptContent: STOP_HOOK_SCRIPT_CONTENT,
+  description: 'Caliber: offer setup if not configured',
+});
+
+export const installStopHook = stopHook.install;
+export const removeStopHook = stopHook.remove;
+
+// ── Freshness check script ───────────────────────────────────────────
+
+const FRESHNESS_SCRIPT = `#!/bin/sh
+STATE_FILE=".caliber/.caliber-state.json"
+[ ! -f "$STATE_FILE" ] && exit 0
+LAST_SHA=$(grep -o '"lastRefreshSha":"[^"]*"' "$STATE_FILE" 2>/dev/null | cut -d'"' -f4)
+[ -z "$LAST_SHA" ] && exit 0
+CURRENT_SHA=$(git rev-parse HEAD 2>/dev/null)
+[ "$LAST_SHA" = "$CURRENT_SHA" ] && exit 0
+COMMITS_BEHIND=$(git rev-list --count "$LAST_SHA".."$CURRENT_SHA" 2>/dev/null || echo 0)
+if [ "$COMMITS_BEHIND" -gt 15 ]; then
+  printf '{"systemMessage":"Caliber: agent configs are %s commits behind. Run caliber refresh to sync."}' "$COMMITS_BEHIND"
+fi
+`;
+
+// ── SessionStart hook (freshness check on session start) ────────────
+
+const sessionStartHook = createScriptHook({
+  eventName: 'SessionStart',
+  scriptPath: path.join('.claude', 'hooks', 'caliber-session-freshness.sh'),
+  scriptContent: FRESHNESS_SCRIPT,
+  description: 'Caliber: check config freshness on session start',
+});
+
+export const isSessionStartHookInstalled = sessionStartHook.isInstalled;
+export const installSessionStartHook = sessionStartHook.install;
+export const removeSessionStartHook = sessionStartHook.remove;
+
+// ── Notification hook (kept for backwards compat, not auto-installed) ─
+
+const notificationHook = createScriptHook({
+  eventName: 'Notification',
+  scriptPath: path.join('.claude', 'hooks', 'caliber-freshness-notify.sh'),
+  scriptContent: FRESHNESS_SCRIPT,
+  description: 'Caliber: warn when agent configs are stale',
+});
+
+export const isNotificationHookInstalled = notificationHook.isInstalled;
+export const installNotificationHook = notificationHook.install;
+export const removeNotificationHook = notificationHook.remove;
+
 // ── Pre-commit hook ──────────────────────────────────────────────────
 
 const PRECOMMIT_START = '# caliber:pre-commit:start';
@@ -120,17 +262,21 @@ function getPrecommitBlock(): string {
 
   return `${PRECOMMIT_START}
 if ${guard}; then
+  mkdir -p .caliber
   echo "\\033[2mcaliber: refreshing docs...\\033[0m"
-  ${invoke} refresh 2>/dev/null || true
-  ${invoke} learn finalize 2>/dev/null || true
-  git diff --name-only -- CLAUDE.md .claude/ .cursor/ AGENTS.md CALIBER_LEARNINGS.md 2>/dev/null | xargs git add 2>/dev/null || true
+  ${invoke} refresh --quiet 2>.caliber/refresh-hook.log || true
+  ${invoke} learn finalize 2>>.caliber/refresh-hook.log || true
+  git diff --name-only -- CLAUDE.md .claude/ .cursor/ AGENTS.md CALIBER_LEARNINGS.md .github/ .agents/ .opencode/ 2>/dev/null | xargs git add 2>/dev/null || true
 fi
 ${PRECOMMIT_END}`;
 }
 
 function getGitHooksDir(): string | null {
   try {
-    const gitDir = execSync('git rev-parse --git-dir', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const gitDir = execSync('git rev-parse --git-dir', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
     return path.join(gitDir, 'hooks');
   } catch {
     return null;

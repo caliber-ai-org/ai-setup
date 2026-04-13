@@ -27,7 +27,7 @@ export interface Fingerprint {
 }
 
 export async function collectFingerprint(dir: string): Promise<Fingerprint> {
-  const gitRemoteUrl = getGitRemoteUrl();
+  const gitRemoteUrl = getGitRemoteUrl(dir);
   const fileTree = getFileTree(dir);
   const existingConfigs = readExistingConfigs(dir);
   const packageName = readPackageName(dir);
@@ -85,10 +85,7 @@ export function readPackageName(dir: string): string | undefined {
 }
 
 export function computeFingerprintHash(fingerprint: Fingerprint): string {
-  const key = [
-    fingerprint.gitRemoteUrl || '',
-    fingerprint.packageName || '',
-  ].join('::');
+  const key = [fingerprint.gitRemoteUrl || '', fingerprint.packageName || ''].join('::');
 
   return crypto.createHash('sha256').update(key).digest('hex');
 }

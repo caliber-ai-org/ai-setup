@@ -79,10 +79,23 @@ describe('CursorAcpProvider', () => {
     );
   });
 
-  it('does not include --model when model is "auto"', async () => {
+  it('includes --model auto when model is "auto"', async () => {
     mockPrintAgent('ok');
 
     const provider = new CursorAcpProvider({ provider: 'cursor', model: 'auto' });
+    await provider.call({ system: 'S', prompt: 'P' });
+
+    expect(spawn).toHaveBeenCalledWith(
+      'agent',
+      ['--print', '--trust', '--workspace', expect.any(String), '--model', 'auto'],
+      expect.any(Object),
+    );
+  });
+
+  it('does not include --model when model is "default"', async () => {
+    mockPrintAgent('ok');
+
+    const provider = new CursorAcpProvider({ provider: 'cursor', model: 'default' });
     await provider.call({ system: 'S', prompt: 'P' });
 
     expect(spawn).toHaveBeenCalledWith(

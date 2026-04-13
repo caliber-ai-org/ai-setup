@@ -1,164 +1,106 @@
 ---
 name: adding-a-command
-description: Creates a new CLI command following caliber's pattern: file in src/commands/, named export async function, register in src/cli.ts with tracked(), use ora spinners for UX, throw __exit__ on user-facing failures, return structured results. Use when user says 'add command', 'new subcommand', 'create CLI action', or adds files to src/commands/. Do NOT use for modifying existing commands or adding flags to existing ones.
+description: Create a new CLI command following Commander.js pattern. Handles command file in src/commands/, registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says 'add command', 'new CLI command', 'create subcommand', or adds files to src/commands/. Do NOT use for modifying existing commands or refactoring command structure.
 ---
 # Adding a Command
 
 ## Critical
 
-1. **Always register in `src/cli.ts`** — Commands not registered won't execute. Registration wraps commands with `tracked()` for telemetry and binds arguments.
-2. **Throw `__exit__` for user-facing errors** — Never use `process.exit()` directly. Use the `__exit__` error class to signal controlled failure with a message printed to stderr.
-3. **Use named async exports** — Each command in `src/commands/` must be `export async function commandName(...)` to match Commander.js argument binding.
-4. **Return structured results** — Commands must return an object matching the command's result type (or void). This enables chaining, testing, and logging.
+- Commands MUST be registered in `src/cli.ts` using `.command()` and `.action()` with the `tracked()` wrapper for telemetry.
+- Command file MUST be in `src/commands/{commandName}.ts` and export a default async function with signature: `async (options: CommandOptions, ctx: CLIContext) => Promise<void>`.
+- Always use `tracked(commandName, async () => { ... })` wrapper in `src/cli.ts` to enable telemetry tracking.
+- Test file MUST be in `src/commands/__tests__/{commandName}.test.ts` with at least one happy-path test.
 
 ## Instructions
 
-1. **Create command file in `src/commands/{name}.ts`**
-   - Use PascalCase for internal function names, kebab-case for CLI command name.
-   - Example: command `caliber foo-bar` → `src/commands/fooBar.ts` with `export async function fooBar(...)`
-   - Import `__exit__` from `src/lib/state.ts` and `ora` from `ora`.
-   - Verify file follows existing pattern in `src/commands/init.ts` or `src/commands/score.ts`.
+1. **Create command file** in `src/commands/{commandName}.ts`
+   - Export default async function: `export default async (options: any, ctx: CLIContext) => { ... }`
+   - Import `CLIContext` from `src/cli.ts`
+   - Use `ctx.log()` for output (respects quiet mode via `--quiet`)
+   - Use `ctx.spinner()` for async operations
+   - Verify function signature matches existing commands like `src/commands/score.ts`
 
-2. **Define typed parameters and return type**
-   - Add parameter interface to `src/commands/types.ts` (or inline in file if simple).
-   - Example:
-     ```typescript
-     export interface FooBarOptions {
-       verbose?: boolean;
-       output?: string;
-     }
-     export interface FooBarResult {
-       message: string;
-       count: number;
-     }
-     ```
-   - Verify type exports are accessible from `src/cli.ts`.
-
-3. **Implement command with spinner + error handling**
-   - Wrap long operations in `const spinner = ora('Doing thing...').start()`.
-   - Call `spinner.succeed('Done')` or `spinner.fail('Failed')` based on outcome.
-   - Use try/catch for synchronous errors; wrap async calls in try/catch.
-   - For user-facing errors, throw `new __exit__('User message')` — do NOT use `throw new Error()`.
-   - Example:
-     ```typescript
-     export async function fooBar(opts: FooBarOptions): Promise<FooBarResult> {
-       const spinner = ora('Processing...').start();
-       try {
-         const result = await someAsyncCall();
-         spinner.succeed(`Processed ${result.count} items`);
-         return { message: 'Done', count: result.count };
-       } catch (err) {
-         if (err instanceof SomeKnownError) {
-           spinner.fail(err.message);
-           throw new __exit__(err.message);
-         }
-         throw err; // Let tracked() in cli.ts handle unknown errors
-       }
-     }
-     ```
-   - Verify spinner states are used before returning or throwing.
-
-4. **Register command in `src/cli.ts`**
-   - Import the command: `import { fooBar } from './commands/fooBar'`.
-   - Add to program definition using `.command()` and `.action(tracked())` pattern:
-     ```typescript
+2. **Register in src/cli.ts**
+   - Import the command: `import addCommand from './commands/mycommand.js'`
+   - Add command definition:
+     ```ts
      program
-       .command('foo-bar')
-       .description('Do foo bar operations')
-       .option('--verbose', 'Verbose output', false)
-       .option('--output <path>', 'Output file', './output')
-       .action(tracked(async (opts) => {
-         return await fooBar(opts);
-       }));
+       .command('mycommand')
+       .description('One-line description')
+       .option('--option', 'Option description')
+       .action(tracked('mycommand', addCommand))
      ```
-   - Ensure `.option()` names match interface properties (camelCase in interface, convert from kebab-case in CLI).
-   - Verify command appears in `--help` output after registration.
+   - Verify imports are `.js` (ESM)
+   - Verify `tracked()` wrapper is applied to `.action()`
 
-5. **Add tests in `src/commands/__tests__/{name}.test.ts`**
-   - Import `describe`, `it`, `expect` from `vitest`.
-   - Mock dependencies using `vi.mock()`.
-   - Test success path and all error branches (throw `__exit__`, throw unknown error).
-   - Example:
-     ```typescript
-     import { describe, it, expect, vi } from 'vitest';
-     import { fooBar } from '../fooBar';
-     it('should return result on success', async () => {
-       const result = await fooBar({ verbose: true });
-       expect(result.count).toBeGreaterThan(0);
-     });
-     it('should throw __exit__ on user error', async () => {
-       await expect(fooBar({ output: '/invalid' })).rejects.toThrow('__exit__');
-     });
-     ```
-   - Verify tests pass: `npm run test -- fooBar`.
+3. **Add telemetry event** in `src/telemetry/events.ts`
+   - Add event type: `export type MyCommandEvent = { type: 'mycommand:start' | 'mycommand:success' | 'mycommand:error'; ... }`
+   - Include `duration?: number` field for timed events
+   - Update `export type AllEvents = ... | MyCommandEvent`
+   - Verify event matches pattern in existing events
+
+4. **Create test file** in `src/commands/__tests__/{commandName}.test.ts`
+   - Import `describe`, `it`, `expect`, `vi` from `vitest`
+   - Import command from parent: `import addCommand from '../mycommand.js'`
+   - Create mock `CLIContext`: `{ log: vi.fn(), spinner: vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn() }) }`
+   - Test happy path: `await addCommand({}, ctx); expect(ctx.log).toHaveBeenCalled()`
+   - Verify test runs: `npx vitest run src/commands/__tests__/{commandName}.test.ts`
+
+5. **Build and validate**
+   - Run `npm run build` → verify no TypeScript errors
+   - Run `npm run lint` → verify ESLint passes
+   - Test command: `node dist/bin.js mycommand --help` → verify options listed
+   - Run `npm run test` → verify new test passes
 
 ## Examples
 
-**User says:** "Add a command that validates all project configs and scores them."
+User says: "Add a new `verify` command that checks if config files exist"
 
-**Actions taken:**
-1. Create `src/commands/validate.ts`:
-   ```typescript
-   import { __exit__ } from '../lib/state';
-   import ora from 'ora';
-   
-   export interface ValidateOptions {
-     fix?: boolean;
-   }
-   
-   export interface ValidateResult {
-     valid: boolean;
-     issues: string[];
-   }
-   
-   export async function validate(opts: ValidateOptions): Promise<ValidateResult> {
-     const spinner = ora('Validating configs...').start();
-     try {
-       const issues: string[] = [];
-       // validation logic
-       if (issues.length > 0) {
-         spinner.warn(`Found ${issues.length} issues`);
-         if (!opts.fix) throw new __exit__('Fix issues or use --fix');
-       } else {
-         spinner.succeed('All configs valid');
-       }
-       return { valid: issues.length === 0, issues };
-     } catch (err) {
-       if (err instanceof __exit__) throw err;
-       spinner.fail('Validation error');
-       throw err;
-     }
-   }
+**Actions:**
+1. Create `src/commands/verify.ts`:
+   ```ts
+   import { CLIContext } from '../cli.js';
+   export default async (options: any, ctx: CLIContext) => {
+     const spinner = ctx.spinner('Verifying config files...');
+     spinner.start();
+     const exists = await checkFilesExist();
+     spinner.stop();
+     ctx.log(`✓ Config files ${exists ? 'found' : 'missing'}`);
+   };
    ```
 2. Register in `src/cli.ts`:
-   ```typescript
+   ```ts
+   import verifyCommand from './commands/verify.js';
    program
-     .command('validate')
-     .description('Validate all configs')
-     .option('--fix', 'Auto-fix issues')
-     .action(tracked(async (opts) => await validate(opts)));
+     .command('verify')
+     .description('Verify configuration files exist')
+     .action(tracked('verify', verifyCommand))
    ```
-3. Create `src/commands/__tests__/validate.test.ts` with success and error cases.
-4. Run `npm run test` and `npm run build` to verify.
+3. Add to `src/telemetry/events.ts`:
+   ```ts
+   export type VerifyEvent = {
+     type: 'verify:start' | 'verify:success' | 'verify:error';
+     duration?: number;
+   };
+   ```
+4. Create `src/commands/__tests__/verify.test.ts` with happy-path test
+5. Run `npm run build && npm run test && npm run lint`
 
 ## Common Issues
 
-**Issue:** Command not appearing in CLI help or not executing.
-- **Cause:** Missing or incorrect registration in `src/cli.ts`.
-- **Fix:** Verify import statement is present and `.action(tracked(async (opts) =>` pattern is used. Run `npx caliber --help` to confirm command appears.
+**"Cannot find module './commands/mycommand.js'"**
+- Verify file is at `src/commands/mycommand.ts` (TypeScript)
+- Verify import in `src/cli.ts` uses `.js` extension: `from './commands/mycommand.js'`
+- Rebuild: `npm run build`
 
-**Issue:** Error is swallowed or shows stack trace instead of user message.
-- **Cause:** Throwing `new Error()` instead of `new __exit__()`.
-- **Fix:** Replace all user-facing error throws with `throw new __exit__('message')`. Unknown errors should propagate (not caught) for `tracked()` to handle telemetry.
+**"tracked is not exported from src/cli.ts"**
+- Verify `tracked()` function exists in `src/cli.ts` (it should; check existing commands)
+- Verify you're using it as `.action(tracked('commandName', commandFunction))`
 
-**Issue:** Spinner never stops or shows wrong state.
-- **Cause:** Missing `.succeed()`, `.fail()`, or `.warn()` call before return/throw.
-- **Fix:** Always call `spinner.succeed()` on success, `spinner.fail()` or `spinner.warn()` before throwing `__exit__`. Do not call `.stop()` manually — use the state methods.
+**Test fails with "CLIContext is not a constructor"**
+- Create mock object manually: `const ctx = { log: vi.fn(), spinner: vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn() }) }`
+- Do NOT try to instantiate CLIContext; it's an interface
 
-**Issue:** TypeScript error: Property 'X' does not exist on options.
-- **Cause:** Interface property name (camelCase) doesn't match Commander.js option binding.
-- **Fix:** Verify `.option('--kebab-name', ...)` converts to camelCase in interface: `kebabName: boolean`. Run `npx tsc --noEmit` to catch mismatches.
-
-**Issue:** Build fails with "Cannot find module 'src/commands/newCommand'".
-- **Cause:** File created but not yet imported in `src/cli.ts`.
-- **Fix:** Add `import { newCommand } from './commands/newCommand'` at top of `src/cli.ts` before using in `.action()`.
+**"--option not recognized" when testing**
+- Verify `.option()` is chained in `src/cli.ts` BEFORE `.action()`
+- Rebuild and test with `npm run build && node dist/bin.js mycommand --help`

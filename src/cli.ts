@@ -24,14 +24,14 @@ import {
 import { insightsCommand } from './commands/insights.js';
 import { sourcesListCommand, sourcesAddCommand, sourcesRemoveCommand } from './commands/sources.js';
 import { publishCommand } from './commands/publish.js';
+import { bootstrapCommand } from './commands/bootstrap.js';
+import { uninstallCommand } from './commands/uninstall.js';
 import { setTelemetryDisabled } from './telemetry/config.js';
 import { initTelemetry, trackEvent } from './telemetry/index.js';
 import { checkPendingNotifications } from './lib/notifications.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(
-  fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf-8')
-);
+const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'package.json'), 'utf-8'));
 
 const program = new Command();
 
@@ -47,9 +47,11 @@ program
 function tracked<T extends (...args: any[]) => any>(commandName: string, handler: T): T {
   const wrapper = async (...args: Parameters<T>) => {
     const start = Date.now();
+    const isCI = !!(process.env.CI || process.env.GITHUB_ACTIONS);
     trackEvent('command_started', {
       command: commandName,
       cli_version: pkg.version,
+      is_ci: isCI,
     });
     try {
       await handler(...args);
@@ -93,22 +95,37 @@ program.hook('preAction', (thisCommand) => {
   }
 });
 
-function parseAgentOption(value: string): ('claude' | 'cursor' | 'codex' | 'github-copilot')[] {
+function parseAgentOption(
+  value: string,
+): ('claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot')[] {
   if (value === 'both') return ['claude', 'cursor'];
-  if (value === 'all') return ['claude', 'cursor', 'codex', 'github-copilot'];
-  const valid = ['claude', 'cursor', 'codex', 'github-copilot'];
-  const agents = [...new Set(value.split(',').map(s => s.trim().toLowerCase()).filter(a => valid.includes(a)))];
+  if (value === 'all') return ['claude', 'cursor', 'codex', 'opencode', 'github-copilot'];
+  const valid = ['claude', 'cursor', 'codex', 'opencode', 'github-copilot'];
+  const agents = [
+    ...new Set(
+      value
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter((a) => valid.includes(a)),
+    ),
+  ];
   if (agents.length === 0) {
-    console.error(`Invalid agent "${value}". Choose from: claude, cursor, codex, github-copilot (comma-separated for multiple)`);
+    console.error(
+      `Invalid agent "${value}". Choose from: claude, cursor, codex, opencode, github-copilot (comma-separated for multiple)`,
+    );
     process.exit(1);
   }
-  return agents as ('claude' | 'cursor' | 'codex' | 'github-copilot')[];
+  return agents as ('claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot')[];
 }
 
 program
   .command('init')
   .description('Initialize your project for AI-assisted development')
-  .option('--agent <type>', 'Target agents (comma-separated): claude, cursor, codex, github-copilot', parseAgentOption)
+  .option(
+    '--agent <type>',
+    'Target agents (comma-separated): claude, cursor, codex, opencode, github-copilot',
+    parseAgentOption,
+  )
   .option('--source <paths...>', 'Related source paths to include as context')
   .option('--dry-run', 'Preview changes without writing files')
   .option('--force', 'Overwrite existing config without prompting')
@@ -116,12 +133,26 @@ program
   .option('--show-tokens', 'Show token usage summary at the end')
   .option('--auto-approve', 'Run without interactive prompts (auto-accept all)')
   .option('--verbose', 'Show detailed logs of each step')
+  .option('--thorough', 'Deep analysis — more refinement passes for maximum quality')
   .action(tracked('init', initCommand));
+
+program
+  .command('bootstrap')
+  .description(
+    'Install agent skills (/setup-caliber, /find-skills, /save-learning) without running init',
+  )
+  .action(tracked('bootstrap', bootstrapCommand));
 
 program
   .command('undo')
   .description('Revert all config changes made by Caliber')
   .action(tracked('undo', undoCommand));
+
+program
+  .command('uninstall')
+  .description('Remove all Caliber resources from this project')
+  .option('--force', 'Skip confirmation prompt')
+  .action(tracked('uninstall', (options) => uninstallCommand(options)));
 
 program
   .command('status')
@@ -154,7 +185,11 @@ program
   .description('Score your AI context configuration (deterministic, no network)')
   .option('--json', 'Output as JSON')
   .option('--quiet', 'One-line output for scripts/hooks')
-  .option('--agent <type>', 'Target agents (comma-separated): claude, cursor, codex, github-copilot', parseAgentOption)
+  .option(
+    '--agent <type>',
+    'Target agents (comma-separated): claude, cursor, codex, opencode, github-copilot',
+    parseAgentOption,
+  )
   .option('--compare <ref>', 'Compare score against a git ref (branch, tag, or SHA)')
   .action(tracked('score', scoreCommand));
 
@@ -221,7 +256,11 @@ learn
   .option('--force', 'Skip the running-process check (for manual invocation)')
   .option('--auto', 'Silent mode for hooks (lower threshold, no interactive output)')
   .option('--incremental', 'Extract learnings mid-session without clearing events')
-  .action(tracked('learn:finalize', (opts: { force?: boolean; auto?: boolean; incremental?: boolean }) => learnFinalizeCommand(opts)));
+  .action(
+    tracked('learn:finalize', (opts: { force?: boolean; auto?: boolean; incremental?: boolean }) =>
+      learnFinalizeCommand(opts),
+    ),
+  );
 
 learn
   .command('install')

@@ -1,131 +1,184 @@
 ---
 name: adding-a-command
-description: Creates a new CLI command following caliber's pattern: file in src/commands/, named export async function, register in src/cli.ts with tracked(), use ora spinners, throw __exit__ on user-facing failures. Use when user says 'add command', 'new subcommand', 'create CLI action', or adds files to src/commands/. Do NOT use for modifying existing commands or fixing bugs in existing command logic.
+description: Creates a new CLI command following the Commander.js pattern in src/commands/. Handles command registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says add command, new CLI command, create subcommand, or adds files to src/commands/. Do NOT use for modifying existing commands or fixing bugs in existing commands.
+paths:
+  - src/commands/**/*.ts
+  - src/cli.ts
 ---
 # Adding a Command
 
 ## Critical
 
-1. **Always register new commands in `src/cli.ts`** with `.action(tracked(commandFunction))`. Commands not registered will never execute.
-2. **User-facing errors must throw `__exit__`**, not `Error`. Exit codes: `1` (generic failure), `2` (validation), `3` (config missing). Example: `throw __exit__(1, 'Database connection failed')`.
-3. **Commands must be async functions** exported as named exports from `src/commands/[name].ts`. Return type should be `Promise<void>` or `Promise<Record<string, any>>` if producing JSON output.
-4. **All long-running operations need ora spinners**. Import `import * as ora from 'ora'` and wrap work: `const spinner = ora('Working...').start(); /* do work */; spinner.succeed('Done');`
-5. **Never use console.log directly**—use `ora` or `process.stdout.write()` for structured output. Queries use `process.stdout.write(JSON.stringify(result))`.
+- **Export pattern**: Command must export a named async function: `export async function myCommand(options?: OptionType)`. Never use default exports.
+- **Registration in cli.ts**: Every command must be imported and registered with `.command()` chain in `src/cli.ts`, wrapped with `tracked()` for telemetry.
+- **Error signaling**: Use `throw new Error('__exit__')` to exit gracefully without printing the error message. Use chalk for user-facing messages.
+- **Options typing**: Commands receiving options must define a TypeScript interface for those options. Pass options as a destructured object parameter.
 
 ## Instructions
 
-1. **Create the command file** at `src/commands/[command-name].ts`.
-   - Copy the function signature from an existing command (e.g., `src/commands/init.ts` or `src/commands/score.ts`).
-   - Define as `export async function [commandName](options: CommandOptions): Promise<void>`.
-   - Verify the export is named (not default export).
+1. **Create the command file** at `src/commands/{commandName}.ts` with named async export.
+   - Signature: `export async function {commandName}Command(options?: { optionName?: optionType }) { ... }`
+   - Import only what you need (avoid kitchen-sink imports).
+   - Return void (handle all output via console.log or chalk).
+   - Verify the file follows the naming convention: camelCase function + "Command" suffix.
 
-2. **Add command options type** (if needed).
-   - Check `src/commands/` for pattern: `interface InitOptions { configPath?: string; debug?: boolean; }`.
-   - Flatten all CLI flags into the interface. Commander.js passes flags as kebab-case properties.
+2. **Handle errors consistently**: Wrap error-prone operations in try/catch. Distinguish between user errors and system errors:
+   - User error (bad input): `console.error(chalk.red('message')); throw new Error('__exit__');`
+   - System error (missing dependency): `throw new Error('Detailed error message');` — this will print and exit with code 1.
+   - Parse-like errors: Use ora spinner with `.fail()` before throwing.
+   - This step prevents double error printing in bin.ts.
 
-3. **Import required utilities**:
-   ```typescript
-   import * as ora from 'ora';
-   import { __exit__ } from '../lib/state';
-   import { getConfig } from '../lib/resolve-caliber';
-   ```
-   - Verify `__exit__` is imported from `src/lib/state.ts` (not thrown as `new Error`).
-   - Verify all imports resolve by running `npm run build`.
+3. **Import and register in src/cli.ts** in the correct location:
+   - Add import at the top: `import { {commandName}Command } from './commands/{commandName}.js';`
+   - Register the command in the appropriate section (main commands, or nested under a group like `sources`).
+   - For main commands: `.command('{kebab-name}').description('...').option(...).action(tracked('{kebab-name}', {commandName}Command))`
+   - For subcommands (like `sources add`): `sources.command('add').description(...).action(tracked('sources:add', sourcesAddCommand))`
+   - Key: Wrap handler with `tracked('{command-name}', handler)` for automatic telemetry.
+   - Verify the command name in tracked() uses kebab-case for main commands and colon-separated for subcommands.
 
-4. **Implement error handling**:
-   - Wrap external calls in try/catch.
-   - On validation failure: `throw __exit__(2, 'Missing required flag: --model')`.
-   - On runtime failure: `throw __exit__(1, error.message)` (extract message from Error, don't nest).
-   - Verify exit code is one of: `1` (runtime), `2` (validation), `3` (config).
+4. **Define options (if needed)**:
+   - Add `.option()` chains before `.action()`: `.option('--flag', 'Description')` or `.option('--opt <value>', 'Description')`
+   - For parsed options (like comma-separated agents), add a parse function: `.option('--opt <value>', 'Description', parseFunction)`
+   - Pass options to handler: `.action(tracked('name', (opts) => command(opts)))`
+   - Define TypeScript interface for the options object.
+   - Verify option names use camelCase (Commander converts kebab-case flags to camelCase).
 
-5. **Add spinner for long operations**:
-   ```typescript
-   const spinner = ora('Generating config...').start();
-   try {
-     const result = await generateConfig(options);
-     spinner.succeed('Config generated');
-   } catch (error) {
-     spinner.fail('Generation failed');
-     throw __exit__(1, (error as Error).message);
-   }
-   ```
-   - Verify spinner is started, then `succeed()` or `fail()` called, never left spinning.
-
-6. **Register in `src/cli.ts`**:
-   - Import the command: `import { [commandName] } from './commands/[command-name]'`.
-   - Add `.command()` chain before `.action(tracked(...))` (see `init`, `score` examples).
-   - Pass options object to `tracked()`: `.action(tracked((options) => [commandName](options)))`.
-   - Verify command name in `.command('name')` matches the CLI invocation.
-
-7. **Add tests** in `src/commands/__tests__/[command-name].test.ts` (if complex logic):
-   - Mock `ora` as `{ start: () => ({ succeed, fail }) }`.
-   - Mock `__exit__` to capture thrown errors.
-   - Verify command succeeds with valid input, fails with invalid input.
-   - Verify exit codes are correct.
-   - Run `npm run test` to confirm all tests pass.
-
-8. **Build and validate**:
-   - Run `npm run build` to transpile via tsup.
-   - Verify no TypeScript errors: `npx tsc --noEmit`.
-   - Test command locally: `node dist/bin.js [command-name] [args]`.
-   - Verify help text shows: `node dist/bin.js [command-name] --help`.
+5. **Verify before proceeding**:
+   - Function exports correctly and is imported in cli.ts.
+   - Command is registered with tracked() wrapper.
+   - Output uses chalk for colors, not plain console.log.
+   - Error paths throw `new Error('__exit__')` for user errors.
 
 ## Examples
 
-**User says:** "Add a command to validate the fingerprint"
+### Example 1: Simple command (status)
 
-**Actions:**
-1. Create `src/commands/validate-fingerprint.ts`:
-   ```typescript
-   import * as ora from 'ora';
-   import { __exit__ } from '../lib/state';
-   import { collectFingerprint } from '../fingerprint';
-   
-   export async function validateFingerprint(): Promise<void> {
-     const spinner = ora('Validating fingerprint...').start();
-     try {
-       const fp = await collectFingerprint('.');
-       spinner.succeed('Fingerprint valid');
-       process.stdout.write(JSON.stringify({ hash: fp.hash }, null, 2));
-     } catch (error) {
-       spinner.fail('Validation failed');
-       throw __exit__(1, (error as Error).message);
-     }
-   }
-   ```
+User says: "Add a command to show config status"
 
-2. Update `src/cli.ts`:
-   ```typescript
-   import { validateFingerprint } from './commands/validate-fingerprint';
-   // ...
-   cli
-     .command('validate-fingerprint')
-     .description('Validate the project fingerprint')
-     .action(tracked(() => validateFingerprint()));
-   ```
+**Actions taken**:
+1. Create src/commands/status.ts with statusCommand() export
+2. Import and register in src/cli.ts with tracked() wrapper
 
-3. Run `npm run build && node dist/bin.js validate-fingerprint`.
+**Result**: `caliber status` displays config status; `caliber status --json` outputs JSON.
 
-**Result:** Command executes with spinner, outputs JSON, exits cleanly.
+Code example:
+```typescript
+import chalk from 'chalk';
+import { loadConfig } from '../llm/config.js';
 
-## Anti-patterns
+export async function statusCommand(options?: { json?: boolean }) {
+  const config = loadConfig();
+  
+  if (options?.json) {
+    console.log(JSON.stringify({ configured: !!config }, null, 2));
+    return;
+  }
+  
+  console.log(chalk.bold('Status'));
+  console.log(`  LLM: ${chalk.green(config?.provider || 'Not configured')}`);
+}
+```
 
-1. **Do NOT throw `new Error('message')` for user-facing failures.** Always `throw __exit__(code, message)`. Errors not thrown via `__exit__` cause stack traces printed to users. Use `__exit__(1, 'Database unreachable')` instead of `throw new Error('DB failed')`.
+Registration in src/cli.ts:
+```typescript
+import { statusCommand } from './commands/status.js';
+program
+  .command('status')
+  .description('Show config status')
+  .option('--json', 'Output as JSON')
+  .action(tracked('status', statusCommand));
+```
 
-2. **Do NOT use `console.log()` for progress or interactive output.** Use `ora` spinners. `console.log('Working...')` produces noise in logs and doesn't clear on completion. Use `ora('message').start()` then `.succeed()` or `.fail()`.
+---
 
-3. **Do NOT register commands without wrapping in `tracked()`** in `.action()`. Commands without telemetry tracking are invisible to observability. Ensure pattern is `.action(tracked((opts) => myCommand(opts)))`, not `.action((opts) => myCommand(opts))`.
+### Example 2: Subcommand with arguments
+
+User says: "Add a sources add subcommand"
+
+**Actions taken**:
+1. Create src/commands/sources.ts with sourcesAddCommand() export
+2. Register under sources group with tracked('sources:add', ...)
+
+**Result**: `caliber sources add ../lib` adds a source.
+
+Code example:
+```typescript
+export async function sourcesAddCommand(sourcePath: string) {
+  if (!fs.existsSync(sourcePath)) {
+    console.log(chalk.red(`Path not found: ${sourcePath}`));
+    throw new Error('__exit__');
+  }
+  const existing = loadSourcesConfig(process.cwd());
+  existing.push({ type: 'repo', path: sourcePath });
+  writeSourcesConfig(process.cwd(), existing);
+  console.log(chalk.green(`Added ${sourcePath}`));
+}
+```
+
+Registration:
+```typescript
+const sources = program.command('sources');
+sources
+  .command('add')
+  .argument('<path>', 'Path to add')
+  .action(tracked('sources:add', sourcesAddCommand));
+```
+
+---
+
+### Example 3: Command with option parsing
+
+User says: "Add init with --agent flag supporting comma-separated values"
+
+**Actions taken**:
+1. Create parseAgentOption() parser in src/cli.ts
+2. Create src/commands/init.ts with initCommand(options)
+3. Register with custom parser
+
+**Result**: `caliber init --agent claude,cursor` passes parsed array to handler.
+
+Parser code:
+```typescript
+function parseAgentOption(value: string) {
+  const agents = value.split(',').map(s => s.trim().toLowerCase());
+  if (agents.length === 0) {
+    console.error('Invalid agent');
+    process.exit(1);
+  }
+  return agents;
+}
+
+program.command('init')
+  .option('--agent <type>', 'Agents (comma-separated)', parseAgentOption)
+  .action(tracked('init', initCommand));
+```
 
 ## Common Issues
 
-**Issue:** Command not found after running `npm run build`.
-- **Fix:** Verify command is registered in `src/cli.ts` with `.command('name')` matching the invocation. Check import statement is present. Run `npm run build` again—tsup may not have picked up the new file. Check `dist/commands/` contains the compiled file.
+**Issue**: "SyntaxError: The requested module does not provide an export named 'myCommand'"
+- **Cause**: Function not exported or exported as default instead of named.
+- **Fix**: Use `export async function myCommand(...)` (not `export default`).
 
-**Issue:** "Cannot find module './commands/my-command'" at runtime.
-- **Fix:** Verify the file exists at `src/commands/my-command.ts` (exact spelling, kebab-case). Verify the export is `export async function myCommand()` (camelCase function name). Run `npm run build` and check `dist/commands/my-command.js` is present.
+**Issue**: Command appears in help but crashes when run
+- **Cause**: Handler not wrapped with `tracked()` or function import mismatch.
+- **Fix**: Verify import name matches function export. Wrap with `tracked('command-name', handler)`.
 
-**Issue:** Spinner text not clearing, spins forever, or shows after completion.
-- **Fix:** Ensure `spinner.succeed()` or `spinner.fail()` is called in all code paths (success and catch blocks). Never leave spinner without a terminal state. Pattern: `const s = ora('msg').start(); try { work; s.succeed(); } catch (e) { s.fail(); throw __exit__(...); }`.
+**Issue**: "Error: __exit__" appears in output for user errors
+- **Cause**: Throwing generic error instead of using error exit pattern.
+- **Fix**: Use `console.error(chalk.red('message')); throw new Error('__exit__');` for user-facing errors.
 
-**Issue:** Exit code not respected; process exits with 0 even after error.
-- **Fix:** Verify error is thrown as `__exit__(code, msg)`, not caught and swallowed. Check that `src/cli.ts` does not wrap the command in additional try/catch that catches `__exit__`. Verify `npm run build` compiled latest code.
+**Issue**: --dry-run flag not recognized
+- **Cause**: Option not declared with `.option()` or wrong camelCase in interface.
+- **Fix**: Add `.option('--dry-run', 'Description')` and ensure options interface has `dryRun?: boolean`.
+
+**Issue**: Subcommand crashes but parent command works
+- **Cause**: Using `program.command()` instead of `groupVar.command()` for subcommands.
+- **Fix**: Register on group: `const sources = program.command('sources'); sources.command('add')...`
+
+**Issue**: Telemetry not appearing
+- **Cause**: Handler not wrapped with `tracked()` or wrong command name.
+- **Fix**: Ensure `.action(tracked('{kebab-case}', handler))` wraps handler. Use colon for subcommands like 'sources:add'.
+
+**Issue**: "Cannot find module" with relative imports
+- **Cause**: Using `.ts` extension in imports.
+- **Fix**: Always use `.js` extension: `import { x } from '../lib/file.js'` (required for ESM).

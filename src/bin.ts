@@ -3,6 +3,21 @@ import { checkForUpdates } from './utils/version-check.js';
 import { flushTelemetry } from './telemetry/index.js';
 
 import { acquireLock, releaseLock } from './lib/lock.js';
+import { restoreTerminal } from './lib/terminal.js';
+
+let signalCleanupDone = false;
+
+function signalCleanup(code: number) {
+  if (signalCleanupDone) return;
+  signalCleanupDone = true;
+  restoreTerminal();
+  releaseLock();
+  process.exit(code);
+}
+
+process.on('exit', restoreTerminal);
+process.on('SIGINT', () => signalCleanup(130));
+process.on('SIGTERM', () => signalCleanup(143));
 
 acquireLock();
 
@@ -11,13 +26,15 @@ if (process.env.CALIBER_LOCAL) {
 }
 
 const userArgs = process.argv.slice(2);
-const hasCommand = userArgs.some(a => !a.startsWith('-'));
-const isQuickExit = !hasCommand || ['--version', '-V', '--help', '-h'].some(f => userArgs.includes(f));
+const hasCommand = userArgs.some((a) => !a.startsWith('-'));
+const isQuickExit =
+  !hasCommand || ['--version', '-V', '--help', '-h'].some((f) => userArgs.includes(f));
 if (!isQuickExit) {
   await checkForUpdates();
 }
 
-program.parseAsync()
+program
+  .parseAsync()
   .catch((err) => {
     const msg = err instanceof Error ? err.message : 'Unexpected error';
     if (msg !== '__exit__') {

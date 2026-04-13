@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 vi.mock('../../learner/roi.js', async () => {
-  const actual = await vi.importActual<typeof import('../../learner/roi.js')>('../../learner/roi.js');
+  const actual =
+    await vi.importActual<typeof import('../../learner/roi.js')>('../../learner/roi.js');
   return {
     ...actual,
     readROIStats: vi.fn(),
@@ -48,23 +49,28 @@ function makeEmptyTotals(): ROITotals {
   };
 }
 
-function makeStats(sessionCount: number, opts?: { withTasks?: boolean; withLearnings?: number }): ROIStats {
-  const sessions = Array.from({ length: sessionCount }, (_, i) => ({
-    timestamp: `2026-01-0${i + 1}T00:00:00Z`,
-    sessionId: `s${i}`,
+function makeStats(
+  sessionCount: number,
+  opts?: { withTasks?: boolean; withLearnings?: number },
+): ROIStats {
+  const sessions = Array.from({ length: sessionCount }, (_, _i) => ({
+    timestamp: `2026-01-0${_i + 1}T00:00:00Z`,
+    sessionId: `s${_i}`,
     eventCount: 50,
-    failureCount: i % 3 === 0 ? 3 : 1,
+    failureCount: _i % 3 === 0 ? 3 : 1,
     promptCount: 2,
     wasteSeconds: 30,
-    hadLearningsAvailable: i > 0,
-    learningsCount: i > 0 ? 5 : 0,
-    newLearningsProduced: i === 0 ? 3 : 0,
-    ...(opts?.withTasks ? {
-      taskCount: 5,
-      taskSuccessCount: 3,
-      taskCorrectionCount: 1,
-      taskFailureCount: 1,
-    } : {}),
+    hadLearningsAvailable: _i > 0,
+    learningsCount: _i > 0 ? 5 : 0,
+    newLearningsProduced: _i === 0 ? 3 : 0,
+    ...(opts?.withTasks
+      ? {
+          taskCount: 5,
+          taskSuccessCount: 3,
+          taskCorrectionCount: 1,
+          taskFailureCount: 1,
+        }
+      : {}),
   }));
 
   const learningCount = opts?.withLearnings ?? (sessionCount > 0 ? 5 : 0);
@@ -77,8 +83,8 @@ function makeStats(sessionCount: number, opts?: { withTasks?: boolean; withLearn
     occurrences: i + 1,
   }));
 
-  const withLearnings = sessions.filter(s => s.hadLearningsAvailable).length;
-  const withoutLearnings = sessions.filter(s => !s.hadLearningsAvailable).length;
+  const withLearnings = sessions.filter((s) => s.hadLearningsAvailable).length;
+  const withoutLearnings = sessions.filter((s) => !s.hadLearningsAvailable).length;
 
   return {
     sessions,
@@ -87,8 +93,12 @@ function makeStats(sessionCount: number, opts?: { withTasks?: boolean; withLearn
       ...makeEmptyTotals(),
       totalSessionsWithLearnings: withLearnings,
       totalSessionsWithoutLearnings: withoutLearnings,
-      totalFailuresWithLearnings: sessions.filter(s => s.hadLearningsAvailable).reduce((sum, s) => sum + s.failureCount, 0),
-      totalFailuresWithoutLearnings: sessions.filter(s => !s.hadLearningsAvailable).reduce((sum, s) => sum + s.failureCount, 0),
+      totalFailuresWithLearnings: sessions
+        .filter((s) => s.hadLearningsAvailable)
+        .reduce((sum, s) => sum + s.failureCount, 0),
+      totalFailuresWithoutLearnings: sessions
+        .filter((s) => !s.hadLearningsAvailable)
+        .reduce((sum, s) => sum + s.failureCount, 0),
       totalWasteTokens: learningCount * 100,
       totalWasteSeconds: sessionCount * 30,
       estimatedSavingsTokens: learningCount * 100 * withLearnings,
@@ -190,17 +200,37 @@ describe('insights command', () => {
     const stats: ROIStats = {
       sessions: [
         ...Array.from({ length: 3 }, (_, i) => ({
-          timestamp: `2026-01-0${i + 1}T00:00:00Z`, sessionId: `wo${i}`,
-          eventCount: 50, failureCount: 6, promptCount: 2, wasteSeconds: 30,
-          hadLearningsAvailable: false, learningsCount: 0, newLearningsProduced: 0,
+          timestamp: `2026-01-0${i + 1}T00:00:00Z`,
+          sessionId: `wo${i}`,
+          eventCount: 50,
+          failureCount: 6,
+          promptCount: 2,
+          wasteSeconds: 30,
+          hadLearningsAvailable: false,
+          learningsCount: 0,
+          newLearningsProduced: 0,
         })),
         ...Array.from({ length: 3 }, (_, i) => ({
-          timestamp: `2026-02-0${i + 1}T00:00:00Z`, sessionId: `wi${i}`,
-          eventCount: 50, failureCount: 1, promptCount: 2, wasteSeconds: 10,
-          hadLearningsAvailable: true, learningsCount: 5, newLearningsProduced: 0,
+          timestamp: `2026-02-0${i + 1}T00:00:00Z`,
+          sessionId: `wi${i}`,
+          eventCount: 50,
+          failureCount: 1,
+          promptCount: 2,
+          wasteSeconds: 10,
+          hadLearningsAvailable: true,
+          learningsCount: 5,
+          newLearningsProduced: 0,
         })),
       ],
-      learnings: [{ timestamp: '2026-01-01T00:00:00Z', observationType: 'pattern', summary: 'l1', wasteTokens: 100, sourceEventCount: 50 }],
+      learnings: [
+        {
+          timestamp: '2026-01-01T00:00:00Z',
+          observationType: 'pattern',
+          summary: 'l1',
+          wasteTokens: 100,
+          sourceEventCount: 50,
+        },
+      ],
       totals: {
         ...makeEmptyTotals(),
         totalSessionsWithLearnings: 3,

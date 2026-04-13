@@ -1,0 +1,36 @@
+name: Caliber Score
+
+on:
+  pull_request:
+    branches: [master, next]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: caliber-score-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  score:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Fetch base branch for comparison
+        run: git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
+
+      - uses: caliber-ai-org/ai-setup@v1
+        with:
+          comment: true
+          fail-below: 0
+        env:
+          CALIBER_SKIP_UPDATE_CHECK: "1"
+          CALIBER_TELEMETRY_DISABLED: "1"

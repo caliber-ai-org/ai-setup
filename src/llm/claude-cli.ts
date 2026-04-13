@@ -1,23 +1,32 @@
 import { spawn, execSync, type ChildProcess } from 'node:child_process';
-import type { LLMProvider, LLMCallOptions, LLMStreamOptions, LLMStreamCallbacks, LLMConfig } from './types.js';
+import type {
+  LLMProvider,
+  LLMCallOptions,
+  LLMStreamOptions,
+  LLMStreamCallbacks,
+  LLMConfig,
+} from './types.js';
 import { parseSeatBasedError } from './seat-based-errors.js';
+import { trackUsage } from './usage.js';
+import { estimateTokens } from './utils.js';
 
 const CLAUDE_CLI_BIN = 'claude';
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
 
 function spawnClaude(args: string[]): ChildProcess {
+  const env = { ...process.env, CLAUDE_CODE_SIMPLE: '1' };
   return IS_WINDOWS
     ? spawn([CLAUDE_CLI_BIN, ...args].join(' '), {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'] as const,
-        env: process.env,
+        env,
         shell: true,
       })
     : spawn(CLAUDE_CLI_BIN, args, {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'],
-        env: process.env,
+        env,
       });
 }
 
@@ -42,23 +51,32 @@ export class ClaudeCliProvider implements LLMProvider {
 
   async call(options: LLMCallOptions): Promise<string> {
     const combined = this.buildCombinedPrompt(options);
-    return this.runClaudePrint(combined, options.model);
+    const result = await this.runClaudePrint(combined, options.model);
+    trackUsage(options.model || this.defaultModel, {
+      inputTokens: estimateTokens(combined),
+      outputTokens: estimateTokens(result),
+    });
+    return result;
   }
 
   async stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void> {
     const combined = this.buildCombinedPrompt(options);
+    const inputEstimate = estimateTokens(combined);
     const args = ['-p'];
     if (options.model) args.push('--model', options.model);
     const child = spawnClaude(args);
     child.stdin!.end(combined);
 
     let settled = false;
+    let outputChars = 0;
     const chunks: Buffer[] = [];
     const stderrChunks: Buffer[] = [];
 
     child.stdout!.on('data', (chunk: Buffer) => {
       chunks.push(chunk);
-      callbacks.onText(chunk.toString('utf-8'));
+      const text = chunk.toString('utf-8');
+      outputChars += text.length;
+      callbacks.onText(text);
     });
 
     child.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
@@ -69,8 +87,8 @@ export class ClaudeCliProvider implements LLMProvider {
         settled = true;
         callbacks.onError(
           new Error(
-            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`
-          )
+            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`,
+          ),
         );
       }
     }, this.timeoutMs);
@@ -88,6 +106,11 @@ export class ClaudeCliProvider implements LLMProvider {
       if (settled) return;
       settled = true;
       if (code === 0) {
+        const model = options.model || this.defaultModel;
+        trackUsage(model, {
+          inputTokens: inputEstimate,
+          outputTokens: Math.ceil(outputChars / 4),
+        });
         callbacks.onEnd({ stopReason: 'end_turn' });
       } else {
         const stderr = Buffer.concat(stderrChunks).toString('utf-8').trim();
@@ -127,18 +150,37 @@ export class ClaudeCliProvider implements LLMProvider {
       const child = spawnClaude(args);
       child.stdin!.end(combinedPrompt);
 
+      let settled = false;
       const chunks: Buffer[] = [];
       const stderrChunks: Buffer[] = [];
 
       child.stdout!.on('data', (chunk: Buffer) => chunks.push(chunk));
       child.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
 
+      const timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        if (!settled) {
+          settled = true;
+          reject(
+            new Error(
+              `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`
+            )
+          );
+        }
+      }, this.timeoutMs);
+
       child.on('error', (err) => {
         clearTimeout(timer);
-        reject(err);
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
       });
+
       child.on('close', (code, signal) => {
         clearTimeout(timer);
+        if (settled) return;
+        settled = true;
         const stdout = Buffer.concat(chunks).toString('utf-8').trim();
         if (code === 0) {
           resolve(stdout);
@@ -154,15 +196,6 @@ export class ClaudeCliProvider implements LLMProvider {
           reject(new Error(detail ? `${base}. ${detail}` : base));
         }
       });
-
-      const timer = setTimeout(() => {
-        child.kill('SIGTERM');
-        reject(
-          new Error(
-            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`
-          )
-        );
-      }, this.timeoutMs);
     });
   }
 }
@@ -170,10 +203,40 @@ export class ClaudeCliProvider implements LLMProvider {
 /** Whether the Claude Code CLI is on PATH (user has installed it and can run `claude -p`). */
 export function isClaudeCliAvailable(): boolean {
   try {
-    const cmd = process.platform === 'win32' ? `where ${CLAUDE_CLI_BIN}` : `which ${CLAUDE_CLI_BIN}`;
+    const cmd =
+      process.platform === 'win32' ? `where ${CLAUDE_CLI_BIN}` : `which ${CLAUDE_CLI_BIN}`;
     execSync(cmd, { stdio: 'ignore' });
     return true;
   } catch {
     return false;
   }
+}
+
+let cachedLoggedIn: boolean | null = null;
+
+/** Reset the cached login status — used in tests. */
+export function resetClaudeCliLoginCache(): void {
+  cachedLoggedIn = null;
+}
+
+/** Whether the user is logged in to Claude Code CLI. Uses `claude auth status` for a zero-cost check. Result is cached for the process lifetime. */
+export function isClaudeCliLoggedIn(): boolean {
+  if (cachedLoggedIn !== null) return cachedLoggedIn;
+  try {
+    const result = execSync(`${CLAUDE_CLI_BIN} auth status`, {
+      input: '',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000,
+    });
+    const output = result.toString().trim();
+    try {
+      const status = JSON.parse(output) as { loggedIn?: boolean };
+      cachedLoggedIn = status.loggedIn === true;
+    } catch {
+      cachedLoggedIn = !output.toLowerCase().includes('not logged in');
+    }
+  } catch {
+    cachedLoggedIn = false;
+  }
+  return cachedLoggedIn;
 }

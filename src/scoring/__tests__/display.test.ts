@@ -4,12 +4,20 @@ import type { ScoreResult, Check } from '../index.js';
 // Disable chalk colors for predictable assertions
 vi.mock('chalk', () => {
   const identity = (s: string) => s;
-  const chainable: Record<string, unknown> = {};
+  const _chainable: Record<string, unknown> = {};
   const handler: ProxyHandler<typeof identity> = {
     get: (_target, prop) => {
-      if (prop === 'bold' || prop === 'dim' || prop === 'green' || prop === 'red' ||
-          prop === 'yellow' || prop === 'gray' || prop === 'white' || prop === 'greenBright' ||
-          prop === 'cyan') {
+      if (
+        prop === 'bold' ||
+        prop === 'dim' ||
+        prop === 'green' ||
+        prop === 'red' ||
+        prop === 'yellow' ||
+        prop === 'gray' ||
+        prop === 'white' ||
+        prop === 'greenBright' ||
+        prop === 'cyan'
+      ) {
         return new Proxy(identity, handler);
       }
       if (prop === 'hex') return () => new Proxy(identity, handler);
@@ -23,7 +31,9 @@ vi.mock('chalk', () => {
 
 import { displayScoreDelta, displayScore, displayScoreSummary } from '../display.js';
 
-function makeCheck(overrides: Partial<Check> & { id: string; name: string; category: Check['category'] }): Check {
+function makeCheck(
+  overrides: Partial<Check> & { id: string; name: string; category: Check['category'] },
+): Check {
   return {
     maxPoints: 10,
     earnedPoints: 0,
@@ -96,7 +106,11 @@ describe('displayScoreDelta', () => {
   });
 
   it('lists improved checks with point gains', () => {
-    const sharedCheck = { id: 'claude_md_exists', name: 'CLAUDE.md exists', category: 'existence' as const };
+    const sharedCheck = {
+      id: 'claude_md_exists',
+      name: 'CLAUDE.md exists',
+      category: 'existence' as const,
+    };
     const before = makeScoreResult({
       score: 20,
       grade: 'F',
@@ -162,7 +176,13 @@ describe('displayScoreSummary', () => {
       checks: [
         makeCheck({ id: 'a', name: 'Skills configured', category: 'existence', passed: false }),
         makeCheck({ id: 'b', name: 'Build commands', category: 'quality', passed: false }),
-        makeCheck({ id: 'c', name: 'Passing check', category: 'accuracy', passed: true, earnedPoints: 5 }),
+        makeCheck({
+          id: 'c',
+          name: 'Passing check',
+          category: 'accuracy',
+          passed: true,
+          earnedPoints: 5,
+        }),
       ],
     });
     displayScoreSummary(result);
@@ -176,9 +196,7 @@ describe('displayScoreSummary', () => {
     const result = makeScoreResult({
       score: 50,
       grade: 'C',
-      checks: [
-        makeCheck({ id: 'a', name: 'Failing', category: 'existence', passed: false }),
-      ],
+      checks: [makeCheck({ id: 'a', name: 'Failing', category: 'existence', passed: false })],
     });
     displayScoreSummary(result);
     const output = logs.join('\n');
@@ -188,7 +206,7 @@ describe('displayScoreSummary', () => {
 
   it('caps displayed failing checks at 5', () => {
     const checks = Array.from({ length: 8 }, (_, i) =>
-      makeCheck({ id: `f${i}`, name: `Fail ${i}`, category: 'existence', passed: false })
+      makeCheck({ id: `f${i}`, name: `Fail ${i}`, category: 'existence', passed: false }),
     );
     const result = makeScoreResult({ score: 20, grade: 'F', checks });
     displayScoreSummary(result);
@@ -205,7 +223,13 @@ describe('displayScoreSummary', () => {
       score: 100,
       grade: 'A',
       checks: [
-        makeCheck({ id: 'a', name: 'Passing', category: 'existence', passed: true, earnedPoints: 10 }),
+        makeCheck({
+          id: 'a',
+          name: 'Passing',
+          category: 'existence',
+          passed: true,
+          earnedPoints: 10,
+        }),
       ],
     });
     displayScoreSummary(result);
@@ -407,10 +431,38 @@ describe('displayScore', () => {
       score: 30,
       grade: 'F',
       checks: [
-        makeCheck({ id: 'a', name: 'Small fix', category: 'existence', maxPoints: 3, earnedPoints: 0, passed: false }),
-        makeCheck({ id: 'b', name: 'Big fix', category: 'quality', maxPoints: 8, earnedPoints: 0, passed: false }),
-        makeCheck({ id: 'c', name: 'Medium fix', category: 'grounding', maxPoints: 5, earnedPoints: 2, passed: false }),
-        makeCheck({ id: 'd', name: 'Passing', category: 'accuracy', maxPoints: 7, earnedPoints: 7, passed: true }),
+        makeCheck({
+          id: 'a',
+          name: 'Small fix',
+          category: 'existence',
+          maxPoints: 3,
+          earnedPoints: 0,
+          passed: false,
+        }),
+        makeCheck({
+          id: 'b',
+          name: 'Big fix',
+          category: 'quality',
+          maxPoints: 8,
+          earnedPoints: 0,
+          passed: false,
+        }),
+        makeCheck({
+          id: 'c',
+          name: 'Medium fix',
+          category: 'grounding',
+          maxPoints: 5,
+          earnedPoints: 2,
+          passed: false,
+        }),
+        makeCheck({
+          id: 'd',
+          name: 'Passing',
+          category: 'accuracy',
+          maxPoints: 7,
+          earnedPoints: 7,
+          passed: true,
+        }),
       ],
     });
 
@@ -434,7 +486,14 @@ describe('displayScore', () => {
       score: 100,
       grade: 'A',
       checks: [
-        makeCheck({ id: 'a', name: 'Passing', category: 'existence', maxPoints: 10, earnedPoints: 10, passed: true }),
+        makeCheck({
+          id: 'a',
+          name: 'Passing',
+          category: 'existence',
+          maxPoints: 10,
+          earnedPoints: 10,
+          passed: true,
+        }),
       ],
     });
 

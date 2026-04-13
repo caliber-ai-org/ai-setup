@@ -1,0 +1,76 @@
+name: PR Size Label
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  size-label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Label PR by size
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            const changes = files.reduce((sum, f) => sum + f.additions + f.deletions, 0);
+
+            const labels = { 'size/XS': 10, 'size/S': 50, 'size/M': 200, 'size/L': 500 };
+            let label = 'size/XL';
+            for (const [name, threshold] of Object.entries(labels)) {
+              if (changes <= threshold) { label = name; break; }
+            }
+
+            const existing = (await github.rest.issues.listLabelsOnIssue({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })).data.map(l => l.name).filter(n => n.startsWith('size/'));
+
+            for (const old of existing) {
+              if (old !== label) {
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  name: old,
+                });
+              }
+            }
+
+            if (!existing.includes(label)) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: [label],
+              });
+            }
+
+            if (label === 'size/XL') {
+              const { data: comments } = await github.rest.issues.listComments({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+              });
+              const alreadyWarned = comments.some(c =>
+                c.body?.includes('Consider splitting it into smaller PRs')
+              );
+              if (!alreadyWarned) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: `This PR has **${changes}** lines changed. Consider splitting it into smaller PRs for easier review.`,
+                });
+              }
+            }

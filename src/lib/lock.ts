@@ -1,30 +1,46 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 
-const LOCK_FILE = path.join(os.tmpdir(), '.caliber.lock');
 const STALE_MS = 10 * 60 * 1000; // 10 minutes — treat lock as stale after this
 
+// Cache the lock path at acquire time so chdir doesn't change it mid-process
+let _lockPath: string | null = null;
+
+function buildLockPath(): string {
+  const cwd = process.cwd();
+  const hash = crypto.createHash('md5').update(cwd).digest('hex').slice(0, 8);
+  return path.join(os.tmpdir(), `.caliber-${hash}.lock`);
+}
+
+function getLockFile(): string {
+  if (!_lockPath) _lockPath = buildLockPath();
+  return _lockPath;
+}
+
 /**
- * Check if another caliber process is actively running.
+ * Check if another caliber process is actively running in a given directory.
  * Used by hook commands (refresh --quiet, learn finalize) to bail early
  * when Claude Code fires SessionEnd hooks mid-session.
  */
 export function isCaliberRunning(): boolean {
   try {
-    if (!fs.existsSync(LOCK_FILE)) return false;
-    const raw = fs.readFileSync(LOCK_FILE, 'utf-8').trim();
+    // Check the lock for the CURRENT cwd (which may differ from where acquireLock ran)
+    const lockFile = buildLockPath();
+    if (!fs.existsSync(lockFile)) return false;
+    const raw = fs.readFileSync(lockFile, 'utf-8').trim();
     const { pid, ts } = JSON.parse(raw);
 
-    // Stale lock — ignore
+    if (pid === process.pid) return false; // lock belongs to this process, not another
+
     if (Date.now() - ts > STALE_MS) return false;
 
-    // Check if PID is still alive
     try {
-      process.kill(pid, 0); // signal 0 = existence check only
+      process.kill(pid, 0);
       return true;
     } catch {
-      return false; // process gone
+      return false;
     }
   } catch {
     return false;
@@ -34,7 +50,7 @@ export function isCaliberRunning(): boolean {
 /** Write a lock file for the current process. */
 export function acquireLock(): void {
   try {
-    fs.writeFileSync(LOCK_FILE, JSON.stringify({ pid: process.pid, ts: Date.now() }));
+    fs.writeFileSync(getLockFile(), JSON.stringify({ pid: process.pid, ts: Date.now() }));
   } catch {
     // best-effort
   }
@@ -43,7 +59,8 @@ export function acquireLock(): void {
 /** Remove the lock file. */
 export function releaseLock(): void {
   try {
-    if (fs.existsSync(LOCK_FILE)) fs.unlinkSync(LOCK_FILE);
+    const lockFile = getLockFile();
+    if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
   } catch {
     // best-effort
   }

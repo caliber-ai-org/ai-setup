@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { execSync } from 'child_process';
 import { join } from 'path';
@@ -8,9 +8,11 @@ import { collectProjectStructure } from '../utils.js';
 
 describe('checkGrounding', () => {
   let dir: string;
+  let _chainable: unknown;
 
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'caliber-grounding-'));
+    _chainable = undefined;
   });
 
   afterEach(() => {
@@ -29,7 +31,7 @@ describe('checkGrounding', () => {
     );
 
     const checks = checkGrounding(dir);
-    const groundingCheck = checks.find(c => c.id === 'project_grounding');
+    const groundingCheck = checks.find((c) => c.id === 'project_grounding');
     expect(groundingCheck?.earnedPoints).toBeGreaterThan(0);
   });
 
@@ -39,10 +41,13 @@ describe('checkGrounding', () => {
     mkdirSync(join(dir, 'infra'));
     writeFileSync(join(dir, 'package.json'), '{}');
 
-    writeFileSync(join(dir, 'CLAUDE.md'), '# Project\n\nWrite clean code and follow best practices.');
+    writeFileSync(
+      join(dir, 'CLAUDE.md'),
+      '# Project\n\nWrite clean code and follow best practices.',
+    );
 
     const checks = checkGrounding(dir);
-    const groundingCheck = checks.find(c => c.id === 'project_grounding');
+    const groundingCheck = checks.find((c) => c.id === 'project_grounding');
     expect(groundingCheck?.earnedPoints).toBeLessThan(6);
   });
 
@@ -52,7 +57,7 @@ describe('checkGrounding', () => {
     writeFileSync(join(dir, 'CLAUDE.md'), '# Project\n\nSome generic content.');
 
     const checks = checkGrounding(dir);
-    const groundingCheck = checks.find(c => c.id === 'project_grounding');
+    const groundingCheck = checks.find((c) => c.id === 'project_grounding');
     expect(groundingCheck?.fix).toBeDefined();
     expect(groundingCheck?.fix?.action).toBe('add_references');
     expect(groundingCheck?.fix?.data.missing).toBeDefined();
@@ -66,7 +71,7 @@ describe('checkGrounding', () => {
     );
 
     const checks = checkGrounding(dir);
-    const densityCheck = checks.find(c => c.id === 'reference_density');
+    const densityCheck = checks.find((c) => c.id === 'reference_density');
     expect(densityCheck?.earnedPoints).toBeGreaterThan(0);
   });
 
@@ -90,7 +95,7 @@ describe('checkGrounding', () => {
 
   it('handles empty project gracefully', () => {
     const checks = checkGrounding(dir);
-    const groundingCheck = checks.find(c => c.id === 'project_grounding');
+    const groundingCheck = checks.find((c) => c.id === 'project_grounding');
     expect(groundingCheck).toBeDefined();
     expect(groundingCheck?.earnedPoints).toBe(0);
   });

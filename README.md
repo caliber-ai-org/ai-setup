@@ -1,3 +1,7 @@
+# Caliber
+
+**Hand-written `CLAUDE.md` files go stale the moment you refactor.** Your AI agent hallucinates paths that no longer exist, misses new dependencies, and gives advice based on yesterday's architecture. Caliber generates and maintains your AI context files (`CLAUDE.md`, `.cursor/rules/`, `AGENTS.md`, `copilot-instructions.md`) so they stay accurate as your code evolves — and keeps every agent on your team in sync, whether they use Claude Code, Cursor, Codex, OpenCode, or GitHub Copilot.
+
 <p align="center">
   <img src="assets/demo-header.gif" alt="Caliber product demo" width="900">
 </p>
@@ -6,34 +10,20 @@
   <a href="https://www.npmjs.com/package/@rely-ai/caliber"><img src="https://img.shields.io/npm/v/@rely-ai/caliber" alt="npm version"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/npm/l/@rely-ai/caliber" alt="license"></a>
   <a href="https://nodejs.org"><img src="https://img.shields.io/node/v/@rely-ai/caliber" alt="node"></a>
-  <img src="https://img.shields.io/badge/caliber-89%2F100-green" alt="Caliber Score">
+  <img src="https://img.shields.io/badge/caliber-94%2F100-brightgreen" alt="Caliber Score">
   <img src="https://img.shields.io/badge/Claude_Code-supported-blue" alt="Claude Code">
   <img src="https://img.shields.io/badge/Cursor-supported-blue" alt="Cursor">
   <img src="https://img.shields.io/badge/Codex-supported-blue" alt="Codex">
+  <img src="https://img.shields.io/badge/OpenCode-supported-blue" alt="OpenCode">
+  <img src="https://img.shields.io/badge/GitHub_Copilot-supported-blue" alt="GitHub Copilot">
 </p>
-
----
-
-### Try it — zero install, zero commitment
-
-```bash
-npx @rely-ai/caliber score
-```
-
-Score your AI agent config in 3 seconds. No API key. No changes to your code. Just a score.
-
-> **Your code stays on your machine.** Scoring is 100% local — no LLM calls, no code sent anywhere. Generation uses your own AI subscription (Claude Code, Cursor) or your own API key (Anthropic, OpenAI, Vertex AI). Caliber never sees your code.
-
----
-
-Caliber scores, generates, and keeps your AI agent configs in sync with your codebase. It fingerprints your project — languages, frameworks, dependencies, architecture — and produces tailored configs for **Claude Code**, **Cursor**, and **OpenAI Codex**. When your code evolves, Caliber detects the drift and updates your configs to match.
 
 ## Before / After
 
 Most repos start with a hand-written `CLAUDE.md` and nothing else. Here's what Caliber finds — and fixes:
 
 ```
-  Before                                    After caliber init
+  Before                                    After /setup-caliber
   ──────────────────────────────            ──────────────────────────────
 
   Agent Config Score    35 / 100            Agent Config Score    94 / 100
@@ -53,6 +43,36 @@ Scoring is deterministic — no LLM, no API calls. It cross-references your conf
 caliber score --compare main    # See how your branch changed the score
 ```
 
+## Get Started
+
+Requires **Node.js >= 20**.
+
+```bash
+npx @rely-ai/caliber bootstrap
+```
+
+Then, in your terminal (not the IDE chat), start a Claude Code or Cursor CLI session and type:
+
+> **/setup-caliber**
+
+Your agent detects your stack, generates tailored configs for every platform your team uses, sets up pre-commit hooks, and enables continuous sync — all from inside your normal workflow.
+
+**Don't use Claude Code or Cursor?** Run `caliber init` instead — it's the same setup as a CLI wizard. Works with any LLM provider: bring your own Anthropic, OpenAI, or Vertex AI key.
+
+> **Your code stays on your machine.** Bootstrap is 100% local — no LLM calls, no code sent anywhere. Generation uses your own AI subscription or API key. Caliber never sees your code.
+
+<details>
+<summary><strong>Windows Users</strong></summary>
+
+Caliber works on Windows with a few notes:
+
+- **Run from your terminal** (PowerShell, CMD, or Git Bash) — not from inside an IDE chat window. Open a terminal, `cd` into your project folder, then run `npx @rely-ai/caliber bootstrap`.
+- **Git Bash is recommended.** Caliber's pre-commit hooks and auto-sync scripts use shell syntax. Git for Windows includes Git Bash, which handles this automatically. If you only use PowerShell, hooks may be skipped silently.
+- **Cursor Agent CLI:** If prompted to install it, download from [cursor.com/downloads](https://www.cursor.com/downloads) instead of the `curl | bash` command shown on macOS/Linux. Then run `agent login` in your terminal to authenticate.
+- **One terminal at a time.** Avoid running Caliber from multiple terminals simultaneously — this can cause conflicting state and unexpected provider detection.
+
+</details>
+
 ## Audits first, writes second
 
 Caliber never overwrites your existing configs without asking. The workflow mirrors code review:
@@ -67,26 +87,28 @@ If your existing config scores **95+**, Caliber skips full regeneration and appl
 
 ## How It Works
 
-Caliber is not a one-time setup tool. It's a loop:
+Bootstrap gives your agent the `/setup-caliber` skill. Your agent analyzes your project — languages, frameworks, dependencies, architecture — generates configs, and installs hooks. From there, it's a loop:
 
 ```
-          caliber score
+  npx @rely-ai/caliber bootstrap       ← one-time, 2 seconds
               │
               ▼
-  ┌──── caliber init ◄────────────────┐
-  │     (generate / fix)              │
-  │           │                       │
-  │           ▼                       │
-  │     your code evolves             │
-  │     (new deps, renamed files,     │
-  │      changed architecture)        │
-  │           │                       │
-  │           ▼                       │
-  └──► caliber refresh ──────────────►┘
-       (detect drift, update configs)
+  agent runs /setup-caliber             ← agent handles everything
+              │
+              ▼
+  ┌──── configs generated ◄────────────┐
+  │           │                        │
+  │           ▼                        │
+  │     your code evolves              │
+  │     (new deps, renamed files,      │
+  │      changed architecture)         │
+  │           │                        │
+  │           ▼                        │
+  └──► caliber refresh ──────────────►─┘
+       (auto, on every commit)
 ```
 
-Auto-refresh hooks run this loop automatically — on every commit or at the end of each AI coding session.
+Pre-commit hooks run the refresh loop automatically. New team members get nudged to bootstrap on their first session.
 
 ### What It Generates
 
@@ -106,6 +128,13 @@ Auto-refresh hooks run this loop automatically — on every commit or at the end
 - `AGENTS.md` — Project context for Codex
 - `.agents/skills/*/SKILL.md` — Skills for Codex
 
+**OpenCode**
+- `AGENTS.md` — Project context (shared with Codex when both are targeted)
+- `.opencode/skills/*/SKILL.md` — Skills for OpenCode
+
+**GitHub Copilot**
+- `.github/copilot-instructions.md` — Project context for Copilot
+
 ## Key Features
 
 <details>
@@ -118,13 +147,15 @@ TypeScript, Python, Go, Rust, Java, Ruby, Terraform, and more. Language and fram
 <details>
 <summary><strong>Any AI Tool</strong></summary>
 
-Target a single platform or all three at once:
+`caliber bootstrap` auto-detects which agents you have installed. For manual control:
 ```bash
 caliber init --agent claude        # Claude Code only
 caliber init --agent cursor        # Cursor only
 caliber init --agent codex         # Codex only
-caliber init --agent all           # All three
-caliber init --agent claude,cursor # Comma-separated
+caliber init --agent opencode        # OpenCode only
+caliber init --agent github-copilot  # GitHub Copilot only
+caliber init --agent all             # All platforms
+caliber init --agent claude,cursor   # Comma-separated
 ```
 
 </details>
@@ -198,11 +229,19 @@ The `refresh` command analyzes your git diff (committed, staged, and unstaged ch
 </details>
 
 <details>
+<summary><strong>Team Onboarding</strong></summary>
+
+When Caliber is set up in a repo, it automatically nudges new team members to configure it on their machine. A lightweight session hook checks whether the pre-commit hook is installed and prompts setup if not — no manual coordination needed.
+
+</details>
+
+<details>
 <summary><strong>Fully Reversible</strong></summary>
 
 - **Automatic backups** — originals saved to `.caliber/backups/` before every write
 - **Score regression guard** — if a regeneration produces a lower score, changes are auto-reverted
 - **Full undo** — `caliber undo` restores everything to its previous state
+- **Clean uninstall** — `caliber uninstall` removes everything Caliber added (hooks, generated sections, skills, learnings) while preserving your own content
 - **Dry run** — preview changes with `--dry-run` before applying
 
 </details>
@@ -211,9 +250,10 @@ The `refresh` command analyzes your git diff (committed, staged, and unstaged ch
 
 | Command | Description |
 |---|---|
+| `caliber bootstrap` | Install agent skills — the fastest way to get started |
+| `caliber init` | Full setup wizard — analyze, generate, review, install hooks |
 | `caliber score` | Score config quality (deterministic, no LLM) |
 | `caliber score --compare <ref>` | Compare current score against a git ref |
-| `caliber init` | Full setup wizard — analyze, generate, review, install hooks |
 | `caliber regenerate` | Re-analyze and regenerate configs (aliases: `regen`, `re`) |
 | `caliber refresh` | Update docs based on recent code changes |
 | `caliber skills` | Discover and install community skills |
@@ -221,6 +261,7 @@ The `refresh` command analyzes your git diff (committed, staged, and unstaged ch
 | `caliber hooks` | Manage auto-refresh hooks |
 | `caliber config` | Configure LLM provider, API key, and model |
 | `caliber status` | Show current setup status |
+| `caliber uninstall` | Remove all Caliber resources from a project |
 | `caliber undo` | Revert all changes made by Caliber |
 
 ## FAQ
@@ -235,9 +276,16 @@ No. Caliber shows you a diff of every proposed change. You accept, refine, or de
 <details>
 <summary><strong>Does it need an API key?</strong></summary>
 
-**Scoring:** No. `caliber score` runs 100% locally with no LLM.
+**Bootstrap & scoring:** No. Both run 100% locally with no LLM.
 
-**Generation:** Uses your existing Claude Code or Cursor subscription (no API key needed), or bring your own key for Anthropic, OpenAI, or Vertex AI.
+**Generation** (via `/setup-caliber` or `caliber init`): Uses your existing Claude Code or Cursor subscription (no API key needed), or bring your own key for Anthropic, OpenAI, or Vertex AI.
+
+</details>
+
+<details>
+<summary><strong>What's the difference between bootstrap and init?</strong></summary>
+
+`caliber bootstrap` installs agent skills in 2 seconds — your agent then runs `/setup-caliber` to handle the rest from inside your session. `caliber init` is the full interactive wizard for users who prefer a CLI-driven setup. Both end up in the same place.
 
 </details>
 
@@ -258,23 +306,9 @@ Yes. Run `caliber init` from any directory. `caliber refresh` can update configs
 <details>
 <summary><strong>Does it send my code anywhere?</strong></summary>
 
-Scoring is fully local. Generation sends your project fingerprint (not source code) to whatever LLM provider you configure — the same provider your AI editor already uses. Anonymous usage analytics (no code, no file contents) can be disabled via `caliber config`.
+Scoring is fully local. Generation sends a project summary (languages, structure, dependencies — not source code) to whatever LLM provider you configure — the same provider your AI editor already uses. Anonymous usage analytics (no code, no file contents) can be disabled via `caliber config`.
 
 </details>
-
-## Add a Caliber badge to your repo
-
-After scoring your project, add a badge to your README:
-
-![Caliber Score](https://img.shields.io/badge/caliber-94%2F100-brightgreen)
-
-Copy this markdown and replace `94` with your actual score:
-
-```
-![Caliber Score](https://img.shields.io/badge/caliber-SCORE%2F100-COLOR)
-```
-
-Color guide: `brightgreen` (90+), `green` (70-89), `yellow` (40-69), `red` (<40).
 
 ## LLM Providers
 
@@ -285,9 +319,9 @@ No API key? No problem. Caliber works with your existing AI tool subscription:
 | **Claude Code** (your seat) | `caliber config` → Claude Code | Inherited from Claude Code |
 | **Cursor** (your seat) | `caliber config` → Cursor | Inherited from Cursor |
 | **Anthropic** | `export ANTHROPIC_API_KEY=sk-ant-...` | `claude-sonnet-4-6` |
-| **OpenAI** | `export OPENAI_API_KEY=sk-...` | `gpt-4.1` |
+| **OpenAI** | `export OPENAI_API_KEY=sk-...` | `gpt-5.4-mini` |
 | **Vertex AI** | `export VERTEX_PROJECT_ID=my-project` | `claude-sonnet-4-6` |
-| **Custom endpoint** | `OPENAI_API_KEY` + `OPENAI_BASE_URL` | `gpt-4.1` |
+| **Custom endpoint** | `OPENAI_API_KEY` + `OPENAI_BASE_URL` | `gpt-5.4-mini` |
 
 Override the model for any provider: `export CALIBER_MODEL=<model-name>` or use `caliber config`.
 
@@ -333,17 +367,12 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 
 </details>
 
-## Requirements
-
-- **Node.js** >= 20
-- **One LLM provider:** your **Claude Code** or **Cursor** subscription (no API key), or an API key for Anthropic / OpenAI / Vertex AI
-
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
 
 ```bash
-git clone https://github.com/rely-ai-org/caliber.git
+git clone https://github.com/caliber-ai-org/ai-setup.git
 cd caliber
 npm install
 npm run dev      # Watch mode
@@ -353,8 +382,20 @@ npm run build    # Compile
 
 Uses [conventional commits](https://www.conventionalcommits.org/) — `feat:` for features, `fix:` for bug fixes.
 
+## Add a Caliber badge to your repo
+
+After scoring your project, add a badge to your README:
+
+![Caliber Score](https://img.shields.io/badge/caliber-94%2F100-brightgreen)
+
+Copy this markdown and replace `94` with your actual score:
+
+```
+![Caliber Score](https://img.shields.io/badge/caliber-SCORE%2F100-COLOR)
+```
+
+Color guide: `brightgreen` (90+), `green` (70-89), `yellow` (40-69), `red` (<40).
+
 ## License
 
 MIT
-
-This Project is awesome !

@@ -25,7 +25,11 @@ describe('StreamParser', () => {
 
   it('detects JSON start and emits onJsonStart', () => {
     let jsonStarted = false;
-    const parser = new StreamParser({ onJsonStart: () => { jsonStarted = true; } });
+    const parser = new StreamParser({
+      onJsonStart: () => {
+        jsonStarted = true;
+      },
+    });
 
     parser.feed('STATUS: Working\n');
     expect(jsonStarted).toBe(false);
@@ -58,7 +62,11 @@ describe('StreamParser', () => {
 
   it('handles JSON start split across chunks', () => {
     let jsonStarted = false;
-    const parser = new StreamParser({ onJsonStart: () => { jsonStarted = true; } });
+    const parser = new StreamParser({
+      onJsonStart: () => {
+        jsonStarted = true;
+      },
+    });
 
     parser.feed('Some text\n');
     expect(jsonStarted).toBe(false);
@@ -72,7 +80,9 @@ describe('StreamParser', () => {
     const statuses: string[] = [];
     const parser = new StreamParser({ onStatus: (s) => statuses.push(s) });
 
-    parser.feed('STATUS: One\nSTATUS: Two\nSTATUS: Three\nSTATUS: Four\nSTATUS: Five\nSTATUS: Six\n');
+    parser.feed(
+      'STATUS: One\nSTATUS: Two\nSTATUS: Three\nSTATUS: Four\nSTATUS: Five\nSTATUS: Six\n',
+    );
 
     expect(statuses).toHaveLength(6);
     expect(statuses[0]).toBe('One');
@@ -97,7 +107,9 @@ describe('StreamParser', () => {
   it('handles immediate JSON start (no STATUS lines)', () => {
     let jsonStarted = false;
     const parser = new StreamParser({
-      onJsonStart: () => { jsonStarted = true; },
+      onJsonStart: () => {
+        jsonStarted = true;
+      },
     });
 
     parser.feed('{"claude": {"claudeMd": "test"}}\n');
@@ -122,7 +134,7 @@ describe('StreamParser', () => {
 
     // High surrogate (first half of emoji)
     const emoji = '😀';
-    const high = emoji.slice(0, 1); // This is actually the full emoji in JS strings
+    const _firstChar = emoji.slice(0, 1); // This is actually the full emoji in JS strings
     // In practice, JS strings handle this at the string level
     // Test with a simpler case
     parser.feed('Hello ');
@@ -170,7 +182,11 @@ describe('StreamParser', () => {
 
   it('fires onJsonStart exactly once', () => {
     let count = 0;
-    const parser = new StreamParser({ onJsonStart: () => { count++; } });
+    const parser = new StreamParser({
+      onJsonStart: () => {
+        count++;
+      },
+    });
 
     parser.feed('{"key": "val');
     parser.feed('ue", "key2": "value2"}\n');

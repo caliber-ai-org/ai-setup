@@ -5,7 +5,7 @@ Thanks for your interest in contributing! Here's how to get started.
 ## Setup
 
 ```bash
-git clone https://github.com/rely-ai-org/caliber.git
+git clone https://github.com/caliber-ai-org/ai-setup.git
 cd caliber
 npm install
 npm run dev      # Watch mode
