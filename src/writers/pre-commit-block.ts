@@ -227,7 +227,7 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "SYNCED" || echo "NO
 \`\`\`
 
 If SYNCED: proceed normally.
-If NOT_SYNCED: Tell the user: "This project uses Caliber to keep agent configs in sync. It's not set up on your machine yet — want me to set it up? (~30 seconds)". If they agree, read \`.cursor/skills/setup-caliber/SKILL.md\` and follow its instructions.
+If NOT_SYNCED: Tell the user: "This project uses Caliber to keep agent configs in sync — it is not set up yet. Want me to run /setup-caliber? (~30 seconds)". If they agree, read \`.cursor/skills/setup-caliber/SKILL.md\` and follow its instructions.
 `;
 }
 
