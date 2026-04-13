@@ -1,3 +1,9 @@
+## v1.41.4 (2026-04-13)
+
+### Other
+
+- Apply suggested fix to CHANGELOG.md from Copilot Autofix (#113)
+
 ## v1.41.3 (2026-04-13)
 
 ### Bug Fixes
