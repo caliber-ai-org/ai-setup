@@ -1,3 +1,9 @@
+## v1.41.3 (2026-04-13)
+
+### Bug Fixes
+
+- add settled guard to runClaudePrint() to prevent double-reject (#144)
+
 ## v1.41.2 (2026-04-13)
 
 ### Bug Fixes
