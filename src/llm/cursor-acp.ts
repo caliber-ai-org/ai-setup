@@ -1,4 +1,4 @@
-import { spawn, execSync, type ChildProcess } from 'node:child_process';
+import { spawn, execSync, execFileSync, type ChildProcess } from 'node:child_process';
 import os from 'node:os';
 import type {
   LLMProvider,
@@ -11,8 +11,37 @@ import { parseSeatBasedError, isRateLimitError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
 
-const AGENT_BIN = 'agent';
 const IS_WINDOWS = process.platform === 'win32';
+
+let _agentBin: string | null = null;
+
+/**
+ * Resolve the Cursor `agent` binary to an absolute path so it works even when
+ * $PATH is stripped (e.g. Claude Code hook subprocesses on macOS).
+ * Result is cached after first call.
+ */
+function resolveAgentBin(): string {
+  if (_agentBin !== null) return _agentBin;
+  try {
+    const whichCmd = IS_WINDOWS ? 'where agent' : 'which agent';
+    const out = execSync(whichCmd, { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    const p = out.split('\n')[0].trim();
+    if (p) {
+      _agentBin = p;
+      return _agentBin;
+    }
+  } catch {
+    // not on PATH
+  }
+  _agentBin = 'agent';
+  return _agentBin;
+}
+
+/** Reset cached resolution — only for tests. */
+export function resetAgentBin(): void {
+  _agentBin = null;
+}
+
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const SIGKILL_DELAY_MS = 5000;
 const STDERR_MAX_BYTES = 10 * 1024;
@@ -82,7 +111,7 @@ export class CursorAcpProvider implements LLMProvider {
     if (this.warmProcess && !this.warmProcess.killed && this.warmModel === targetModel) return;
 
     const args = this.buildArgs(targetModel, false);
-    this.warmProcess = spawn(AGENT_BIN, args, {
+    this.warmProcess = spawn(resolveAgentBin(), args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) },
       ...(IS_WINDOWS && { shell: true }),
@@ -141,7 +170,7 @@ export class CursorAcpProvider implements LLMProvider {
     }
 
     const args = this.buildArgs(model, streaming);
-    const child = spawn(AGENT_BIN, args, {
+    const child = spawn(resolveAgentBin(), args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) },
       ...(IS_WINDOWS && { shell: true }),
@@ -363,9 +392,10 @@ export class CursorAcpProvider implements LLMProvider {
 
 /** Check if Cursor agent CLI is available. */
 export function isCursorAgentAvailable(): boolean {
+  // resolveAgentBin() returns an absolute path when `which agent` succeeded.
+  if (resolveAgentBin() !== 'agent') return true;
   try {
-    const cmd = IS_WINDOWS ? `where ${AGENT_BIN}` : `which ${AGENT_BIN}`;
-    execSync(cmd, { stdio: 'ignore' });
+    execSync(IS_WINDOWS ? 'where agent' : 'which agent', { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -375,7 +405,7 @@ export function isCursorAgentAvailable(): boolean {
 /** Check if user is logged in to Cursor agent. */
 export function isCursorLoggedIn(): boolean {
   try {
-    const result = execSync(`${AGENT_BIN} status`, {
+    const result = execFileSync(resolveAgentBin(), ['status'], {
       input: '',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 5000,

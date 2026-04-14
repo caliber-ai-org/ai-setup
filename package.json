@@ -32,6 +32,7 @@
     "google-auth-library": "^9.0.0",
     "openai": "^6.29.0",
     "ora": "^8.1.0",
+    "p-limit": "^5.0.0",
     "posthog-node": "^5.28.2"
   },
   "files": [
