@@ -1,3 +1,21 @@
+## v1.41.4 (2026-04-13)
+
+### Other
+
+- Apply suggested fix to CHANGELOG.md from Copilot Autofix (#113)
+
+## v1.41.3 (2026-04-13)
+
+### Bug Fixes
+
+- add settled guard to runClaudePrint() to prevent double-reject (#144)
+
+## v1.41.2 (2026-04-13)
+
+### Bug Fixes
+
+- isCaliberRunning falsely detects current process as another caliber instance (#151)
+
 ## v1.41.1 (2026-04-08)
 
 ### Bug Fixes
@@ -378,8 +396,6 @@
 ## v1.21.2 (2026-03-17)
 
 ## v1.21.1 (2026-03-16)
-
-# Changelog
 
 ## v1.21.0 (2026-03-16)
 

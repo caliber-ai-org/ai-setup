@@ -215,18 +215,37 @@ export class ClaudeCliProvider implements LLMProvider {
       const child = spawnClaude(args);
       child.stdin!.end(combinedPrompt);
 
+      let settled = false;
       const chunks: Buffer[] = [];
       const stderrChunks: Buffer[] = [];
 
       child.stdout!.on('data', (chunk: Buffer) => chunks.push(chunk));
       child.stderr!.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
 
+      const timer = setTimeout(() => {
+        child.kill('SIGTERM');
+        if (!settled) {
+          settled = true;
+          reject(
+            new Error(
+              `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`
+            )
+          );
+        }
+      }, this.timeoutMs);
+
       child.on('error', (err) => {
         clearTimeout(timer);
-        reject(err);
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
       });
+
       child.on('close', (code, signal) => {
         clearTimeout(timer);
+        if (settled) return;
+        settled = true;
         const stdout = Buffer.concat(chunks).toString('utf-8').trim();
         if (code === 0) {
           resolve(stdout);
@@ -243,15 +262,6 @@ export class ClaudeCliProvider implements LLMProvider {
           reject(new Error(detail ? `${base}. ${detail}` : base));
         }
       });
-
-      const timer = setTimeout(() => {
-        child.kill('SIGTERM');
-        reject(
-          new Error(
-            `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`,
-          ),
-        );
-      }, this.timeoutMs);
     });
   }
 }
