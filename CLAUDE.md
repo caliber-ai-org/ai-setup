@@ -2,7 +2,7 @@
 
 ## What Is This
 
-`@rely-ai/caliber` — CLI that keeps AI agent configs in sync with your codebase, automatically. Generates and continuously refreshes `CLAUDE.md`, `.cursor/rules/`, `AGENTS.md`, `.github/copilot-instructions.md`, and skills across Claude Code, Cursor, Codex, and GitHub Copilot. Supports Anthropic, OpenAI, Google Vertex AI, OpenAI-compatible endpoints, Claude Code CLI, and Cursor ACP.
+`@rely-ai/caliber` — CLI that keeps AI agent configs in sync with your codebase. Generates and refreshes `CLAUDE.md`, `.cursor/rules/`, `AGENTS.md`, `.github/copilot-instructions.md`, and skills across Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot. Supports Anthropic, OpenAI, Google Vertex AI, OpenAI-compatible endpoints, Claude Code CLI, and Cursor ACP.
 
 ## Commands
 
@@ -19,7 +19,7 @@ npx vitest run src/scoring/__tests__/accuracy.test.ts  # single test
 
 **Entry**: `src/bin.ts` → `src/cli.ts` (Commander.js) · **Config**: `tsconfig.json` · `tsup.config.ts` · `vitest.config.ts` · `eslint.config.js` · `.prettierrc`
 
-**Commands** (`src/commands/`): `init.ts` · `score.ts` · `refresh.ts` · `regenerate.ts` · `config.ts` · `hooks.ts` · `insights.ts` · `learn.ts` · `recommend.ts` · `sources.ts` · `publish.ts` · `undo.ts` · `status.ts` · Helpers: `init-helpers.ts` · `init-prompts.ts` · `init-display.ts` · `setup-files.ts` · `interactive-provider-setup.ts`
+**Commands** (`src/commands/`): `init.ts` · `score.ts` · `refresh.ts` · `regenerate.ts` · `config.ts` · `hooks.ts` · `insights.ts` · `learn.ts` · `recommend.ts` · `sources.ts` · `publish.ts` · `undo.ts` · `status.ts` · `bootstrap.ts` · `uninstall.ts` · Helpers: `init-helpers.ts` · `init-prompts.ts` · `init-display.ts` · `setup-files.ts` · `interactive-provider-setup.ts`
 
 **LLM** (`src/llm/`): `anthropic.ts` · `vertex.ts` · `openai-compat.ts` · `cursor-acp.ts` · `claude-cli.ts` · `types.ts` · `config.ts` · `utils.ts` · `usage.ts` · `model-recovery.ts` · `seat-based-errors.ts` · `index.ts`
 
@@ -29,19 +29,21 @@ npx vitest run src/scoring/__tests__/accuracy.test.ts  # single test
 
 **Scoring** (`src/scoring/`): `index.ts` · `display.ts` · `constants.ts` · `utils.ts` · `history.ts` · `dismissed.ts` · Checks (`src/scoring/checks/`): `existence.ts` · `quality.ts` · `grounding.ts` · `accuracy.ts` · `freshness.ts` · `bonus.ts` · `sources.ts`
 
-**Writers** (`src/writers/`): `index.ts` · `claude/index.ts` · `cursor/index.ts` · `codex/index.ts` · `github-copilot/index.ts` · `refresh.ts` · `staging.ts` · `backup.ts` · `manifest.ts` · `pre-commit-block.ts`
+**Writers** (`src/writers/`): `index.ts` · `claude/index.ts` · `cursor/index.ts` · `codex/index.ts` · `opencode/index.ts` · `github-copilot/index.ts` · `refresh.ts` · `staging.ts` · `backup.ts` · `manifest.ts` · `pre-commit-block.ts`
 
-**Scanner** (`src/scanner/`): `index.ts` — detects local MCP servers, rules, and skills across platforms
+**Scanner** (`src/scanner/`): `index.ts` — detects local `.mcp.json`, `.cursor/mcp.json` MCP servers, rules, and skills across platforms
 
-**Lib** (`src/lib/`): `hooks.ts` · `learning-hooks.ts` · `state.ts` · `resolve-caliber.ts` · `builtin-skills.ts` · `sanitize.ts` · `notifications.ts` · `git-diff.ts` · `lock.ts` · `debug-report.ts`
+**Lib** (`src/lib/`): `hooks.ts` · `learning-hooks.ts` · `state.ts` · `resolve-caliber.ts` · `builtin-skills.ts` · `sanitize.ts` · `notifications.ts` · `git-diff.ts` · `lock.ts` · `debug-report.ts` · `config-discovery.ts` · `terminal.ts`
 
 **Utils** (`src/utils/`): `parallel-tasks.ts` · `spinner-messages.ts` · `editor.ts` · `review.ts` · `prompt.ts` · `version-check.ts` · `dependencies.ts` · `waiting-content.ts` · `waiting-cards.json`
 
 **Telemetry** (`src/telemetry/`): `index.ts` · `config.ts` · `events.ts` · **Learner** (`src/learner/`): `writer.ts` · `storage.ts` · `attribution.ts` · `roi.ts` · `utils.ts` · `stdin.ts`
 
-**Other**: `github-action/action.yml` · `github-action/index.js` · `assets/video/` (Remotion) · `scripts/` · `docs/FLOW.md` · `src/constants.ts` · `src/test/setup.ts` · `CONTRIBUTING.md` · `CHANGELOG.md` · `TODOS.md`
+**Other**: `github-action/action.yml` · `github-action/index.js` · `assets/video/` (Remotion) · `scripts/` · `docs/FLOW.md` · `src/constants.ts` · `src/test/setup.ts` · `CHANGELOG.md` · `TODOS.md`
 
 **Workspaces**: `packages/shared/` · `packages/mcp-server/` (MCP server) · `apps/web/` · `apps/api/`
+
+@./CONTRIBUTING.md
 
 ## Conventions
 
@@ -54,17 +56,18 @@ npx vitest run src/scoring/__tests__/accuracy.test.ts  # single test
 ## Key Patterns
 
 - **Providers**: implement `LLMProvider` from `src/llm/types.ts` (`call()`, `stream()`)
-- **Writers**: `src/writers/claude/index.ts` · `src/writers/cursor/index.ts` · `src/writers/codex/index.ts` each return `string[]`
+- **Writers**: `src/writers/claude/index.ts` · `src/writers/cursor/index.ts` · `src/writers/codex/index.ts` · `src/writers/opencode/index.ts` each return `string[]`
 - **Scoring**: checks in `src/scoring/checks/` return `Check[]`, constants in `src/scoring/constants.ts`
 - **No hardcoded mappings**: detection is LLM-driven via `src/ai/detect.ts`
-- `collectFingerprint()` in `src/fingerprint/index.ts` is async with internal LLM enrichment
+- `collectFingerprint()` in `src/fingerprint/index.ts` — async with LLM enrichment
 - `resolveCaliber()` from `src/lib/resolve-caliber.ts` for CLI binary resolution
 - Cursor provider: `agent --print --trust --workspace /tmp` in `src/llm/cursor-acp.ts`
 - `getFastModel()` in `src/llm/config.ts`: `ANTHROPIC_SMALL_FAST_MODEL` scoped to anthropic/vertex
 - `validateModel()` skips seat-based providers (`isSeatBased()` in `src/llm/types.ts`)
 - Scoring: deterministic, no LLM · Backups via `src/writers/backup.ts`
 - Scanner: `src/scanner/index.ts` detects local MCP servers, rules, skills for state comparison
-- MCP server workspace: `packages/mcp-server/`
+- MCP server workspace: `packages/mcp-server/` · Config discovery: `src/lib/config-discovery.ts`
+- Builtin skills (`src/lib/builtin-skills.ts`): `find-skills`, `save-learning`, `setup-caliber`
 
 <!-- caliber:managed:pre-commit -->
 ## Before Committing
@@ -79,7 +82,7 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || ech
 - If **hook-active**: the hook handles sync automatically — just commit normally. Tell the user: "Caliber will sync your agent configs automatically via the pre-commit hook."
 - If **no-hook**: run Caliber manually before committing:
   1. Tell the user: "Caliber: Syncing agent configs with your latest changes..."
-  2. Run: `caliber refresh && git add CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md 2>/dev/null`
+  2. Run: `caliber refresh && git add CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md .agents/ .opencode/ 2>/dev/null`
   3. After it completes, briefly tell the user what Caliber updated. Then proceed with the commit.
 
 If `caliber` is not found, tell the user: "This project uses Caliber for agent config sync. Run /setup-caliber to get set up."

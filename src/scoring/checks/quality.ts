@@ -84,7 +84,7 @@ export function checkQuality(dir: string): Check[] {
         : `~${totalTokens} tokens total across all config files`,
     suggestion:
       tokenPoints < 4 && totalContent.length > 0
-        ? `Total config is ~${totalTokens} tokens — reduce to under 5000 for better agent performance`
+        ? `Config is ~${totalTokens} tokens. Agents work best under ~5000 tokens (~4 pages of text) — trim verbose sections`
         : undefined,
     fix:
       tokenPoints < 4 && totalContent.length > 0

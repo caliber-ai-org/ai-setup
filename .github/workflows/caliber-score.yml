@@ -27,88 +27,10 @@ jobs:
       - name: Fetch base branch for comparison
         run: git fetch origin ${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}
 
-      - name: Score and compare against base
-        id: score
-        run: |
-          set +e
-          RESULT=$(npx --yes @rely-ai/caliber@latest score --json --compare "origin/${{ github.base_ref }}" 2>/dev/null)
-          EXIT_CODE=$?
-          set -e
-
-          if [ $EXIT_CODE -ne 0 ] || ! echo "$RESULT" | jq empty 2>/dev/null; then
-            RESULT=$(npx @rely-ai/caliber@latest score --json 2>/dev/null)
-          fi
-
-          SCORE=$(echo "$RESULT" | jq -r '.current.score // .score // 0')
-          GRADE=$(echo "$RESULT" | jq -r '.current.grade // .grade // "?"')
-          DELTA=$(echo "$RESULT" | jq -r '.delta // 0')
-          BASE_SCORE=$(echo "$RESULT" | jq -r '.base.score // "?"')
-
-          echo "score=$SCORE" >> "$GITHUB_OUTPUT"
-          echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
-          echo "delta=$DELTA" >> "$GITHUB_OUTPUT"
-          echo "base_score=$BASE_SCORE" >> "$GITHUB_OUTPUT"
-
-          echo "Score: $SCORE/100 ($GRADE) | Delta: $DELTA from base ($BASE_SCORE/100)"
-
-          if [ "$DELTA" -lt 0 ] 2>/dev/null; then
-            echo "::error::Agent config score regressed: $SCORE/100 ($DELTA from base $BASE_SCORE/100)"
-            exit 1
-          fi
+      - uses: caliber-ai-org/ai-setup@v1
+        with:
+          comment: true
+          fail-below: 0
         env:
           CALIBER_SKIP_UPDATE_CHECK: "1"
           CALIBER_TELEMETRY_DISABLED: "1"
-
-      - name: Comment on PR
-        if: always() && github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const score = '${{ steps.score.outputs.score }}';
-            const grade = '${{ steps.score.outputs.grade }}';
-            const delta = '${{ steps.score.outputs.delta }}';
-            const baseScore = '${{ steps.score.outputs.base_score }}';
-
-            const marker = '<!-- caliber-score-check -->';
-            const emoji = { A: '✅', B: '✅', C: '⚠️', D: '❌', F: '❌' };
-            const icon = emoji[grade] || '❓';
-
-            let deltaLine = '';
-            if (delta && delta !== '0' && baseScore !== '?') {
-              const sign = parseInt(delta) > 0 ? '+' : '';
-              const arrow = parseInt(delta) > 0 ? '⬆️' : parseInt(delta) < 0 ? '⬇️' : '➡️';
-              deltaLine = `\n${arrow} **${sign}${delta}** from base branch (${baseScore}/100)`;
-            } else if (baseScore !== '?') {
-              deltaLine = `\n➡️ No change from base branch (${baseScore}/100)`;
-            }
-
-            const body = [
-              marker,
-              `## ${icon} Caliber Score: ${score}/100 (${grade})`,
-              deltaLine,
-              '',
-              '*Agent config quality — fails on regression.*',
-            ].join('\n');
-
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-
-            const existing = comments.find(c => c.body?.includes(marker));
-            if (existing) {
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existing.id,
-                body,
-              });
-            } else {
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body,
-              });
-            }

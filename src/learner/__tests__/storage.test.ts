@@ -16,7 +16,11 @@ vi.mock('../../constants.js', async () => {
 import {
   acquireFinalizeLock,
   releaseFinalizeLock,
+  appendPromptEvent,
+  readAllEvents,
+  getEventCount,
 } from '../storage.js';
+import type { PromptEvent } from '../storage.js';
 
 const LOCK_FILE = path.join(tmpBase, 'finalize.lock');
 
@@ -76,5 +80,82 @@ describe('releaseFinalizeLock', () => {
 
   it('does not throw when no lock file exists', () => {
     expect(() => releaseFinalizeLock()).not.toThrow();
+  });
+});
+
+const SESSION_FILE = path.join(tmpBase, 'current-session.jsonl');
+
+describe('appendPromptEvent', () => {
+  beforeEach(() => {
+    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+  });
+
+  it('truncates long prompt content to 2000 chars', () => {
+    const longContent = 'x'.repeat(5000);
+    const event: PromptEvent = {
+      timestamp: new Date().toISOString(),
+      session_id: 'test',
+      hook_event_name: 'UserPromptSubmit',
+      prompt_content: longContent,
+      cwd: '/tmp',
+    };
+    appendPromptEvent(event);
+
+    const stored = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8').trim());
+    expect(stored.prompt_content.length).toBe(2000);
+  });
+
+  it('preserves short prompt content as-is', () => {
+    const event: PromptEvent = {
+      timestamp: new Date().toISOString(),
+      session_id: 'test',
+      hook_event_name: 'UserPromptSubmit',
+      prompt_content: 'short prompt',
+      cwd: '/tmp',
+    };
+    appendPromptEvent(event);
+
+    const stored = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8').trim());
+    expect(stored.prompt_content).toBe('short prompt');
+  });
+});
+
+describe('readAllEvents with oversized file', () => {
+  beforeEach(() => {
+    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+  });
+
+  it('returns empty and truncates file when over 10MB', () => {
+    const bigLine = JSON.stringify({ hook_event_name: 'PostToolUse', data: 'x'.repeat(11 * 1024 * 1024) });
+    fs.writeFileSync(SESSION_FILE, bigLine + '\n');
+
+    const events = readAllEvents();
+    expect(events).toEqual([]);
+    expect(fs.readFileSync(SESSION_FILE, 'utf-8')).toBe('');
+  });
+});
+
+describe('getEventCount with oversized file', () => {
+  beforeEach(() => {
+    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+  });
+
+  afterEach(() => {
+    if (fs.existsSync(SESSION_FILE)) fs.unlinkSync(SESSION_FILE);
+  });
+
+  it('returns 0 for oversized file', () => {
+    const bigLine = JSON.stringify({ data: 'x'.repeat(11 * 1024 * 1024) });
+    fs.writeFileSync(SESSION_FILE, bigLine + '\n');
+
+    expect(getEventCount()).toBe(0);
   });
 });

@@ -1,3 +1,69 @@
+## v1.42.0 (2026-04-14)
+
+### Features
+
+- parallelize monorepo subdirectory refresh with p-limit concurrency cap (#133)
+
+## v1.41.4 (2026-04-13)
+
+### Other
+
+- Apply suggested fix to CHANGELOG.md from Copilot Autofix (#113)
+
+## v1.41.3 (2026-04-13)
+
+### Bug Fixes
+
+- add settled guard to runClaudePrint() to prevent double-reject (#144)
+
+## v1.41.2 (2026-04-13)
+
+### Bug Fixes
+
+- isCaliberRunning falsely detects current process as another caliber instance (#151)
+
+## v1.41.1 (2026-04-08)
+
+### Bug Fixes
+
+- windows auth check stdin handling (#137)
+
+## v1.41.0 (2026-04-04)
+
+### Features
+
+- add generation resilience with timeout and diagnostics (#129)
+
+## v1.40.4 (2026-04-03)
+
+### Bug Fixes
+
+- prevent CWD corruption and state desync in refresh/learn (#122)
+
+## v1.40.3 (2026-04-03)
+
+### Bug Fixes
+
+- prevent recursive feedback loop in learn system (#121)
+
+## v1.40.2 (2026-04-03)
+
+### Bug Fixes
+
+- add pre-flight auth check for Claude CLI provider (#118)
+
+## v1.40.1 (2026-04-02)
+
+### Bug Fixes
+
+- improve onboarding UX for Windows users and clarify scoring suggestions (#116)
+
+## v1.40.0 (2026-04-02)
+
+### Features
+
+- add recursive large-file scanner for AI context bloat warning (#96)
+
 ## v1.39.0 (2026-03-31)
 
 ### Features
@@ -336,8 +402,6 @@
 ## v1.21.2 (2026-03-17)
 
 ## v1.21.1 (2026-03-16)
-
-# Changelog
 
 ## v1.21.0 (2026-03-16)
 

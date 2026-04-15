@@ -1,7 +1,7 @@
 dist/
 coverage/
 node_modules/
-github-action/
+index.cjs
 .caliber/
 *.md
 package-lock.json

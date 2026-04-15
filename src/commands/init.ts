@@ -6,7 +6,7 @@ import { detectPlatforms } from '../scanner/index.js';
 import { installPreCommitHook, installStopHook, installSessionStartHook } from '../lib/hooks.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
-import { generateSetup, generateSkillsForSetup } from '../ai/generate.js';
+import { generateSetup, generateSkillsForSetup, buildDiagnostic } from '../ai/generate.js';
 import { writeSetup, undoSetup } from '../writers/index.js';
 import { stageFiles, cleanupStaging } from '../writers/staging.js';
 import { collectSetupFiles } from './setup-files.js';
@@ -17,7 +17,7 @@ import { promptInput } from '../utils/prompt.js';
 import { loadConfig, getFastModel, getDisplayModel, writeConfigFile } from '../llm/config.js';
 import { validateModel } from '../llm/index.js';
 import { runInteractiveProviderSetup } from './interactive-provider-setup.js';
-import { isClaudeCliAvailable } from '../llm/claude-cli.js';
+import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
 import confirm from '@inquirer/confirm';
 import { computeLocalScore } from '../scoring/index.js';
@@ -58,6 +58,8 @@ import {
   evaluateDismissals,
 } from './init-helpers.js';
 import { recordScore } from '../scoring/history.js';
+
+const IS_WINDOWS = process.platform === 'win32';
 
 export type { TargetAgent };
 
@@ -129,7 +131,7 @@ export async function initCommand(options: InitOptions) {
   let config = loadConfig();
   if (!config && !options.autoApprove) {
     // Try seat-based auto-detection
-    if (isClaudeCliAvailable()) {
+    if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
       console.log(chalk.dim('  Detected: Claude Code CLI (uses your Pro/Max/Team subscription)\n'));
       const useIt = await confirm({ message: 'Use Claude Code as your LLM provider?' });
       if (useIt) {
@@ -150,7 +152,7 @@ export async function initCommand(options: InitOptions) {
   if (!config) {
     if (options.autoApprove) {
       // In auto-approve mode, try seat-based silently
-      if (isClaudeCliAvailable()) {
+      if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
         const autoConfig = { provider: 'claude-cli' as const, model: 'default' };
         writeConfigFile(autoConfig);
         config = autoConfig;
@@ -230,6 +232,19 @@ export async function initCommand(options: InitOptions) {
   console.log(`  ${chalk.green('✓')} Onboarding hook — nudges new team members to set up`);
   installSessionStartHook();
   console.log(`  ${chalk.green('✓')} Freshness hook — warns when configs are stale`);
+
+  if (IS_WINDOWS) {
+    console.log(
+      chalk.yellow(
+        '\n  Note: hooks use shell syntax and require Git Bash (included with Git for Windows).',
+      ),
+    );
+    console.log(
+      chalk.dim(
+        "  If hooks don't run, ensure Git for Windows is installed and git is using its bundled sh.",
+      ),
+    );
+  }
 
   // Install builtin skills (setup-caliber, find-skills, save-learning)
   const { ensureBuiltinSkills } = await import('../lib/builtin-skills.js');
@@ -591,7 +606,8 @@ export async function initCommand(options: InitOptions) {
       genStopReason = result.stopReason;
 
       if (!generatedSetup) {
-        display.update(TASK_CONFIG, 'failed', 'Could not parse LLM response');
+        const diagnostic = buildDiagnostic(genStopReason, rawOutput, rawOutput?.length ?? 0);
+        display.update(TASK_CONFIG, 'failed', diagnostic.split('\n')[0].slice(0, 80));
         display.update(TASK_SKILLS_GEN, 'failed', 'Skipped');
         return;
       }

@@ -206,7 +206,7 @@ export function checkExistence(dir: string): Check[] {
         : `${skillCount} skill${skillCount === 1 ? '' : 's'} found`,
     suggestion:
       skillCount === 0
-        ? 'Add .claude/skills/ with project-specific workflows'
+        ? 'Skills are reusable agent workflows (e.g., deploy, test, review). Add 2-3 for your most common tasks'
         : skillCount < 3
           ? 'Optimal is 2-3 focused skills'
           : undefined,
@@ -234,7 +234,7 @@ export function checkExistence(dir: string): Check[] {
       mdcCount === 0
         ? 'No .mdc rule files'
         : `${mdcCount} .mdc rule${mdcCount === 1 ? '' : 's'} found`,
-    suggestion: mdcCount === 0 ? 'Add .cursor/rules/*.mdc with frontmatter for Cursor' : undefined,
+    suggestion: mdcCount === 0 ? 'Cursor .mdc rules use frontmatter to scope rules to specific files/paths. Add them for more targeted Cursor behavior' : undefined,
     fix:
       mdcCount === 0
         ? {
@@ -260,7 +260,7 @@ export function checkExistence(dir: string): Check[] {
         : 'No MCP servers configured',
     suggestion:
       mcp.count === 0
-        ? 'Configure MCP servers in .mcp.json for external service access'
+        ? 'MCP servers connect your agent to external tools (databases, Slack, Linear, etc). Add if your team uses external services'
         : undefined,
     fix:
       mcp.count === 0

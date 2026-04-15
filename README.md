@@ -51,7 +51,7 @@ Requires **Node.js >= 20**.
 npx @rely-ai/caliber bootstrap
 ```
 
-Then, in your next Claude Code or Cursor chat session, type:
+Then, in your terminal (not the IDE chat), start a Claude Code or Cursor CLI session and type:
 
 > **/setup-caliber**
 
@@ -60,6 +60,18 @@ Your agent detects your stack, generates tailored configs for every platform you
 **Don't use Claude Code or Cursor?** Run `caliber init` instead — it's the same setup as a CLI wizard. Works with any LLM provider: bring your own Anthropic, OpenAI, or Vertex AI key.
 
 > **Your code stays on your machine.** Bootstrap is 100% local — no LLM calls, no code sent anywhere. Generation uses your own AI subscription or API key. Caliber never sees your code.
+
+<details>
+<summary><strong>Windows Users</strong></summary>
+
+Caliber works on Windows with a few notes:
+
+- **Run from your terminal** (PowerShell, CMD, or Git Bash) — not from inside an IDE chat window. Open a terminal, `cd` into your project folder, then run `npx @rely-ai/caliber bootstrap`.
+- **Git Bash is recommended.** Caliber's pre-commit hooks and auto-sync scripts use shell syntax. Git for Windows includes Git Bash, which handles this automatically. If you only use PowerShell, hooks may be skipped silently.
+- **Cursor Agent CLI:** If prompted to install it, download from [cursor.com/downloads](https://www.cursor.com/downloads) instead of the `curl | bash` command shown on macOS/Linux. Then run `agent login` in your terminal to authenticate.
+- **One terminal at a time.** Avoid running Caliber from multiple terminals simultaneously — this can cause conflicting state and unexpected provider detection.
+
+</details>
 
 ## Audits first, writes second
 

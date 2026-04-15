@@ -1,19 +1,43 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ClaudeCliProvider, isClaudeCliAvailable } from '../claude-cli.js';
+import {
+  ClaudeCliProvider,
+  isClaudeCliAvailable,
+  isClaudeCliLoggedIn,
+  resetClaudeCliLoginCache,
+  resetClaudeCliBin,
+} from '../claude-cli.js';
 import type { LLMConfig } from '../types.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 const spawn = vi.fn();
 const execSync = vi.fn();
+const execFileSync = vi.fn();
+// accessSync mock: default throws (not executable) — tests override as needed
+const accessSync = vi.fn<(path: import('fs').PathLike | number, mode?: number) => void>(() => {
+  throw new Error('not found');
+});
 
 vi.mock('node:child_process', () => ({
   spawn: (...args: unknown[]) => spawn(...args),
   execSync: (...args: unknown[]) => execSync(...args),
+  execFileSync: (...args: unknown[]) => execFileSync(...args),
 }));
+
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  return {
+    ...actual,
+    default: {
+      ...actual,
+      accessSync: (...args: Parameters<typeof actual.accessSync>) => accessSync(...args),
+    },
+  };
+});
 
 describe('ClaudeCliProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetClaudeCliBin();
   });
 
   it('call() spawns claude -p and pipes combined prompt via stdin', async () => {
@@ -49,12 +73,14 @@ describe('ClaudeCliProvider', () => {
     expect(result).toBe('Hello from Claude.');
     if (IS_WINDOWS) {
       expect(spawn.mock.calls[0][0]).toBe('claude -p');
-      expect(spawn.mock.calls[0][1]).toEqual(expect.objectContaining({ cwd: process.cwd(), shell: true }));
+      expect(spawn.mock.calls[0][1]).toEqual(
+        expect.objectContaining({ cwd: process.cwd(), shell: true }),
+      );
     } else {
       expect(spawn).toHaveBeenCalledWith(
         'claude',
         expect.arrayContaining(['-p']),
-        expect.objectContaining({ cwd: process.cwd() })
+        expect.objectContaining({ cwd: process.cwd() }),
       );
       const args = spawn.mock.calls[0][1];
       expect(args).not.toContain(expect.stringContaining('[[System]]'));
@@ -85,7 +111,7 @@ describe('ClaudeCliProvider', () => {
 
     const streamPromise = provider.stream(
       { system: 'S', prompt: 'P' },
-      { onText, onEnd, onError: vi.fn() }
+      { onText, onEnd, onError: vi.fn() },
     );
 
     await new Promise((r) => setTimeout(r, 10));
@@ -187,7 +213,7 @@ describe('ClaudeCliProvider', () => {
     const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
     const streamPromise = provider.stream(
       { system: 'S', prompt: 'P', model: 'claude-haiku-4-5' },
-      { onText: vi.fn(), onEnd: vi.fn(), onError: vi.fn() }
+      { onText: vi.fn(), onEnd: vi.fn(), onError: vi.fn() },
     );
 
     await new Promise((r) => setTimeout(r, 10));
@@ -205,6 +231,68 @@ describe('ClaudeCliProvider', () => {
     }
   });
 
+  it('call() surfaces auth error from stdout when stderr is empty', async () => {
+    let closeCb: (code: number) => void;
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: {
+        on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
+          if (ev === 'data')
+            setTimeout(() => fn(Buffer.from('Not logged in · Please run /login')), 0);
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: (code: number) => void) => {
+        if (ev === 'close') closeCb = fn;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const resultPromise = provider.call({ system: 'S', prompt: 'P' });
+
+    await new Promise((r) => setTimeout(r, 10));
+    closeCb!(1);
+
+    await expect(resultPromise).rejects.toThrow(/Not logged in/);
+    // Should use friendly message, not raw stdout
+    await expect(resultPromise).rejects.not.toThrow('Please run /login');
+  });
+
+  it('stream() surfaces auth error from stdout when stderr is empty', async () => {
+    let closeCb: (code: number) => void;
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: {
+        on: vi.fn((ev: string, fn: (c: Buffer) => void) => {
+          if (ev === 'data')
+            setTimeout(() => fn(Buffer.from('Not logged in · Please run /login')), 0);
+        }),
+      },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: (code: number) => void) => {
+        if (ev === 'close') closeCb = fn;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const onError = vi.fn();
+    const streamPromise = provider.stream(
+      { system: 'S', prompt: 'P' },
+      { onText: vi.fn(), onEnd: vi.fn(), onError },
+    );
+
+    await new Promise((r) => setTimeout(r, 10));
+    closeCb!(1);
+    await streamPromise.catch(() => {});
+
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringMatching(/Not logged in/) }),
+    );
+    expect(onError.mock.calls[0][0].message).not.toContain('Please run /login');
+  });
+
   it('uses CALIBER_CLAUDE_CLI_TIMEOUT_MS when set', () => {
     const orig = process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS;
     process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS = '120000';
@@ -212,20 +300,54 @@ describe('ClaudeCliProvider', () => {
     expect(provider).toBeDefined();
     process.env.CALIBER_CLAUDE_CLI_TIMEOUT_MS = orig;
   });
+
+  it('call() does not double-reject when both error and close events fire', async () => {
+    let errorCb: (err: Error) => void;
+    let closeCb: (code: number | null) => void;
+
+    spawn.mockReturnValue({
+      stdin: { end: vi.fn() },
+      stdout: { on: vi.fn() },
+      stderr: { on: vi.fn() },
+      on: vi.fn((ev: string, fn: unknown) => {
+        if (ev === 'error') errorCb = fn as (err: Error) => void;
+        if (ev === 'close') closeCb = fn as (code: number | null) => void;
+      }),
+      kill: vi.fn(),
+    });
+
+    const provider = new ClaudeCliProvider({ provider: 'claude-cli', model: 'default' });
+    const rejectSpy = vi.fn();
+
+    const resultPromise = provider.call({ system: 'S', prompt: 'P' }).catch(rejectSpy);
+
+    await new Promise((r) => setTimeout(r, 10));
+    errorCb!(new Error('spawn ENOENT'));
+    closeCb!(1);
+    await resultPromise;
+
+    expect(rejectSpy).toHaveBeenCalledTimes(1);
+    expect(rejectSpy).toHaveBeenCalledWith(new Error('spawn ENOENT'));
+  });
 });
 
 describe('isClaudeCliAvailable', () => {
   beforeEach(() => {
     execSync.mockReset();
+    accessSync.mockImplementation(() => {
+      throw new Error('not found');
+    });
+    resetClaudeCliBin();
   });
 
   it('returns true when claude is on PATH', () => {
     execSync.mockReturnValue(undefined);
     expect(isClaudeCliAvailable()).toBe(true);
-    expect(execSync).toHaveBeenCalled();
-    const cmd = execSync.mock.calls[0][0];
-    expect(cmd).toContain('claude');
-    expect(execSync.mock.calls[0][1]).toEqual({ stdio: 'ignore' });
+    // resolveClaudeBin() makes one call (which claude), then isClaudeCliAvailable()
+    // makes a second call (which claude --stdio:ignore) as the PATH check
+    const lastCall = execSync.mock.calls[execSync.mock.calls.length - 1];
+    expect(lastCall[0]).toContain('claude');
+    expect(lastCall[1]).toEqual({ stdio: 'ignore' });
   });
 
   it('returns false when claude is not found', () => {
@@ -233,5 +355,47 @@ describe('isClaudeCliAvailable', () => {
       throw new Error('not found');
     });
     expect(isClaudeCliAvailable()).toBe(false);
+  });
+});
+
+describe('isClaudeCliLoggedIn', () => {
+  beforeEach(() => {
+    execFileSync.mockReset();
+    resetClaudeCliLoginCache();
+  });
+
+  it('returns true when auth status reports loggedIn true', () => {
+    execFileSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: true })));
+    expect(isClaudeCliLoggedIn()).toBe(true);
+  });
+
+  it('returns false when auth status reports loggedIn false', () => {
+    execFileSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: false })));
+    expect(isClaudeCliLoggedIn()).toBe(false);
+  });
+
+  it('returns false when auth status command fails', () => {
+    execFileSync.mockImplementation(() => {
+      throw new Error('exit code 1');
+    });
+    expect(isClaudeCliLoggedIn()).toBe(false);
+  });
+
+  it('returns true for non-JSON output without not logged in', () => {
+    execFileSync.mockReturnValue(Buffer.from('some unexpected output'));
+    expect(isClaudeCliLoggedIn()).toBe(true);
+  });
+
+  it('returns false for non-JSON output containing not logged in', () => {
+    execFileSync.mockReturnValue(Buffer.from('not logged in'));
+    expect(isClaudeCliLoggedIn()).toBe(false);
+  });
+
+  it('caches the result across calls', () => {
+    execFileSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: true })));
+    expect(isClaudeCliLoggedIn()).toBe(true);
+    execFileSync.mockReset();
+    expect(isClaudeCliLoggedIn()).toBe(true);
+    expect(execFileSync).not.toHaveBeenCalled();
   });
 });

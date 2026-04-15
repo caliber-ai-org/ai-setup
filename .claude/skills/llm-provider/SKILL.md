@@ -1,300 +1,247 @@
 ---
 name: llm-provider
-description: Adds a new LLM provider implementing LLMProvider interface with call() and stream() methods. Integrates config in src/llm/config.ts, factory in src/llm/index.ts, and error handling. Use when adding a new provider backend, integrating a model API, or extending LLM capabilities. Do NOT use for modifying existing providers or fixing provider bugs.
+description: Adds a new LLM provider implementing LLMProvider interface with call() and stream() methods. Integrates with provider factory in src/llm/index.ts, config detection in src/llm/config.ts, and error handling via tracking and recovery. Use when adding a new model backend, integrating a third-party LLM API, or extending LLM platform support. Do NOT use for fixing bugs in existing providers, modifying existing provider behavior, or changing the LLMProvider interface.
+paths:
+  - src/llm/**/*.ts
+  - src/llm/__tests__/**/*.ts
 ---
-# llm-provider
+# LLM Provider
 
 ## Critical
 
-- **Interface compliance**: Every provider MUST implement `LLMProvider` from `src/llm/types.ts` with exactly two methods: `call(params)` and `stream(params)`. Both return `Promise<LLMResponse>` and `AsyncIterable<StreamChunk>` respectively.
-- **No hardcoded model mappings**: Detection and selection MUST be LLM-driven or user-selected, never static. Seat-based providers (Cursor, Claude CLI) must skip validation in `validateModel()` checks.
-- **Error handling**: All network/auth errors MUST be caught and wrapped in `LLMError` with code (e.g., `'auth'`, `'rate_limit'`, `'model_not_found'`). Provide actionable error messages.
-- **Stream format**: Stream chunks MUST follow `{ type: 'text' | 'stop', text?: string, stop_reason?: string }`. The `stream-parser.ts` expects exact format.
-- **Fast model scoping**: `ANTHROPIC_SMALL_FAST_MODEL` env var is scoped ONLY to `anthropic` and `vertex` providers in `getFastModel()`. Other providers must not read this var.
+1. **All providers MUST implement the LLMProvider interface** from src/llm/types.ts with three methods:
+   - call(options: LLMCallOptions): Promise<string> — single non-streaming call returning text
+   - stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void> — streaming call invoking callbacks
+   - listModels?(): Promise<string[]> — optional; list available models from the API
+
+2. **Initialize client in constructor and store defaultModel from config**. Example: `this.client = new YourSDK({ apiKey: config.apiKey })`. Never lazy-initialize on first call — providers are instantiated once and cached in src/llm/index.ts.
+
+3. **For EVERY response in call() and stream(), invoke trackUsage(model, usage)** from src/llm/usage.js before returning/ending. This is mandatory — it captures token metrics for CLI telemetry and cost analysis. If the API doesn't return usage data, estimate via estimateTokens(text), which assumes ~4 chars per token.
+
+4. **Both call() and stream() must respect the model parameter** using pattern: `options.model || this.defaultModel`. Never hardcode model names. Callers supply model overrides via LLMCallOptions.model.
+
+5. **Error handling: catch all errors, preserve error messages unchanged**. The retry logic in src/llm/index.ts handles transient errors (ECONNRESET, socket hang up, 529 overload). For seat-based providers (Cursor, Claude CLI), wrap stderr via parseSeatBasedError() for user-friendly messages.
+
+6. **Always update ProviderType union** (Step 2), DEFAULT_MODELS (Step 4), and createProvider() switch case (Step 5) in lock-step. Missing any one breaks the build or causes runtime Unknown provider error.
 
 ## Instructions
 
-### Step 1: Create the provider file
-**File**: `src/llm/{provider-name}.ts`
+### Step 1: Create provider class file
+Verify directory exists: `ls -la src/llm/`. Create `src/llm/your-provider.ts`. Match existing provider patterns (src/llm/anthropic.ts, src/llm/openai-compat.ts).
 
-Start with the exact structure from existing providers (e.g., `anthropic.ts`, `openai-compat.ts`):
-
+Minimal structure:
 ```typescript
-import { LLMProvider, LLMResponse, StreamChunk, LLMError } from './types.js';
+import type { LLMProvider, LLMCallOptions, LLMStreamOptions, LLMStreamCallbacks, LLMConfig, TokenUsage } from './types.js';
+import { trackUsage } from './usage.js';
+import { estimateTokens } from './utils.js';
 
-export class MyProvider implements LLMProvider {
-  private apiKey: string;
-  private baseUrl?: string;
+export class YourProviderProvider implements LLMProvider {
+  private client: YourSDKType;
+  private defaultModel: string;
 
-  constructor(apiKey: string, baseUrl?: string) {
-    if (!apiKey) throw new Error('API key required for MyProvider');
-    this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
+  constructor(config: LLMConfig) {
+    if (!config.apiKey) throw new Error('API key required');
+    this.client = new YourSDK({ apiKey: config.apiKey, ...(config.baseUrl && { baseURL: config.baseUrl }) });
+    this.defaultModel = config.model;
   }
 
-  async call(params: {
-    model: string;
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-    temperature?: number;
-    max_tokens?: number;
-    system?: string;
-  }): Promise<LLMResponse> {
-    // Implementation
+  async call(options: LLMCallOptions): Promise<string> {
+    const model = options.model || this.defaultModel;
+    const response = await this.client.messages.create({ model, max_tokens: options.maxTokens || 4096, system: options.system, messages: [{ role: 'user', content: options.prompt }] });
+    trackUsage(model, { inputTokens: response.usage?.input_tokens || 0, outputTokens: response.usage?.output_tokens || 0 });
+    return response.content?.[0]?.text || '';
   }
 
-  async *stream(params: {
-    model: string;
-    messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-    temperature?: number;
-    max_tokens?: number;
-    system?: string;
-  }): AsyncIterable<StreamChunk> {
-    // Implementation
-  }
-}
-```
-
-**Verify**: Both methods exist. Constructor validates required config. No hardcoded API URLs (use env vars or constructor params).
-
-### Step 2: Export from LLM index
-**File**: `src/llm/index.ts`
-
-Add import and factory export:
-
-```typescript
-import { MyProvider } from './my-provider.js';
-
-export { MyProvider };
-export type { /* types if needed */ };
-
-// In the getLLMProvider() factory function:
-case 'my-provider':
-  return new MyProvider(
-    process.env.MY_PROVIDER_API_KEY || '',
-    process.env.MY_PROVIDER_BASE_URL
-  );
-```
-
-**Verify**: Provider is exported. Factory case handles env var reads. No bare API keys in code.
-
-### Step 3: Add configuration in config.ts
-**File**: `src/llm/config.ts`
-
-Add to the config object returned by `getConfig()`:
-
-```typescript
-my_provider: {
-  apiKey: process.env.MY_PROVIDER_API_KEY,
-  baseUrl: process.env.MY_PROVIDER_BASE_URL,
-  isSeatBased: false, // or true if user-seat-licensed (e.g., Cursor)
-  requiresAuth: true,
-}
-```
-
-If the provider has a fast-model option, add to `getFastModel()`:
-
-```typescript
-if (provider === 'my-provider') {
-  return process.env.MY_PROVIDER_FAST_MODEL || 'my-provider-fast-default';
-}
-```
-
-**Verify**: Config key matches case in factory. Env vars are consistent across both files. `isSeatBased` is set correctly.
-
-### Step 4: Implement error handling
-**File**: `src/llm/my-provider.ts`
-
-Wrap API calls in try/catch. Map errors to `LLMError`:
-
-```typescript
-try {
-  const response = await fetch(`${this.baseUrl}/chat`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new LLMError('Invalid API key', 'auth');
-    }
-    if (response.status === 429) {
-      throw new LLMError('Rate limit exceeded', 'rate_limit');
-    }
-    if (response.status === 404) {
-      throw new LLMError(`Model ${params.model} not found`, 'model_not_found');
-    }
-    throw new LLMError(`HTTP ${response.status}: ${await response.text()}`, 'unknown');
-  }
-  // Parse and return
-} catch (err) {
-  if (err instanceof LLMError) throw err;
-  throw new LLMError(`Provider error: ${err.message}`, 'unknown');
-}
-```
-
-**Verify**: All HTTP error codes (401, 429, 404, 5xx) are handled. Network errors are caught. Messages are clear and actionable.
-
-### Step 5: Implement stream() with correct format
-**File**: `src/llm/my-provider.ts`
-
-Yield chunks in the exact format expected by `stream-parser.ts`:
-
-```typescript
-async *stream(params: {...}): AsyncIterable<StreamChunk> {
-  const response = await fetch(`${this.baseUrl}/chat/stream`, { /* ... */ });
-  const reader = response.body?.getReader();
-  if (!reader) throw new LLMError('Stream not available', 'unknown');
-
-  let buffer = '';
-  const decoder = new TextDecoder();
-
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (!line || line.startsWith(':')) continue; // SSE comments
-        if (line.startsWith('data: ')) {
-          const data = JSON.parse(line.slice(6));
-          if (data.choices?.[0]?.delta?.content) {
-            yield { type: 'text', text: data.choices[0].delta.content };
-          }
-          if (data.choices?.[0]?.finish_reason) {
-            yield { type: 'stop', stop_reason: data.choices[0].finish_reason };
-          }
-        }
+  async stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void> {
+    const model = options.model || this.defaultModel;
+    const messages = [...(options.messages || []), { role: 'user' as const, content: options.prompt }];
+    try {
+      const stream = await this.client.stream({ model, max_tokens: options.maxTokens || 10240, system: options.system, messages });
+      let stopReason: string | undefined, usage: TokenUsage | undefined;
+      for await (const chunk of stream) {
+        if (chunk.delta?.text) callbacks.onText(chunk.delta.text);
+        if (chunk.delta?.stop_reason) stopReason = chunk.delta.stop_reason;
+        if (chunk.usage) usage = { inputTokens: chunk.usage.input_tokens, outputTokens: chunk.usage.output_tokens };
       }
-    }
-  } finally {
-    reader.releaseLock();
+      if (usage) trackUsage(model, usage);
+      callbacks.onEnd({ stopReason, usage });
+    } catch (error) { callbacks.onError(error instanceof Error ? error : new Error(String(error))); }
   }
 }
 ```
 
-**Verify**: Stream yields chunks with correct type field. Stop reason is included on finish. Buffer handles partial lines correctly.
+Verify: File exports the class; imports match existing providers.
 
-### Step 6: Write tests
-**File**: `src/llm/__tests__/my-provider.test.ts`
-
-Add minimal tests covering both methods:
-
+### Step 2: Add to ProviderType union
+Edit `src/llm/types.ts` line 1. Add your provider in kebab-case:
 ```typescript
-import { describe, it, expect, vi } from 'vitest';
-import { MyProvider } from '../my-provider.js';
+export type ProviderType = 'anthropic' | 'vertex' | 'openai' | 'cursor' | 'claude-cli' | 'your-provider';
+```
+Verify: `npx tsc --noEmit` shows no ProviderType errors.
 
-describe('MyProvider', () => {
-  it('throws if API key is missing', () => {
-    expect(() => new MyProvider('')).toThrow('API key required');
-  });
-
-  it('call() returns LLMResponse with text', async () => {
-    vi.stubGlobal('fetch', vi.fn(() =>
-      Promise.resolve(new Response(JSON.stringify({
-        choices: [{ message: { content: 'Hello' } }],
-      })))
-    ));
-
-    const provider = new MyProvider('test-key');
-    const response = await provider.call({
-      model: 'gpt-5',
-      messages: [{ role: 'user', content: 'Hi' }],
-    });
-
-    expect(response.text).toBe('Hello');
-  });
-
-  it('stream() yields text chunks', async () => {
-    // Mock streaming response
-    vi.stubGlobal('fetch', vi.fn(() =>
-      Promise.resolve(new Response(new ReadableStream({ /* ... */ })))
-    ));
-
-    const provider = new MyProvider('test-key');
-    const chunks = [];
-    for await (const chunk of provider.stream({
-      model: 'gpt-5',
-      messages: [{ role: 'user', content: 'Hi' }],
-    })) {
-      chunks.push(chunk);
-    }
-
-    expect(chunks.some(c => c.type === 'text')).toBe(true);
-  });
-});
+### Step 3: Add config fields
+If your provider needs fields beyond apiKey, model, baseUrl, extend LLMConfig in src/llm/types.ts:
+```typescript
+export interface LLMConfig {
+  provider: ProviderType;
+  model: string;
+  fastModel?: string;
+  apiKey?: string;
+  baseUrl?: string;
+  yourProviderSecret?: string;
+}
 ```
 
-**Verify**: Tests run without errors. `npm run test -- src/llm/__tests__/my-provider.test.ts` passes.
+### Step 4: Update config.ts
+Edit `src/llm/config.ts`:
 
-### Step 7: Update types if needed
-**File**: `src/llm/types.ts`
-
-If your provider needs additional config fields, extend `ProviderConfig`:
-
+**Line 9:** Add to DEFAULT_MODELS:
 ```typescript
-export interface ProviderConfig {
-  // ... existing fields
-  myProvider?: {
-    apiKey: string;
-    baseUrl?: string;
-    customField?: string;
+export const DEFAULT_MODELS: Record<ProviderType, string> = {
+  anthropic: 'claude-sonnet-4-6',
+  vertex: 'claude-sonnet-4-6',
+  openai: 'gpt-5.4-mini',
+  cursor: 'sonnet-4.6',
+  'claude-cli': 'default',
+  'your-provider': 'your-provider/default-model',
+};
+```
+
+**Line 17:** Add to MODEL_CONTEXT_WINDOWS if known:
+```typescript
+export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
+  'your-provider/model-name': 128_000,
+};
+```
+
+**Line 59:** In resolveFromEnv(), add env detection before final return null:
+```typescript
+if (process.env.YOUR_PROVIDER_API_KEY) {
+  return {
+    provider: 'your-provider',
+    apiKey: process.env.YOUR_PROVIDER_API_KEY,
+    model: process.env.CALIBER_MODEL || DEFAULT_MODELS['your-provider'],
+    baseUrl: process.env.YOUR_PROVIDER_BASE_URL,
   };
 }
 ```
 
-**Verify**: Type is used consistently in `config.ts` and `index.ts`.
+**Line 115:** In readConfigFile() validation, add 'your-provider' to includes list.
+
+Verify: `npm run test -- src/llm/__tests__/ -t config` confirms env var detection works.
+
+### Step 5: Register in factory
+Edit `src/llm/index.ts`. Add import (line ~4):
+```typescript
+import { YourProviderProvider } from './your-provider.js';
+```
+
+In createProvider() switch (line ~24), add before default case:
+```typescript
+case 'your-provider':
+  return new YourProviderProvider(config);
+```
+
+Verify: `npx tsc --noEmit` passes; no type errors on switch cases.
+
+### Step 6: Write tests
+Create `src/llm/__tests__/your-provider.test.ts`:
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { YourProviderProvider } from '../your-provider.js';
+
+describe('YourProviderProvider', () => {
+  let provider: YourProviderProvider;
+  beforeEach(() => {
+    provider = new YourProviderProvider({ provider: 'your-provider', model: 'test', apiKey: 'test' });
+  });
+
+  it('implements LLMProvider interface', () => {
+    expect(typeof provider.call).toBe('function');
+    expect(typeof provider.stream).toBe('function');
+  });
+
+  it('call() returns string', async () => {
+    const result = await provider.call({ system: 'helpful', prompt: 'hi' });
+    expect(typeof result).toBe('string');
+  });
+
+  it('stream() invokes callbacks', async () => {
+    const texts: string[] = [];
+    let ended = false;
+    await provider.stream({ system: 'helpful', prompt: 'hi' }, {
+      onText: (t) => texts.push(t),
+      onEnd: () => { ended = true; },
+      onError: () => {},
+    });
+    expect(ended).toBe(true);
+  });
+});
+```
+
+Verify: `npm run test -- src/llm/__tests__/your-provider.test.ts` passes.
+
+### Step 7: Integration test
+Run factory tests with your provider env var:
+```bash
+YOUR_PROVIDER_API_KEY=test npm run test -- src/llm/__tests__/index.test.ts
+```
+Verify: getProvider() instantiates your provider; llmCall() dispatches correctly.
 
 ## Examples
 
-### User request:
-"Add support for Anthropic's Vertex AI provider."
+### Example 1: Local LM Studio server
+User says: "I need caliber to use my local LM Studio instance."
 
-### Actions taken:
+Actions: Create src/llm/lm-studio.ts extending OpenAICompatProvider. Add 'lm-studio' to ProviderType. In config.ts:
+```typescript
+if (process.env.LM_STUDIO_BASE_URL) {
+  return { provider: 'lm-studio', apiKey: '', model: 'local', baseUrl: process.env.LM_STUDIO_BASE_URL };
+}
+```
+Register in createProvider() case. User: `export LM_STUDIO_BASE_URL=http://localhost:8000/v1`. Result: caliber uses local LM Studio; tokens estimated via estimateTokens().
 
-1. Create `src/llm/vertex.ts` implementing `LLMProvider` with `call()` and `stream()` using Vertex SDK.
-2. Export from `src/llm/index.ts`: `export { VertexProvider }`.
-3. Add factory case in `getLLMProvider()`: `case 'vertex': return new VertexProvider(projectId, location, ...)`
-4. Update `src/llm/config.ts` with Vertex env vars and `isSeatBased: false`.
-5. Implement error handling for Vertex-specific errors (auth, model not found, quota).
-6. Implement `stream()` yielding chunks from Vertex streaming API.
-7. Write tests in `src/llm/__tests__/vertex.test.ts` for both methods.
-8. Run `npm run test -- src/llm/__tests__/vertex.test.ts` to verify.
+### Example 2: Ollama (seat-based)
+User says: "Ollama is auto-detected; no API key needed."
 
-### Result:
-Caliber now supports Vertex AI. Users can set `VERTEX_PROJECT_ID` and `VERTEX_LOCATION`, then select Vertex as their LLM provider during `caliber init`.
+Actions: Create src/llm/ollama.ts extending OpenAICompatProvider. Add 'ollama' to ProviderType and SEAT_BASED_PROVIDERS. In config.ts:
+```typescript
+if (process.env.OLLAMA_HOST) {
+  return { provider: 'ollama', model: 'mistral', baseUrl: process.env.OLLAMA_HOST || 'http://localhost:11434/v1' };
+}
+```
+Result: Offline per-machine LLM without API keys.
 
 ## Common Issues
 
-**Error: "Cannot find module './my-provider.js'"**
-- ESM imports require `.js` extensions. Add `.js` to all relative imports in `index.ts`.
-- Verify file exists at exact path.
+**Unknown provider: your-provider**
+- Cause: ProviderType updated but createProvider() case missing.
+- Fix: Add case in src/llm/index.ts and import the class.
 
-**Error: "LLMError is not exported"**
-- Import from `src/llm/types.js` not `src/llm.js`.
-- Correct: `import { LLMError } from './types.js';`
+**Cannot find module './your-provider.js'**
+- Cause: File named your_provider.ts (underscore) not your-provider.ts (kebab).
+- Fix: Rename file to use kebab-case.
 
-**Stream yields empty text or stops early**
-- Verify buffer handling in stream loop. Lines must be split on `\n` and incomplete lines stored in buffer.
-- Check API response format. Some APIs use Server-Sent Events (`data: `), others use line-delimited JSON.
-- Test with `curl` first: `curl -N https://api/stream` to see raw format.
+**API key is required for YourProvider**
+- Cause: Env var YOUR_PROVIDER_API_KEY not set; resolveFromEnv() didn't detect it.
+- Fix: Verify env var name in config.ts matches. Test: `YOUR_PROVIDER_API_KEY=test npm run test -- src/llm/__tests__/index.test.ts`.
 
-**"Rate limit exceeded" error on every call**
-- Verify API key is valid and has quota remaining. Check provider dashboard.
-- If seat-based, ensure you have a valid license (Cursor, Claude CLI).
-- Check if `isSeatBased: true` is set correctly — seat-based providers bypass rate limit checks in some contexts.
+**LLM response did not include usage tokens**
+- Cause: Provider API doesn't return usage (local models).
+- Fix: Estimate tokens: `trackUsage(model, { inputTokens: estimateTokens(options.system + options.prompt), outputTokens: estimateTokens(response.text) });`
 
-**Provider not appearing in `caliber init` flow**
-- Verify provider is exported from `src/llm/index.ts`.
-- Check `getLLMProvider()` case statement matches provider name.
-- Verify config key exists in `src/llm/config.ts`.
-- Run `caliber status` to see if provider is detected.
+**Stream callbacks never fire; onEnd not called**
+- Cause: Async iterator not fully consumed before method returns.
+- Fix: Ensure iteration completes before onEnd(): `for await (const chunk of stream) { } callbacks.onEnd({ stopReason, usage });`
 
-**Tests fail with "fetch is not defined"**
-- Use `vi.stubGlobal('fetch', ...)` in Vitest to mock fetch.
-- Or import a fetch polyfill like `node-fetch` if targeting Node < 18.
-- Verify `src/test/setup.ts` doesn't stub fetch globally (it shouldn't).
+**My model parameter is ignored**
+- Cause: call()/stream() doesn't use `options.model || this.defaultModel`.
+- Fix: Replace hardcoded model: `const model = options.model || this.defaultModel; const response = await this.client.create({ model, ... });`
+
+**trackUsage() is never called**
+- Cause: Forgot to call trackUsage() in call() or stream().
+- Fix: Add after every response: `trackUsage(model, { inputTokens: ..., outputTokens: ... });`
+
+**Type error: Provider doesn't implement LLMProvider**
+- Cause: Missing method or wrong signature.
+- Fix: Verify all required methods exist with exact signatures from src/llm/types.ts. Copy-paste from anthropic.ts as reference.

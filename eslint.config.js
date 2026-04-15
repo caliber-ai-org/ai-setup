@@ -34,6 +34,6 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/**', 'coverage/**', 'github-action/**', '*.config.*'],
+    ignores: ['dist/**', 'coverage/**', 'index.cjs', '*.config.*'],
   },
 );

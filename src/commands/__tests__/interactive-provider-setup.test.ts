@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const { mockSelect, mockConfirm, mockWriteConfigFile, mockQuestion } = vi.hoisted(() => ({
   mockSelect: vi.fn(),
@@ -34,8 +34,15 @@ vi.mock('readline', () => ({
 import { runInteractiveProviderSetup } from '../interactive-provider-setup.js';
 
 describe('runInteractiveProviderSetup', () => {
+  let origIsTTY: boolean | undefined;
   beforeEach(() => {
     vi.clearAllMocks();
+    // Tests simulate an interactive (TTY) session — promptInput() guards on isTTY
+    origIsTTY = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
+  });
+  afterEach(() => {
+    Object.defineProperty(process.stdin, 'isTTY', { value: origIsTTY, configurable: true });
   });
 
   it('configures claude-cli provider without API key', async () => {
