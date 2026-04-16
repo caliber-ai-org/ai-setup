@@ -1,3 +1,9 @@
+## v1.42.0 (2026-04-14)
+
+### Features
+
+- parallelize monorepo subdirectory refresh with p-limit concurrency cap (#133)
+
 ## v1.41.4 (2026-04-13)
 
 ### Other

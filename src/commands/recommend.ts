@@ -599,6 +599,12 @@ export async function recommendCommand(options: { query?: string; install?: stri
     return;
   }
 
+  // Non-interactive context (git hooks, CI, subprocess): skip the confirmation prompt
+  if (!process.stdin.isTTY) {
+    console.log(chalk.dim('  Skills search requires an interactive terminal.'));
+    return;
+  }
+
   const proceed = await select({
     message: 'Search public repos for relevant skills to add to this project?',
     choices: [
