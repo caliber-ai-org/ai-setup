@@ -1,3 +1,12 @@
+## v1.44.2 (2026-04-16)
+
+### Bug Fixes
+
+- surface skill generation failures via onError callback (#142) (#145)
+- strip all Claude Code env vars to prevent auth failures (#147, #138, #152)
+- use max_completion_tokens for OpenAI provider (#155)
+- respect .gitignore in file tree scanning (#149)
+
 ## v1.44.0 (2026-04-16)
 
 ### Features
