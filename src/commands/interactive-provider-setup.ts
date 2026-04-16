@@ -5,12 +5,14 @@ import { writeConfigFile, DEFAULT_MODELS } from '../llm/config.js';
 import type { ProviderType, LLMConfig } from '../llm/types.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
 import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
+import { isOpenCodeAvailable } from '../llm/opencode.js';
 import { promptInput } from '../utils/prompt.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 
 const PROVIDER_CHOICES: Array<{ name: string; value: ProviderType }> = [
   { name: 'Claude Code — use your existing subscription (no API key)', value: 'claude-cli' },
+  { name: 'OpenCode — use your existing subscription (no API key)', value: 'opencode' },
   { name: 'Cursor — use your existing subscription (no API key)', value: 'cursor' },
   { name: 'Anthropic — API key from console.anthropic.com', value: 'anthropic' },
   { name: 'Google Vertex AI — Claude models via GCP', value: 'vertex' },
@@ -64,6 +66,23 @@ export async function runInteractiveProviderSetup(options?: {
           ),
         );
       }
+      break;
+    }
+    case 'opencode': {
+      if (!isOpenCodeAvailable()) {
+        console.log(chalk.yellow('\n  OpenCode CLI not found.'));
+        console.log(chalk.dim('  Install it from: ') + chalk.hex('#83D1EB')('https://opencode.ai'));
+        console.log(
+          chalk.dim('  Then run ') +
+            chalk.hex('#83D1EB')('opencode auth login') +
+            chalk.dim(' to authenticate.\n'),
+        );
+        const proceed = await confirm({ message: 'Continue anyway?' });
+        if (!proceed) throw new Error('__exit__');
+      }
+      config.model =
+        (await promptInput(`Model (default: ${DEFAULT_MODELS.opencode}):`)) ||
+        DEFAULT_MODELS.opencode;
       break;
     }
     case 'cursor': {

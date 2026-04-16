@@ -28,6 +28,7 @@ const KNOWN_MODELS: Record<ProviderType, string[]> = {
   minimax: ['MiniMax-M2.7', 'MiniMax-M2.7-highspeed'],
   cursor: ['auto', 'composer-1.5'],
   'claude-cli': [],
+  opencode: [],
 };
 
 /**
