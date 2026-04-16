@@ -306,6 +306,50 @@ describe('scanLocalState', () => {
     });
   });
 
+  describe('Cursor: .cursor/skills/*/SKILL.md', () => {
+    it('detects cursor skills', () => {
+      const skillsDir = path.join(DIR, '.cursor', 'skills');
+      const skillFile = path.join(skillsDir, 'review', 'SKILL.md');
+
+      vi.mocked(fs.existsSync).mockImplementation((p) => {
+        const s = String(p);
+        return s === skillsDir || s === skillFile;
+      });
+
+      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
+        if (String(p) === skillsDir) return ['review'];
+        return [];
+      }) as any);
+
+      vi.mocked(fs.readFileSync).mockReturnValue('review skill' as any);
+
+      const items = scanLocalState(DIR);
+      const skills = items.filter((i) => i.type === 'skill' && i.platform === 'cursor');
+
+      expect(skills).toHaveLength(1);
+      expect(skills[0].name).toBe('review/SKILL.md');
+      expect(skills[0].path).toBe(skillFile);
+    });
+  });
+
+  describe('Claude: malformed .mcp.json', () => {
+    it('warns on malformed root .mcp.json', () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const mcpPath = path.join(DIR, '.mcp.json');
+
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === mcpPath);
+      vi.mocked(fs.readFileSync).mockReturnValue('not valid json' as any);
+
+      const items = scanLocalState(DIR);
+      const mcps = items.filter((i) => i.type === 'mcp' && i.platform === 'claude');
+
+      expect(mcps).toHaveLength(0);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: .mcp.json scan skipped'),
+      );
+    });
+  });
+
   describe('multi-platform detection', () => {
     it('detects items across all platforms simultaneously', () => {
       const claudeMd = path.join(DIR, 'CLAUDE.md');
