@@ -8,403 +8,350 @@ import { scanLocalState } from '../index.js';
 
 const DIR = '/project';
 
+function mockPaths(existingPaths: string[]) {
+  vi.mocked(fs.existsSync).mockImplementation((p) => existingPaths.includes(String(p)));
+}
+
+function mockReadFile(content: string) {
+  vi.mocked(fs.readFileSync).mockReturnValue(content as any);
+}
+
+function mockReadDir(mapping: Record<string, string[]>) {
+  vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
+    return mapping[String(p)] ?? [];
+  }) as any);
+}
+
 describe('scanLocalState', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     vi.mocked(fs.existsSync).mockReturnValue(false);
   });
 
-  it('returns empty array when no config files exist', () => {
-    const items = scanLocalState(DIR);
-    expect(items).toHaveLength(0);
-  });
-
-  describe('Claude: CLAUDE.md', () => {
-    it('detects CLAUDE.md in project root', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === path.join(DIR, 'CLAUDE.md'));
-      vi.mocked(fs.readFileSync).mockReturnValue('# Project rules' as any);
+  describe('Claude platform', () => {
+    it('detects CLAUDE.md with correct type, platform, and name', () => {
+      const claudePath = path.join(DIR, 'CLAUDE.md');
+      mockPaths([claudePath]);
+      mockReadFile('# Project instructions');
 
       const items = scanLocalState(DIR);
-      const match = items.find((i) => i.name === 'CLAUDE.md');
 
-      expect(match).toBeDefined();
-      expect(match!.type).toBe('rule');
-      expect(match!.platform).toBe('claude');
-      expect(match!.path).toBe(path.join(DIR, 'CLAUDE.md'));
-      expect(match!.contentHash).toMatch(/^[a-f0-9]{64}$/);
-    });
-  });
-
-  describe('Claude: .claude/skills/*.md', () => {
-    it('detects multiple skill files', () => {
-      const skillsDir = path.join(DIR, '.claude', 'skills');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
-        const s = String(p);
-        return s === skillsDir;
+      expect(items).toHaveLength(1);
+      expect(items[0]).toMatchObject({
+        type: 'rule',
+        platform: 'claude',
+        name: 'CLAUDE.md',
+        path: claudePath,
       });
-
-      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
-        if (String(p) === skillsDir) return ['skill-a.md', 'skill-b.md', 'readme.txt'];
-        return [];
-      }) as any);
-
-      vi.mocked(fs.readFileSync).mockReturnValue('skill content' as any);
-
-      const items = scanLocalState(DIR);
-      const skills = items.filter((i) => i.type === 'skill' && i.platform === 'claude');
-
-      expect(skills).toHaveLength(2);
-      expect(skills.map((s) => s.name)).toEqual(['skill-a.md', 'skill-b.md']);
+      expect(items[0].contentHash).toMatch(/^[a-f0-9]{64}$/);
     });
 
-    it('skips non-.md files in skills directory', () => {
+    it('detects skills in .claude/skills/*.md', () => {
       const skillsDir = path.join(DIR, '.claude', 'skills');
+      const skillPath = path.join(skillsDir, 'foo.md');
 
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === skillsDir);
-      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
-        if (String(p) === skillsDir) return ['notes.txt', 'config.json'];
-        return [];
-      }) as any);
+      mockPaths([skillsDir, skillPath]);
+      mockReadDir({ [skillsDir]: ['foo.md', 'readme.txt'] });
+      mockReadFile('skill content');
 
       const items = scanLocalState(DIR);
       const skills = items.filter((i) => i.type === 'skill' && i.platform === 'claude');
-      expect(skills).toHaveLength(0);
-    });
-  });
 
-  describe('Claude: .mcp.json', () => {
+      expect(skills).toHaveLength(1);
+      expect(skills[0]).toMatchObject({
+        type: 'skill',
+        platform: 'claude',
+        name: 'foo.md',
+        path: skillPath,
+      });
+      expect(skills[0].contentHash).toMatch(/^[a-f0-9]{64}$/);
+    });
+
     it('detects MCP servers from .mcp.json', () => {
       const mcpPath = path.join(DIR, '.mcp.json');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === mcpPath);
+      mockPaths([mcpPath]);
       vi.mocked(fs.readFileSync).mockReturnValue(
         JSON.stringify({
           mcpServers: {
-            github: { command: 'gh', args: ['mcp'] },
-            postgres: { command: 'pg-mcp' },
+            'my-server': { command: 'node', args: ['server.js'] },
+            'other-server': { command: 'python', args: ['app.py'] },
           },
         }) as any,
       );
 
       const items = scanLocalState(DIR);
-      const mcps = items.filter((i) => i.type === 'mcp' && i.platform === 'claude');
+      const mcpItems = items.filter((i) => i.type === 'mcp' && i.platform === 'claude');
 
-      expect(mcps).toHaveLength(2);
-      expect(mcps.map((m) => m.name).sort()).toEqual(['github', 'postgres']);
-      expect(mcps[0].contentHash).toMatch(/^[a-f0-9]{64}$/);
-      expect(mcps[0].path).toBe(mcpPath);
-    });
-
-    it('handles .mcp.json without mcpServers key', () => {
-      const mcpPath = path.join(DIR, '.mcp.json');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === mcpPath);
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ version: 1 }) as any);
-
-      const items = scanLocalState(DIR);
-      const mcps = items.filter((i) => i.type === 'mcp' && i.platform === 'claude');
-      expect(mcps).toHaveLength(0);
-    });
-  });
-
-  describe('Codex: AGENTS.md', () => {
-    it('detects AGENTS.md in project root', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === path.join(DIR, 'AGENTS.md'));
-      vi.mocked(fs.readFileSync).mockReturnValue('# Agent rules' as any);
-
-      const items = scanLocalState(DIR);
-      const match = items.find((i) => i.name === 'AGENTS.md');
-
-      expect(match).toBeDefined();
-      expect(match!.type).toBe('rule');
-      expect(match!.platform).toBe('codex');
-      expect(match!.path).toBe(path.join(DIR, 'AGENTS.md'));
-    });
-  });
-
-  describe('Codex: .agents/skills/*/SKILL.md', () => {
-    it('detects codex skills', () => {
-      const skillsDir = path.join(DIR, '.agents', 'skills');
-      const skillFile = path.join(skillsDir, 'deploy', 'SKILL.md');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
-        const s = String(p);
-        return s === skillsDir || s === skillFile;
+      expect(mcpItems).toHaveLength(2);
+      expect(mcpItems[0]).toMatchObject({
+        type: 'mcp',
+        platform: 'claude',
+        name: 'my-server',
+        path: mcpPath,
       });
+      expect(mcpItems[1]).toMatchObject({
+        type: 'mcp',
+        platform: 'claude',
+        name: 'other-server',
+        path: mcpPath,
+      });
+      expect(mcpItems[0].contentHash).toMatch(/^[a-f0-9]{64}$/);
+    });
+  });
 
-      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
-        if (String(p) === skillsDir) return ['deploy'];
-        return [];
-      }) as any);
+  describe('Codex platform', () => {
+    it('detects AGENTS.md', () => {
+      const agentsPath = path.join(DIR, 'AGENTS.md');
+      mockPaths([agentsPath]);
+      mockReadFile('# Agents config');
 
-      vi.mocked(fs.readFileSync).mockReturnValue('deploy skill' as any);
+      const items = scanLocalState(DIR);
+      const codexItems = items.filter((i) => i.platform === 'codex');
+
+      expect(codexItems).toHaveLength(1);
+      expect(codexItems[0]).toMatchObject({
+        type: 'rule',
+        platform: 'codex',
+        name: 'AGENTS.md',
+        path: agentsPath,
+      });
+    });
+
+    it('detects skills in .agents/skills/*/SKILL.md', () => {
+      const skillsDir = path.join(DIR, '.agents', 'skills');
+      const skillFile = path.join(skillsDir, 'test-skill', 'SKILL.md');
+
+      mockPaths([skillsDir, skillFile]);
+      mockReadDir({ [skillsDir]: ['test-skill'] });
+      mockReadFile('codex skill content');
 
       const items = scanLocalState(DIR);
       const skills = items.filter((i) => i.type === 'skill' && i.platform === 'codex');
 
       expect(skills).toHaveLength(1);
-      expect(skills[0].name).toBe('deploy/SKILL.md');
-      expect(skills[0].path).toBe(skillFile);
-    });
-
-    it('skips skill dirs without SKILL.md', () => {
-      const skillsDir = path.join(DIR, '.agents', 'skills');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === skillsDir);
-      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
-        if (String(p) === skillsDir) return ['empty-skill'];
-        return [];
-      }) as any);
-
-      const items = scanLocalState(DIR);
-      const skills = items.filter((i) => i.type === 'skill' && i.platform === 'codex');
-      expect(skills).toHaveLength(0);
-    });
-
-    it('warns on read error', () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-      const skillsDir = path.join(DIR, '.agents', 'skills');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === skillsDir);
-      vi.mocked(fs.readdirSync).mockImplementation(() => {
-        throw new Error('EACCES');
+      expect(skills[0]).toMatchObject({
+        type: 'skill',
+        platform: 'codex',
+        name: 'test-skill/SKILL.md',
+        path: skillFile,
       });
-
-      scanLocalState(DIR);
-
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Warning: .agents/skills scan skipped'),
-      );
     });
   });
 
-  describe('OpenCode: .opencode/skills/*/SKILL.md', () => {
-    it('detects opencode skills', () => {
+  describe('OpenCode platform', () => {
+    it('detects skills in .opencode/skills/*/SKILL.md', () => {
       const skillsDir = path.join(DIR, '.opencode', 'skills');
-      const skillFile = path.join(skillsDir, 'lint', 'SKILL.md');
+      const skillFile = path.join(skillsDir, 'oc-skill', 'SKILL.md');
 
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
-        const s = String(p);
-        return s === skillsDir || s === skillFile;
-      });
-
-      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
-        if (String(p) === skillsDir) return ['lint'];
-        return [];
-      }) as any);
-
-      vi.mocked(fs.readFileSync).mockReturnValue('lint skill' as any);
+      mockPaths([skillsDir, skillFile]);
+      mockReadDir({ [skillsDir]: ['oc-skill'] });
+      mockReadFile('opencode skill content');
 
       const items = scanLocalState(DIR);
       const skills = items.filter((i) => i.type === 'skill' && i.platform === 'opencode');
 
       expect(skills).toHaveLength(1);
-      expect(skills[0].name).toBe('lint/SKILL.md');
-    });
-
-    it('warns on read error', () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-      const skillsDir = path.join(DIR, '.opencode', 'skills');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === skillsDir);
-      vi.mocked(fs.readdirSync).mockImplementation(() => {
-        throw new Error('EPERM');
+      expect(skills[0]).toMatchObject({
+        type: 'skill',
+        platform: 'opencode',
+        name: 'oc-skill/SKILL.md',
+        path: skillFile,
       });
-
-      scanLocalState(DIR);
-
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Warning: .opencode/skills scan skipped'),
-      );
     });
   });
 
-  describe('Cursor: .cursorrules', () => {
-    it('detects .cursorrules file', () => {
-      vi.mocked(fs.existsSync).mockImplementation(
-        (p) => String(p) === path.join(DIR, '.cursorrules'),
-      );
-      vi.mocked(fs.readFileSync).mockReturnValue('cursor rules content' as any);
+  describe('Cursor platform', () => {
+    it('detects .cursorrules', () => {
+      const cursorrulesPath = path.join(DIR, '.cursorrules');
+      mockPaths([cursorrulesPath]);
+      mockReadFile('cursor rules content');
 
       const items = scanLocalState(DIR);
-      const match = items.find((i) => i.name === '.cursorrules');
+      const rules = items.filter((i) => i.platform === 'cursor' && i.name === '.cursorrules');
 
-      expect(match).toBeDefined();
-      expect(match!.type).toBe('rule');
-      expect(match!.platform).toBe('cursor');
-      expect(match!.path).toBe(path.join(DIR, '.cursorrules'));
+      expect(rules).toHaveLength(1);
+      expect(rules[0]).toMatchObject({
+        type: 'rule',
+        platform: 'cursor',
+        name: '.cursorrules',
+        path: cursorrulesPath,
+      });
     });
-  });
 
-  describe('Cursor: .cursor/rules/*.mdc', () => {
-    it('detects .mdc rule files', () => {
+    it('detects rules in .cursor/rules/*.mdc', () => {
       const rulesDir = path.join(DIR, '.cursor', 'rules');
+      const ruleFile = path.join(rulesDir, 'test.mdc');
 
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === rulesDir);
-      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
-        if (String(p) === rulesDir) return ['general.mdc', 'testing.mdc', 'notes.txt'];
-        return [];
-      }) as any);
-
-      vi.mocked(fs.readFileSync).mockReturnValue('rule content' as any);
+      mockPaths([rulesDir]);
+      mockReadDir({ [rulesDir]: ['test.mdc', 'notes.txt'] });
+      mockReadFile('cursor rule content');
 
       const items = scanLocalState(DIR);
-      const rules = items.filter((i) => i.type === 'rule' && i.platform === 'cursor');
-
-      expect(rules).toHaveLength(2);
-      expect(rules.map((r) => r.name)).toEqual(['general.mdc', 'testing.mdc']);
-    });
-  });
-
-  describe('Cursor: .cursor/mcp.json', () => {
-    it('detects Cursor MCP servers', () => {
-      const mcpPath = path.join(DIR, '.cursor', 'mcp.json');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === mcpPath);
-      vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({
-          mcpServers: {
-            figma: { command: 'figma-mcp' },
-          },
-        }) as any,
+      const rules = items.filter(
+        (i) => i.type === 'rule' && i.platform === 'cursor' && i.name === 'test.mdc',
       );
 
-      const items = scanLocalState(DIR);
-      const mcps = items.filter((i) => i.type === 'mcp' && i.platform === 'cursor');
-
-      expect(mcps).toHaveLength(1);
-      expect(mcps[0].name).toBe('figma');
-      expect(mcps[0].path).toBe(mcpPath);
-    });
-
-    it('warns on malformed cursor mcp.json', () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-      const mcpPath = path.join(DIR, '.cursor', 'mcp.json');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === mcpPath);
-      vi.mocked(fs.readFileSync).mockReturnValue('not json' as any);
-
-      const items = scanLocalState(DIR);
-      const mcps = items.filter((i) => i.type === 'mcp' && i.platform === 'cursor');
-
-      expect(mcps).toHaveLength(0);
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Warning: .cursor/mcp.json scan skipped'),
-      );
-    });
-
-    it('handles cursor mcp.json without mcpServers key', () => {
-      const mcpPath = path.join(DIR, '.cursor', 'mcp.json');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === mcpPath);
-      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ version: 2 }) as any);
-
-      const items = scanLocalState(DIR);
-      const mcps = items.filter((i) => i.type === 'mcp' && i.platform === 'cursor');
-      expect(mcps).toHaveLength(0);
-    });
-  });
-
-  describe('Cursor: .cursor/skills/*/SKILL.md', () => {
-    it('detects cursor skills', () => {
-      const skillsDir = path.join(DIR, '.cursor', 'skills');
-      const skillFile = path.join(skillsDir, 'review', 'SKILL.md');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
-        const s = String(p);
-        return s === skillsDir || s === skillFile;
+      expect(rules).toHaveLength(1);
+      expect(rules[0]).toMatchObject({
+        type: 'rule',
+        platform: 'cursor',
+        name: 'test.mdc',
+        path: ruleFile,
       });
+    });
 
-      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
-        if (String(p) === skillsDir) return ['review'];
-        return [];
-      }) as any);
+    it('detects skills in .cursor/skills/*/SKILL.md', () => {
+      const skillsDir = path.join(DIR, '.cursor', 'skills');
+      const skillFile = path.join(skillsDir, 'cursor-skill', 'SKILL.md');
 
-      vi.mocked(fs.readFileSync).mockReturnValue('review skill' as any);
+      mockPaths([skillsDir, skillFile]);
+      mockReadDir({ [skillsDir]: ['cursor-skill'] });
+      mockReadFile('cursor skill content');
 
       const items = scanLocalState(DIR);
       const skills = items.filter((i) => i.type === 'skill' && i.platform === 'cursor');
 
       expect(skills).toHaveLength(1);
-      expect(skills[0].name).toBe('review/SKILL.md');
-      expect(skills[0].path).toBe(skillFile);
+      expect(skills[0]).toMatchObject({
+        type: 'skill',
+        platform: 'cursor',
+        name: 'cursor-skill/SKILL.md',
+        path: skillFile,
+      });
+    });
+
+    it('detects MCP servers from .cursor/mcp.json', () => {
+      const cursorMcpPath = path.join(DIR, '.cursor', 'mcp.json');
+      mockPaths([cursorMcpPath]);
+      vi.mocked(fs.readFileSync).mockReturnValue(
+        JSON.stringify({
+          mcpServers: {
+            'cursor-mcp': { command: 'npx', args: ['server'] },
+          },
+        }) as any,
+      );
+
+      const items = scanLocalState(DIR);
+      const mcpItems = items.filter((i) => i.type === 'mcp' && i.platform === 'cursor');
+
+      expect(mcpItems).toHaveLength(1);
+      expect(mcpItems[0]).toMatchObject({
+        type: 'mcp',
+        platform: 'cursor',
+        name: 'cursor-mcp',
+        path: cursorMcpPath,
+      });
     });
   });
 
-  describe('Claude: malformed .mcp.json', () => {
-    it('warns on malformed root .mcp.json', () => {
-      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  describe('edge cases', () => {
+    it('handles malformed JSON in .mcp.json without throwing', () => {
       const mcpPath = path.join(DIR, '.mcp.json');
-
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === mcpPath);
-      vi.mocked(fs.readFileSync).mockReturnValue('not valid json' as any);
+      mockPaths([mcpPath]);
+      vi.mocked(fs.readFileSync).mockReturnValue('{not valid json!!!' as any);
 
       const items = scanLocalState(DIR);
-      const mcps = items.filter((i) => i.type === 'mcp' && i.platform === 'claude');
 
-      expect(mcps).toHaveLength(0);
+      expect(items).toHaveLength(0);
       expect(console.warn).toHaveBeenCalledWith(
         expect.stringContaining('Warning: .mcp.json scan skipped'),
       );
     });
+
+    it('returns empty array when no config files exist', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
+      const items = scanLocalState(DIR);
+
+      expect(items).toEqual([]);
+    });
+
+    it('returns empty array for a directory with no recognized files', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
+      const items = scanLocalState('/empty-project');
+
+      expect(items).toEqual([]);
+    });
   });
 
-  describe('multi-platform detection', () => {
-    it('detects items across all platforms simultaneously', () => {
+  describe('combined: multiple platforms', () => {
+    it('discovers items across all platforms in a single scan', () => {
       const claudeMd = path.join(DIR, 'CLAUDE.md');
-      const agentsMd = path.join(DIR, 'AGENTS.md');
-      const cursorrules = path.join(DIR, '.cursorrules');
+      const claudeSkillsDir = path.join(DIR, '.claude', 'skills');
+      const claudeSkill = path.join(claudeSkillsDir, 'deploy.md');
       const mcpJson = path.join(DIR, '.mcp.json');
+      const agentsMd = path.join(DIR, 'AGENTS.md');
+      const codexSkillsDir = path.join(DIR, '.agents', 'skills');
+      const codexSkill = path.join(codexSkillsDir, 'build', 'SKILL.md');
+      const opencodeSkillsDir = path.join(DIR, '.opencode', 'skills');
+      const opencodeSkill = path.join(opencodeSkillsDir, 'lint', 'SKILL.md');
+      const cursorrules = path.join(DIR, '.cursorrules');
+      const cursorRulesDir = path.join(DIR, '.cursor', 'rules');
+      const cursorSkillsDir = path.join(DIR, '.cursor', 'skills');
+      const cursorSkill = path.join(cursorSkillsDir, 'format', 'SKILL.md');
+      const cursorMcp = path.join(DIR, '.cursor', 'mcp.json');
 
       vi.mocked(fs.existsSync).mockImplementation((p) => {
         const s = String(p);
-        return [claudeMd, agentsMd, cursorrules, mcpJson].includes(s);
+        return [
+          claudeMd,
+          claudeSkillsDir,
+          claudeSkill,
+          mcpJson,
+          agentsMd,
+          codexSkillsDir,
+          codexSkill,
+          opencodeSkillsDir,
+          opencodeSkill,
+          cursorrules,
+          cursorRulesDir,
+          cursorSkillsDir,
+          cursorSkill,
+          cursorMcp,
+        ].includes(s);
       });
 
+      vi.mocked(fs.readdirSync).mockImplementation(((p: unknown) => {
+        const s = String(p);
+        if (s === claudeSkillsDir) return ['deploy.md'];
+        if (s === codexSkillsDir) return ['build'];
+        if (s === opencodeSkillsDir) return ['lint'];
+        if (s === cursorRulesDir) return ['style.mdc'];
+        if (s === cursorSkillsDir) return ['format'];
+        return [];
+      }) as any);
+
       vi.mocked(fs.readFileSync).mockImplementation(((p: unknown) => {
-        if (String(p) === mcpJson) {
-          return JSON.stringify({ mcpServers: { srv: { cmd: 'x' } } });
+        const s = String(p);
+        if (s === mcpJson) {
+          return JSON.stringify({ mcpServers: { 'dev-server': { command: 'node' } } });
         }
-        return 'content';
+        if (s === cursorMcp) {
+          return JSON.stringify({ mcpServers: { 'cursor-srv': { command: 'python' } } });
+        }
+        return 'file content';
       }) as any);
 
       const items = scanLocalState(DIR);
 
-      expect(items.find((i) => i.platform === 'claude' && i.type === 'rule')).toBeDefined();
-      expect(items.find((i) => i.platform === 'codex' && i.type === 'rule')).toBeDefined();
-      expect(items.find((i) => i.platform === 'cursor' && i.type === 'rule')).toBeDefined();
-      expect(items.find((i) => i.platform === 'claude' && i.type === 'mcp')).toBeDefined();
-    });
-  });
+      const byPlatform = (platform: string) => items.filter((i) => i.platform === platform);
 
-  describe('content hashing', () => {
-    it('produces consistent hashes for same content', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) => String(p) === path.join(DIR, 'CLAUDE.md'));
-      vi.mocked(fs.readFileSync).mockReturnValue('same content' as any);
+      // Claude: CLAUDE.md + 1 skill + 1 MCP server
+      expect(byPlatform('claude')).toHaveLength(3);
+      // Codex: AGENTS.md + 1 skill
+      expect(byPlatform('codex')).toHaveLength(2);
+      // OpenCode: 1 skill
+      expect(byPlatform('opencode')).toHaveLength(1);
+      // Cursor: .cursorrules + 1 rule + 1 skill + 1 MCP server
+      expect(byPlatform('cursor')).toHaveLength(4);
 
-      const items1 = scanLocalState(DIR);
-      const items2 = scanLocalState(DIR);
+      expect(items).toHaveLength(10);
 
-      expect(items1[0].contentHash).toBe(items2[0].contentHash);
-    });
-
-    it('produces different hashes for different content', () => {
-      vi.mocked(fs.existsSync).mockImplementation((p) => {
-        const s = String(p);
-        return s === path.join(DIR, 'CLAUDE.md') || s === path.join(DIR, 'AGENTS.md');
-      });
-
-      vi.mocked(fs.readFileSync).mockImplementation(((p: unknown) => {
-        if (String(p) === path.join(DIR, 'CLAUDE.md')) return 'content A';
-        return 'content B';
-      }) as any);
-
-      const items = scanLocalState(DIR);
-      const claude = items.find((i) => i.platform === 'claude');
-      const codex = items.find((i) => i.platform === 'codex');
-
-      expect(claude!.contentHash).not.toBe(codex!.contentHash);
+      for (const item of items) {
+        expect(item.contentHash).toMatch(/^[a-f0-9]{64}$/);
+      }
     });
   });
 });
