@@ -1,3 +1,10 @@
+## v1.45.1 (2026-04-16)
+
+### Bug Fixes
+
+- update interactive-provider-setup tests for @inquirer/input mock
+- resolve prompt hang on Windows Git Bash (#135)
+
 ## v1.45.0 (2026-04-16)
 
 ### Features
