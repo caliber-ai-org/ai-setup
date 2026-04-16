@@ -164,10 +164,33 @@ export async function learnObserveCommand(options: { failure?: boolean; prompt?:
         const [exe, binArgs] = isNpxResolution()
           ? [bin.slice(0, -NPX_SUFFIX.length) || 'npx', ['--yes', '@rely-ai/caliber']]
           : [bin, []];
-        spawn(exe, [...binArgs, 'learn', 'finalize', '--auto', '--incremental'], {
-          detached: true,
-          stdio: ['ignore', logFd, logFd],
-        }).unref();
+        // Windows requires shell:true to spawn .cmd/.bat (CVE-2024-27980 hardening),
+        // and shell:true skips Node's exe quoting — quote here so paths like
+        // `C:\Users\First Last\AppData\Roaming\npm\caliber.cmd` survive cmd.exe parsing.
+        const isWin = process.platform === 'win32';
+        const spawnExe = isWin ? `"${exe}"` : exe;
+        const child = spawn(
+          spawnExe,
+          [...binArgs, 'learn', 'finalize', '--auto', '--incremental'],
+          {
+            detached: true,
+            stdio: ['ignore', logFd, logFd],
+            ...(isWin && { shell: true }),
+          },
+        );
+        // If spawn fails the child never advances lastAnalysisEventCount, so without
+        // this guard every subsequent observe call past the threshold re-fires the
+        // broken spawn. Bump the counter on error to back off until the next interval.
+        child.on('error', () => {
+          try {
+            const s = readState();
+            s.lastAnalysisEventCount = s.eventCount;
+            writeState(s);
+          } catch {
+            // Best effort
+          }
+        });
+        child.unref();
         fs.closeSync(logFd);
       } catch {
         // Best effort — don't block the hook
