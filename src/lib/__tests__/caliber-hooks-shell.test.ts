@@ -42,11 +42,11 @@ describe('caliber-check-sync.sh', () => {
     }
   });
 
-  it('exits 0 immediately when CLAUDE_CODE_SIMPLE=1 (spawned by caliber)', () => {
-    // This is the core bug: caliber spawns `claude -p` with CLAUDE_CODE_SIMPLE=1.
+  it('exits 0 immediately when CALIBER_SPAWNED=1 (spawned by caliber)', () => {
+    // caliber spawns `claude -p` with CALIBER_SPAWNED=1 (injected after cleanClaudeEnv()).
     // The Stop hook must not block in that context or it will cancel SessionEnd hooks,
     // causing Claude CLI to exit with code 1 and breaking `caliber refresh`.
-    const { status, stdout } = runScript(tmpDir, { CLAUDE_CODE_SIMPLE: '1' });
+    const { status, stdout } = runScript(tmpDir, { CALIBER_SPAWNED: '1' });
     expect(status).toBe(0);
     expect(stdout).not.toContain('"decision":"block"');
   });
