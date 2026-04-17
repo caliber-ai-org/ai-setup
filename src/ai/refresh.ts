@@ -6,6 +6,18 @@ import { formatSourcesForPrompt } from '../fingerprint/sources.js';
 import { stripManagedBlocks } from '../writers/pre-commit-block.js';
 import { CALIBER_MANAGED_PREFIX } from '../fingerprint/existing-config.js';
 
+// Budget for existing doc content (CLAUDE.md, skills, rules, etc.) passed to the LLM.
+// Skills can reach hundreds of KB in large projects; without a cap the combined prompt
+// exceeds Claude's input token limit and the CLI exits with "prompt is too long".
+const MAX_EXISTING_DOCS_CHARS = 60_000;
+const MIN_CHARS_PER_ENTRY = 2_000;
+
+function truncateAtLineEnd(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  const cut = text.lastIndexOf('\n', maxChars);
+  return (cut === -1 ? text.slice(0, maxChars) : text.slice(0, cut)) + '\n...[truncated]';
+}
+
 interface RefreshDiff {
   committed: string;
   staged: string;
@@ -135,51 +147,70 @@ function buildRefreshPrompt(
 
   parts.push('\n--- Current Documentation ---');
 
-  if (existingDocs.agentsMd) {
-    parts.push('\n[AGENTS.md]');
-    parts.push(stripManagedBlocks(existingDocs.agentsMd));
-  }
-  if (existingDocs.claudeMd) {
-    parts.push('\n[CLAUDE.md]');
-    parts.push(stripManagedBlocks(existingDocs.claudeMd));
-  }
-  if (existingDocs.readmeMd) {
-    parts.push('\n[README.md]');
-    parts.push(existingDocs.readmeMd);
-  }
-  if (existingDocs.cursorrules) {
-    parts.push('\n[.cursorrules]');
-    parts.push(existingDocs.cursorrules);
-  }
+  // Collect existing doc entries as {header, content} pairs so we can apply a
+  // combined size budget before joining — prevents "prompt is too long" errors
+  // in projects with many large skills or rules files.
+  type DocEntry = { header: string; content: string };
+  const docEntries: DocEntry[] = [];
+
+  if (existingDocs.agentsMd)
+    docEntries.push({
+      header: '\n[AGENTS.md]',
+      content: stripManagedBlocks(existingDocs.agentsMd),
+    });
+  if (existingDocs.claudeMd)
+    docEntries.push({
+      header: '\n[CLAUDE.md]',
+      content: stripManagedBlocks(existingDocs.claudeMd),
+    });
+  if (existingDocs.readmeMd)
+    docEntries.push({ header: '\n[README.md]', content: existingDocs.readmeMd });
+  if (existingDocs.cursorrules)
+    docEntries.push({ header: '\n[.cursorrules]', content: existingDocs.cursorrules });
   if (existingDocs.claudeSkills?.length) {
-    for (const skill of existingDocs.claudeSkills) {
-      parts.push(`\n[.claude/skills/${skill.filename}]`);
-      parts.push(skill.content);
-    }
+    for (const skill of existingDocs.claudeSkills)
+      docEntries.push({ header: `\n[.claude/skills/${skill.filename}]`, content: skill.content });
   }
   if (existingDocs.claudeRules?.length) {
     for (const rule of existingDocs.claudeRules) {
       if (rule.filename.startsWith(CALIBER_MANAGED_PREFIX)) continue;
-      parts.push(`\n[.claude/rules/${rule.filename}]`);
-      parts.push(rule.content);
+      docEntries.push({ header: `\n[.claude/rules/${rule.filename}]`, content: rule.content });
     }
   }
   if (existingDocs.cursorRules?.length) {
     for (const rule of existingDocs.cursorRules) {
       if (rule.filename.startsWith(CALIBER_MANAGED_PREFIX)) continue;
-      parts.push(`\n[.cursor/rules/${rule.filename}]`);
-      parts.push(rule.content);
+      docEntries.push({ header: `\n[.cursor/rules/${rule.filename}]`, content: rule.content });
     }
   }
-  if (existingDocs.copilotInstructions) {
-    parts.push('\n[.github/copilot-instructions.md]');
-    parts.push(stripManagedBlocks(existingDocs.copilotInstructions));
-  }
+  if (existingDocs.copilotInstructions)
+    docEntries.push({
+      header: '\n[.github/copilot-instructions.md]',
+      content: stripManagedBlocks(existingDocs.copilotInstructions),
+    });
   if (existingDocs.copilotInstructionFiles?.length) {
-    for (const file of existingDocs.copilotInstructionFiles) {
-      parts.push(`\n[.github/instructions/${file.filename}]`);
-      parts.push(file.content);
+    for (const file of existingDocs.copilotInstructionFiles)
+      docEntries.push({
+        header: `\n[.github/instructions/${file.filename}]`,
+        content: file.content,
+      });
+  }
+
+  // Apply size budget: proportionally truncate each entry's content if total exceeds limit.
+  // A per-entry minimum prevents a single huge skill from starving CLAUDE.md to near-zero.
+  const totalDocChars = docEntries.reduce((sum, e) => sum + e.content.length, 0);
+  if (totalDocChars > MAX_EXISTING_DOCS_CHARS) {
+    const ratio = MAX_EXISTING_DOCS_CHARS / totalDocChars;
+    for (const entry of docEntries) {
+      const proportional = Math.floor(entry.content.length * ratio);
+      const floor = Math.min(MIN_CHARS_PER_ENTRY, entry.content.length);
+      entry.content = truncateAtLineEnd(entry.content, Math.max(proportional, floor));
     }
+  }
+
+  for (const { header, content } of docEntries) {
+    parts.push(header);
+    parts.push(content);
   }
 
   if (existingDocs.includableDocs?.length) {
