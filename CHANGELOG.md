@@ -1,3 +1,11 @@
+## v1.45.4 (2026-04-17)
+
+### Bug Fixes
+
+- prevent prompt-too-long errors in caliber refresh (#173)
+- stop hook must not block headless claude sessions (#170)
+- skip all hook commands in caliber-spawned claude sessions (#172)
+
 ## v1.45.3 (2026-04-17)
 
 ## v1.45.2 (2026-04-16)
