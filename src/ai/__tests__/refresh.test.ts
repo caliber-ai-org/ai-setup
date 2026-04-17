@@ -244,5 +244,24 @@ describe('refreshDocs', () => {
       expect(prompt).toContain('[AGENTS.md]');
       expect(prompt).toContain('[.claude/skills/my-skill]');
     });
+
+    it('preserves at least MIN_CHARS_PER_ENTRY for small docs alongside huge ones', async () => {
+      // MIN_CHARS_PER_ENTRY = 2_000; a tiny CLAUDE.md next to a massive skill
+      // should not be truncated below the floor.
+      const HUGE_SKILL = 'y'.repeat(400_000);
+      const SMALL_CLAUDE = 'z'.repeat(1_500);
+      const prompt = await getRefreshPrompt({
+        claudeMd: SMALL_CLAUDE,
+        claudeSkills: [{ filename: 'giant-skill', content: HUGE_SKILL }],
+      });
+      expect(prompt).toContain('[CLAUDE.md]');
+      // CLAUDE.md content should be fully preserved (1500 < 2000 floor)
+      const claudeSection = prompt.slice(
+        prompt.indexOf('[CLAUDE.md]') + '[CLAUDE.md]'.length,
+        prompt.indexOf('[.claude/skills/giant-skill]'),
+      );
+      expect(claudeSection).toContain(SMALL_CLAUDE);
+      expect(claudeSection).not.toContain('[truncated]');
+    });
   });
 });

@@ -10,6 +10,7 @@ import { CALIBER_MANAGED_PREFIX } from '../fingerprint/existing-config.js';
 // Skills can reach hundreds of KB in large projects; without a cap the combined prompt
 // exceeds Claude's input token limit and the CLI exits with "prompt is too long".
 const MAX_EXISTING_DOCS_CHARS = 60_000;
+const MIN_CHARS_PER_ENTRY = 2_000;
 
 function truncateAtLineEnd(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
@@ -196,11 +197,14 @@ function buildRefreshPrompt(
   }
 
   // Apply size budget: proportionally truncate each entry's content if total exceeds limit.
+  // A per-entry minimum prevents a single huge skill from starving CLAUDE.md to near-zero.
   const totalDocChars = docEntries.reduce((sum, e) => sum + e.content.length, 0);
   if (totalDocChars > MAX_EXISTING_DOCS_CHARS) {
     const ratio = MAX_EXISTING_DOCS_CHARS / totalDocChars;
     for (const entry of docEntries) {
-      entry.content = truncateAtLineEnd(entry.content, Math.floor(entry.content.length * ratio));
+      const proportional = Math.floor(entry.content.length * ratio);
+      const floor = Math.min(MIN_CHARS_PER_ENTRY, entry.content.length);
+      entry.content = truncateAtLineEnd(entry.content, Math.max(proportional, floor));
     }
   }
 
