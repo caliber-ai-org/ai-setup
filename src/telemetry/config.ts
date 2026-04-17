@@ -12,6 +12,7 @@ let runtimeDisabled = false;
 interface CaliberConfig {
   machineId?: string;
   telemetryNoticeShown?: boolean;
+  telemetryConsent?: boolean;
   [key: string]: unknown;
 }
 
@@ -100,12 +101,20 @@ export function getRepoHash(): string | undefined {
 
 export function isTelemetryDisabled(): boolean {
   if (runtimeDisabled) return true;
-  const envVal = process.env.CALIBER_TELEMETRY_DISABLED;
-  return envVal === '1' || envVal === 'true';
+  const disabledVal = process.env.CALIBER_TELEMETRY_DISABLED;
+  if (disabledVal === '1' || disabledVal === 'true') return true;
+  const enabledVal = process.env.CALIBER_TELEMETRY_ENABLED;
+  if (enabledVal === '1' || enabledVal === 'true') return false;
+  return readConfig().telemetryConsent !== true;
 }
 
 export function setTelemetryDisabled(disabled: boolean): void {
   runtimeDisabled = disabled;
+}
+
+export function setTelemetryConsent(consent: boolean): void {
+  const config = readConfig();
+  writeConfig({ ...config, telemetryConsent: consent });
 }
 
 export function wasNoticeShown(): boolean {
