@@ -21,6 +21,8 @@ import { computeLocalScore, detectTargetAgent } from '../scoring/index.js';
 import { recordScore } from '../scoring/history.js';
 import { CALIBER_DIR, REFRESH_LAST_ERROR_FILE } from '../constants.js';
 import { discoverConfigDirs } from '../lib/config-discovery.js';
+import { scanLargeFiles } from '../fingerprint/large-file-scan.js';
+import { printLargeFileWarnings } from '../fingerprint/large-file-warn.js';
 
 function writeRefreshError(error: unknown): void {
   try {
@@ -155,6 +157,12 @@ async function refreshDir(
 
   const learnedSection = readLearnedSection();
   const fingerprint = await collectFingerprint(absDir);
+
+  // --- NEW PR CODE ADDED HERE ---
+  // Warn about large files before feeding project context to the LLM.
+  printLargeFileWarnings(scanLargeFiles(absDir), { spinner: spinner ?? undefined });
+  // ------------------------------
+
   const existingDocs = fingerprint.existingConfigs;
   const projectContext = {
     languages: fingerprint.languages,

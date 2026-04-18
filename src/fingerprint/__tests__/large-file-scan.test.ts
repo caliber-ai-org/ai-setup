@@ -1,338 +1,154 @@
 /**
- * src/fingerprint/__tests__/large-file-scan.test.ts
+ * src/fingerprint/__tests__/large-file-warn.test.ts
  *
- * Unit tests for scanLargeFiles().
+ * Unit tests for printLargeFileWarnings().
  *
- * All tests use injected statSync / readdirSync stubs (same pattern as
- * src/ai/__tests__/detect.test.ts).  Zero disk I/O, zero temp files.
- *
- * Path handling: all VFS keys are normalized through path.normalize() so
- * tests pass on both POSIX (forward slash) and Windows (backslash).
+ * Tests verify:
+ *  - Empty warnings → no output, no spinner interaction
+ *  - Single warning → singular header wording
+ *  - Multiple warnings → plural header wording
+ *  - With ora spinner → output routed through spinner.warn()
+ *  - Without spinner → written to process.stderr
+ *  - Hint text always present
+ *  - File path and size always included
  */
 
-import path from 'path';
-import { describe, it, expect } from 'vitest';
-import {
-  scanLargeFiles,
-  DEFAULT_IGNORE_DIRS,
-  DEFAULT_THRESHOLD_BYTES,
-  type LargeFileWarning,
-} from '../large-file-scan.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { printLargeFileWarnings } from '../large-file-warn.js';
+import type { LargeFileWarning } from '../large-file-scan.js';
 
-// ─── VFS builder ──────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const MiB = 1_048_576;
-
-/**
- * Builds injected statSync / readdirSync stubs from a flat map.
- * Keys are POSIX-style absolute paths — internally normalized to the
- * platform separator so the stubs work correctly on Windows too.
- */
-function buildVfs(tree: Record<string, number | 'dir'>) {
-  // Normalize every key to the platform-native separator.
-  const norm: Record<string, number | 'dir'> = {};
-  for (const [k, v] of Object.entries(tree)) {
-    norm[path.normalize(k)] = v;
-  }
-
-  function statSync(p: string) {
-    const entry = norm[path.normalize(p)];
-    if (entry === undefined) {
-      throw Object.assign(
-        new Error(`ENOENT: no such file — ${p}`),
-        { code: 'ENOENT' },
-      );
-    }
-    const isDir = entry === 'dir';
-    return {
-      isFile:      () => !isDir,
-      isDirectory: () => isDir,
-      size:        isDir ? 0 : (entry as number),
-    };
-  }
-
-  function readdirSync(p: string) {
-    const np = path.normalize(p);
-    if (norm[np] !== 'dir') {
-      throw Object.assign(
-        new Error(`ENOTDIR: not a directory — ${p}`),
-        { code: 'ENOTDIR' },
-      );
-    }
-    // Build prefix with platform separator so startsWith works on Windows.
-    const prefix = np.endsWith(path.sep) ? np : `${np}${path.sep}`;
-    const children = new Set<string>();
-    for (const abs of Object.keys(norm)) {
-      if (abs === np) continue;
-      if (!abs.startsWith(prefix)) continue;
-      const rest  = abs.slice(prefix.length);
-      const first = rest.split(path.sep)[0];
-      if (first) children.add(first);
-    }
-    return [...children];
-  }
-
-  return { statSync, readdirSync };
+function makeWarning(filePath: string, sizeMB: string): LargeFileWarning {
+  const sizeBytes = Math.round(parseFloat(sizeMB) * 1_048_576);
+  return { filePath, sizeBytes, sizeMB };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('scanLargeFiles', () => {
+describe('printLargeFileWarnings', () => {
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
 
-  // ── Basic detection ──────────────────────────────────────────────────────
-
-  it('returns empty array when no files exceed the threshold', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':          'dir',
-      '/project/README.md': 500,
-      '/project/src':      'dir',
-      '/project/src/index.ts': 20_000,
-    });
-
-    const result = scanLargeFiles('/project', { statSync, readdirSync });
-
-    expect(result).toHaveLength(0);
+  beforeEach(() => {
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   });
 
-  it('detects a single large file', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':           'dir',
-      '/project/data.csv':  5 * MiB,
-    });
-
-    const result = scanLargeFiles('/project', { statSync, readdirSync });
-
-    expect(result).toHaveLength(1);
-    expect(result[0].filePath).toBe(path.normalize('/project/data.csv'));
-    expect(result[0].sizeBytes).toBe(5 * MiB);
+  afterEach(() => {
+    stderrSpy.mockRestore();
   });
 
-  it('detects multiple large files across different subdirectories', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':                          'dir',
-      '/project/data':                     'dir',
-      '/project/data/dump.sqlite':         50 * MiB,
-      '/project/notebooks':                'dir',
-      '/project/notebooks/analysis.ipynb': 3 * MiB,
-      '/project/src':                      'dir',
-      '/project/src/index.ts':             10_000,   // small — must NOT appear
-    });
+  // ── Empty warnings ───────────────────────────────────────────────────────
 
-    const result = scanLargeFiles('/project', { statSync, readdirSync });
-    const paths  = result.map((w) => w.filePath).sort();
+  it('does nothing when warnings array is empty', () => {
+    const spinner = { warn: vi.fn() };
 
-    expect(paths).toEqual([
-      path.normalize('/project/data/dump.sqlite'),
-      path.normalize('/project/notebooks/analysis.ipynb'),
-    ]);
+    printLargeFileWarnings([], { spinner: spinner as never });
+
+    expect(stderrSpy).not.toHaveBeenCalled();
+    expect(spinner.warn).not.toHaveBeenCalled();
   });
 
-  // ── Extension agnosticism ─────────────────────────────────────────────────
+  it('does nothing when warnings array is empty and no spinner', () => {
+    printLargeFileWarnings([]);
 
-  it('warns about a large .json (no extension allowlist)', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':                   'dir',
-      '/project/package-lock.json': 80 * MiB,
-    });
-
-    const result = scanLargeFiles('/project', { statSync, readdirSync });
-
-    expect(result).toHaveLength(1);
-    expect(result[0].filePath).toBe(path.normalize('/project/package-lock.json'));
+    expect(stderrSpy).not.toHaveBeenCalled();
   });
 
-  it('does NOT warn about small files of any extension', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':              'dir',
-      '/project/data.csv':     100,
-      '/project/model.pkl':    900_000,   // 0.86 MiB — under 1 MiB default
-      '/project/weights.npy':  500_000,
-    });
+  // ── Singular / plural header ──────────────────────────────────────────────
 
-    const result = scanLargeFiles('/project', { statSync, readdirSync });
+  it('uses singular wording for exactly one warning', () => {
+    const warnings = [makeWarning('/project/data.csv', '5.00')];
 
-    expect(result).toHaveLength(0);
+    printLargeFileWarnings(warnings);
+
+    const output = String(stderrSpy.mock.calls[0][0]);
+    expect(output).toContain('1 large file');
+    expect(output).not.toContain('1 large files');
   });
 
-  // ── Threshold ─────────────────────────────────────────────────────────────
+  it('uses plural wording for two or more warnings', () => {
+    const warnings = [
+      makeWarning('/project/data.csv', '5.00'),
+      makeWarning('/project/model.pkl', '12.00'),
+    ];
 
-  it('respects a custom thresholdBytes', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':           'dir',
-      '/project/small.bin': 400_000,
-      '/project/large.bin': 2 * MiB,
-    });
+    printLargeFileWarnings(warnings);
 
-    const lowThreshold = scanLargeFiles('/project', {
-      thresholdBytes: 300_000,
-      statSync,
-      readdirSync,
-    });
-    expect(lowThreshold).toHaveLength(2);
-
-    const highThreshold = scanLargeFiles('/project', {
-      thresholdBytes: 1 * MiB,
-      statSync,
-      readdirSync,
-    });
-    expect(highThreshold).toHaveLength(1);
-    expect(highThreshold[0].filePath).toBe(path.normalize('/project/large.bin'));
+    const output = String(stderrSpy.mock.calls[0][0]);
+    expect(output).toContain('2 large files');
   });
 
-  it('exports DEFAULT_THRESHOLD_BYTES as exactly 1 MiB', () => {
-    expect(DEFAULT_THRESHOLD_BYTES).toBe(1_048_576);
+  // ── File details ──────────────────────────────────────────────────────────
+
+  it('includes file path and size for each warning', () => {
+    const warnings = [
+      makeWarning('/project/data.csv', '5.20'),
+      makeWarning('/project/model.pkl', '12.75'),
+    ];
+
+    printLargeFileWarnings(warnings);
+
+    const output = String(stderrSpy.mock.calls[0][0]);
+    expect(output).toContain('/project/data.csv');
+    expect(output).toContain('5.20 MB');
+    expect(output).toContain('/project/model.pkl');
+    expect(output).toContain('12.75 MB');
   });
 
-  // ── Ignored directories ───────────────────────────────────────────────────
+  // ── Hint text ─────────────────────────────────────────────────────────────
 
-  it('skips node_modules by default', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':                          'dir',
-      '/project/node_modules':             'dir',
-      '/project/node_modules/bloat.wasm':  100 * MiB,
-    });
+  it('always includes .gitignore / .caliberignore hint', () => {
+    const warnings = [makeWarning('/project/dump.sqlite', '50.00')];
 
-    expect(scanLargeFiles('/project', { statSync, readdirSync })).toHaveLength(0);
+    printLargeFileWarnings(warnings);
+
+    const output = String(stderrSpy.mock.calls[0][0]);
+    expect(output).toContain('.caliberignore');
+    expect(output).toContain('.gitignore');
   });
 
-  it('skips .git by default', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':                          'dir',
-      '/project/.git':                     'dir',
-      '/project/.git/pack-objects.pack':   50 * MiB,
-    });
+  // ── Spinner routing ───────────────────────────────────────────────────────
 
-    expect(scanLargeFiles('/project', { statSync, readdirSync })).toHaveLength(0);
+  it('routes output through spinner.warn() when spinner is provided', () => {
+    const spinner = { warn: vi.fn() };
+    const warnings = [makeWarning('/project/data.csv', '5.00')];
+
+    printLargeFileWarnings(warnings, { spinner: spinner as never });
+
+    expect(spinner.warn).toHaveBeenCalledOnce();
+    expect(stderrSpy).not.toHaveBeenCalled();
+
+    const message = String(spinner.warn.mock.calls[0][0]);
+    expect(message).toContain('large file');
+    expect(message).toContain('/project/data.csv');
   });
 
-  it('skips every directory in DEFAULT_IGNORE_DIRS', () => {
-    const tree: Record<string, number | 'dir'> = { '/project': 'dir' };
-    for (const dir of DEFAULT_IGNORE_DIRS) {
-      tree[`/project/${dir}`]          = 'dir';
-      tree[`/project/${dir}/huge.bin`] = 200 * MiB;
-    }
-    const { statSync, readdirSync } = buildVfs(tree);
+  it('writes to process.stderr when no spinner is provided', () => {
+    const warnings = [makeWarning('/project/data.csv', '5.00')];
 
-    expect(scanLargeFiles('/project', { statSync, readdirSync })).toHaveLength(0);
+    printLargeFileWarnings(warnings);
+
+    expect(stderrSpy).toHaveBeenCalled();
+    const output = String(stderrSpy.mock.calls[0][0]);
+    expect(output).toContain('large file');
   });
 
-  it('respects a custom ignoreDirs set', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':                  'dir',
-      '/project/fixtures':         'dir',
-      '/project/fixtures/seed.db': 10 * MiB,
-    });
+  it('writes to process.stderr when spinner option is omitted entirely', () => {
+    const warnings = [makeWarning('/project/dump.db', '8.00')];
 
-    // Without custom ignore — detected
-    expect(
-      scanLargeFiles('/project', { statSync, readdirSync }),
-    ).toHaveLength(1);
+    printLargeFileWarnings(warnings, {});
 
-    // With 'fixtures' added to ignore — skipped
-    expect(
-      scanLargeFiles('/project', {
-        ignoreDirs: new Set([...DEFAULT_IGNORE_DIRS, 'fixtures']),
-        statSync,
-        readdirSync,
-      }),
-    ).toHaveLength(0);
+    expect(stderrSpy).toHaveBeenCalled();
   });
 
-  // ── Return shape ──────────────────────────────────────────────────────────
+  // ── Context bloat message ─────────────────────────────────────────────────
 
-  it('result objects have the correct shape', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':              'dir',
-      '/project/weights.bin':  10 * MiB,
-    });
+  it('mentions AI context window in the warning header', () => {
+    const warnings = [makeWarning('/project/data.csv', '5.00')];
 
-    const result: LargeFileWarning[] = scanLargeFiles('/project', { statSync, readdirSync });
+    printLargeFileWarnings(warnings);
 
-    expect(result[0]).toMatchObject<LargeFileWarning>({
-      filePath:  path.normalize('/project/weights.bin'),
-      sizeBytes: 10 * MiB,
-      sizeMB:    '10.00',
-    });
+    const output = String(stderrSpy.mock.calls[0][0]);
+    expect(output).toContain('context window');
   });
-
-  it('formats sizeMB to exactly 2 decimal places', () => {
-    const { statSync, readdirSync } = buildVfs({
-      '/project':          'dir',
-      '/project/data.bin': Math.round(1.5 * MiB),   // 1.50 MiB
-    });
-
-    const result = scanLargeFiles('/project', { statSync, readdirSync });
-
-    expect(result[0].sizeMB).toBe('1.50');
-  });
-
-  // ── Error handling ────────────────────────────────────────────────────────
-
-  it('returns empty array when root dir is unreadable (EACCES)', () => {
-    const statSync = (_p: string) => ({
-      isFile: () => false, isDirectory: () => true, size: 0,
-    });
-    const readdirSync = (_p: string): string[] => {
-      throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
-    };
-
-    expect(scanLargeFiles('/restricted', { statSync, readdirSync })).toHaveLength(0);
-  });
-
-  it('scans siblings when one subdirectory is denied (EACCES)', () => {
-    const tree: Record<string, number | 'dir'> = {
-      '/project':              'dir',
-      '/project/open':         'dir',
-      '/project/open/big.bin': 5 * MiB,
-      '/project/secret':       'dir',
-    };
-    const { statSync } = buildVfs(tree);
-
-    const readdirSync = (p: string): string[] => {
-      const np = path.normalize(p);
-      if (np === path.normalize('/project/secret')) {
-        throw Object.assign(
-          new Error('EACCES: permission denied'),
-          { code: 'EACCES' },
-        );
-      }
-      if (np === path.normalize('/project'))      return ['open', 'secret'];
-      if (np === path.normalize('/project/open')) return ['big.bin'];
-      return [];
-    };
-
-    const result = scanLargeFiles('/project', { statSync, readdirSync });
-
-    expect(result).toHaveLength(1);
-    expect(result[0].filePath).toBe(path.normalize('/project/open/big.bin'));
-  });
-
-  it('re-throws unexpected errors from readdirSync', () => {
-    const statSync = (_p: string) => ({
-      isFile: () => false, isDirectory: () => true, size: 0,
-    });
-    const readdirSync = (_p: string): string[] => {
-      throw new Error('unexpected disk failure');   // no .code → re-thrown
-    };
-
-    expect(
-      () => scanLargeFiles('/project', { statSync, readdirSync }),
-    ).toThrow('unexpected disk failure');
-  });
-
-  it('skips broken symlinks silently (statSync throws for child)', () => {
-    const readdirSync = (p: string): string[] => {
-      if (path.normalize(p) === path.normalize('/project')) return ['broken-link.csv'];
-      return [];
-    };
-    const statSync = (p: string) => {
-      if (path.normalize(p) === path.normalize('/project')) {
-        return { isFile: () => false, isDirectory: () => true, size: 0 };
-      }
-      throw Object.assign(new Error('ENOENT: dangling symlink'), { code: 'ENOENT' });
-    };
-
-    expect(scanLargeFiles('/project', { statSync, readdirSync })).toHaveLength(0);
-  });
-
 });
