@@ -1,6 +1,6 @@
 {
   "name": "@rely-ai/caliber",
-  "version": "1.42.0",
+  "version": "1.46.0",
   "description": "AI context infrastructure for coding agents — keeps CLAUDE.md, Cursor rules, and skills in sync as your codebase evolves",
   "type": "module",
   "bin": {
@@ -24,6 +24,7 @@
     "@anthropic-ai/vertex-sdk": "^0.14.4",
     "@inquirer/checkbox": "^5.1.0",
     "@inquirer/confirm": "^6.0.8",
+    "@inquirer/input": "^5.0.11",
     "@inquirer/select": "^5.1.0",
     "chalk": "^5.4.0",
     "commander": "^13.0.0",

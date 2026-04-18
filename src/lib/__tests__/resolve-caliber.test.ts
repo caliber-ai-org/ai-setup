@@ -4,8 +4,19 @@ import {
   isNpxResolution,
   resetResolvedCaliber,
   isCaliberCommand,
+  pickExecutable,
 } from '../resolve-caliber.js';
 import { execSync } from 'child_process';
+
+function withPlatform(platform: NodeJS.Platform, fn: () => void): void {
+  const original = process.platform;
+  Object.defineProperty(process, 'platform', { value: platform, configurable: true });
+  try {
+    fn();
+  } finally {
+    Object.defineProperty(process, 'platform', { value: original, configurable: true });
+  }
+}
 
 vi.mock('child_process', () => ({
   execSync: vi.fn(),
@@ -142,6 +153,94 @@ describe('isNpxResolution', () => {
     delete process.env.npm_execpath;
     mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
     expect(isNpxResolution()).toBe(false);
+  });
+});
+
+describe('pickExecutable', () => {
+  it('returns the first line on POSIX', () => {
+    withPlatform('linux', () => {
+      expect(pickExecutable('/usr/local/bin/caliber\n/opt/bin/caliber')).toBe(
+        '/usr/local/bin/caliber',
+      );
+    });
+  });
+
+  it('prefers .cmd over the POSIX shim on Windows', () => {
+    withPlatform('win32', () => {
+      const out =
+        'C:\\Users\\dev\\AppData\\Roaming\\npm\\caliber\nC:\\Users\\dev\\AppData\\Roaming\\npm\\caliber.cmd';
+      expect(pickExecutable(out)).toBe('C:\\Users\\dev\\AppData\\Roaming\\npm\\caliber.cmd');
+    });
+  });
+
+  it('prefers .exe / .bat over extensionless on Windows', () => {
+    withPlatform('win32', () => {
+      expect(pickExecutable('C:\\bin\\foo\nC:\\bin\\foo.exe')).toBe('C:\\bin\\foo.exe');
+      expect(pickExecutable('C:\\bin\\foo\nC:\\bin\\foo.bat')).toBe('C:\\bin\\foo.bat');
+    });
+  });
+
+  it('falls back to first line on Windows when no .cmd/.exe/.bat present', () => {
+    withPlatform('win32', () => {
+      expect(pickExecutable('C:\\bin\\foo\nC:\\bin\\bar')).toBe('C:\\bin\\foo');
+    });
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(pickExecutable('')).toBe('');
+    expect(pickExecutable('\n\n')).toBe('');
+  });
+
+  it('handles CRLF line endings from Windows `where`', () => {
+    withPlatform('win32', () => {
+      expect(pickExecutable('C:\\bin\\foo\r\nC:\\bin\\foo.cmd\r\n')).toBe('C:\\bin\\foo.cmd');
+    });
+  });
+
+  it('matches the extension only — not `cmd` substrings in directory names', () => {
+    withPlatform('win32', () => {
+      expect(pickExecutable('C:\\cmd-tools\\bin\\caliber')).toBe('C:\\cmd-tools\\bin\\caliber');
+      expect(pickExecutable('C:\\cmd-tools\\bin\\caliber\nC:\\cmd-tools\\bin\\caliber.cmd')).toBe(
+        'C:\\cmd-tools\\bin\\caliber.cmd',
+      );
+    });
+  });
+});
+
+describe('resolveCaliber on Windows', () => {
+  beforeEach(() => {
+    resetResolvedCaliber();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('selects caliber.cmd over the POSIX shim', () => {
+    withPlatform('win32', () => {
+      process.argv[1] = 'C:\\Users\\dev\\AppData\\Roaming\\npm\\caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue(
+        'C:\\Users\\dev\\AppData\\Roaming\\npm\\caliber\nC:\\Users\\dev\\AppData\\Roaming\\npm\\caliber.cmd\n',
+      );
+      expect(resolveCaliber()).toBe('C:\\Users\\dev\\AppData\\Roaming\\npm\\caliber.cmd');
+    });
+  });
+
+  it('selects npx.cmd over the POSIX shim in npx context', () => {
+    withPlatform('win32', () => {
+      process.argv[1] =
+        'C:\\Users\\dev\\AppData\\Local\\npm-cache\\_npx\\abc\\node_modules\\.bin\\caliber';
+      mockedExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('where caliber')) throw new Error('not found');
+        if (cmd.includes('where npx'))
+          return 'C:\\Users\\dev\\AppData\\Roaming\\npm\\npx\nC:\\Users\\dev\\AppData\\Roaming\\npm\\npx.cmd\n';
+        throw new Error('unexpected');
+      });
+      const result = resolveCaliber();
+      expect(result).toBe('C:\\Users\\dev\\AppData\\Roaming\\npm\\npx.cmd --yes @rely-ai/caliber');
+      expect(isNpxResolution()).toBe(true);
+    });
   });
 });
 

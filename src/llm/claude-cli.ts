@@ -73,13 +73,28 @@ export function resetClaudeCliBin(): void {
   _claudeBin = null;
 }
 
+/**
+ * Build a clean copy of process.env with all Claude Code env vars removed.
+ * Claude Code sets CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID,
+ * CLAUDE_CODE_SIMPLE, and others that trigger its anti-recursion detection,
+ * causing "Not logged in" errors when spawning `claude -p` from within a
+ * Claude Code session.
+ */
+function cleanClaudeEnv(): Record<string, string | undefined> {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key === 'CLAUDE_CODE_SIMPLE' || key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_')) {
+      delete env[key];
+    }
+  }
+  return env;
+}
+
 function spawnClaude(args: string[]): ChildProcess {
   const bin = resolveClaudeBin();
-  // Do NOT forward CLAUDE_CODE_SIMPLE — newer Claude Code uses it to change the
-  // auth pathway, which causes "Not logged in" when set in child claude processes.
-  // The -p flag already handles headless/print mode; this var is redundant and harmful.
-  const { CLAUDE_CODE_SIMPLE: _stripped, ...parentEnv } = process.env;
-  const env = parentEnv;
+  // CALIBER_SPAWNED=1 signals to caliber's own hooks that they are running inside
+  // a caliber-spawned session and should be no-ops (prevents recursive hook cascade).
+  const env = { ...cleanClaudeEnv(), CALIBER_SPAWNED: '1' };
   return IS_WINDOWS
     ? spawn([bin, ...args].join(' '), {
         cwd: process.cwd(),
@@ -228,8 +243,8 @@ export class ClaudeCliProvider implements LLMProvider {
           settled = true;
           reject(
             new Error(
-              `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`
-            )
+              `Claude CLI timed out after ${this.timeoutMs / 1000}s. Set CALIBER_CLAUDE_CLI_TIMEOUT_MS to increase.`,
+            ),
           );
         }
       }, this.timeoutMs);
@@ -294,6 +309,7 @@ export function isClaudeCliLoggedIn(): boolean {
       input: '',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 5000,
+      env: cleanClaudeEnv(),
     });
     const output = result.toString().trim();
     try {

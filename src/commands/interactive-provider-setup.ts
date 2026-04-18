@@ -5,16 +5,19 @@ import { writeConfigFile, DEFAULT_MODELS } from '../llm/config.js';
 import type { ProviderType, LLMConfig } from '../llm/types.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
 import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
+import { isOpenCodeAvailable } from '../llm/opencode.js';
 import { promptInput } from '../utils/prompt.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 
 const PROVIDER_CHOICES: Array<{ name: string; value: ProviderType }> = [
   { name: 'Claude Code — use your existing subscription (no API key)', value: 'claude-cli' },
+  { name: 'OpenCode — use your existing subscription (no API key)', value: 'opencode' },
   { name: 'Cursor — use your existing subscription (no API key)', value: 'cursor' },
   { name: 'Anthropic — API key from console.anthropic.com', value: 'anthropic' },
   { name: 'Google Vertex AI — Claude models via GCP', value: 'vertex' },
   { name: 'OpenAI — or any OpenAI-compatible endpoint', value: 'openai' },
+  { name: 'MiniMax — API key from platform.minimax.io', value: 'minimax' },
 ];
 
 /**
@@ -38,49 +41,104 @@ export async function runInteractiveProviderSetup(options?: {
       config.model = 'default';
       if (!isClaudeCliAvailable()) {
         console.log(chalk.yellow('\n  Claude Code CLI not found.'));
-        console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('npm install -g @anthropic-ai/claude-code'));
-        console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'));
+        console.log(
+          chalk.dim('  Install it: ') +
+            chalk.hex('#83D1EB')('npm install -g @anthropic-ai/claude-code'),
+        );
+        console.log(
+          chalk.dim('  Then run ') +
+            chalk.hex('#83D1EB')('claude') +
+            chalk.dim(' once to log in.\n'),
+        );
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       } else if (!isClaudeCliLoggedIn()) {
         console.log(chalk.yellow('\n  Claude Code CLI found but not logged in.'));
-        console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'));
+        console.log(
+          chalk.dim('  Run ') + chalk.hex('#83D1EB')('claude') + chalk.dim(' once to log in.\n'),
+        );
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       } else {
-        console.log(chalk.dim("  Run `claude` once and log in with your Pro/Max/Team account if you haven't."));
+        console.log(
+          chalk.dim(
+            "  Run `claude` once and log in with your Pro/Max/Team account if you haven't.",
+          ),
+        );
       }
+      break;
+    }
+    case 'opencode': {
+      if (!isOpenCodeAvailable()) {
+        console.log(chalk.yellow('\n  OpenCode CLI not found.'));
+        console.log(chalk.dim('  Install it from: ') + chalk.hex('#83D1EB')('https://opencode.ai'));
+        console.log(
+          chalk.dim('  Then run ') +
+            chalk.hex('#83D1EB')('opencode auth login') +
+            chalk.dim(' to authenticate.\n'),
+        );
+        const proceed = await confirm({ message: 'Continue anyway?' });
+        if (!proceed) throw new Error('__exit__');
+      }
+      config.model =
+        (await promptInput(`Model (default: ${DEFAULT_MODELS.opencode}):`)) ||
+        DEFAULT_MODELS.opencode;
       break;
     }
     case 'cursor': {
       if (!isCursorAgentAvailable()) {
         console.log(chalk.yellow('\n  Cursor Agent CLI not found.'));
         if (IS_WINDOWS) {
-          console.log(chalk.dim('  Install it from: ') + chalk.hex('#83D1EB')('https://www.cursor.com/downloads'));
-          console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' in PowerShell to authenticate.\n'));
+          console.log(
+            chalk.dim('  Install it from: ') +
+              chalk.hex('#83D1EB')('https://www.cursor.com/downloads'),
+          );
+          console.log(
+            chalk.dim('  Then run ') +
+              chalk.hex('#83D1EB')('agent login') +
+              chalk.dim(' in PowerShell to authenticate.\n'),
+          );
         } else {
-          console.log(chalk.dim('  Install it: ') + chalk.hex('#83D1EB')('curl https://cursor.com/install -fsS | bash'));
-          console.log(chalk.dim('  Then run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' to authenticate.\n'));
+          console.log(
+            chalk.dim('  Install it: ') +
+              chalk.hex('#83D1EB')('curl https://cursor.com/install -fsS | bash'),
+          );
+          console.log(
+            chalk.dim('  Then run ') +
+              chalk.hex('#83D1EB')('agent login') +
+              chalk.dim(' to authenticate.\n'),
+          );
         }
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       } else if (!isCursorLoggedIn()) {
         console.log(chalk.yellow('\n  Cursor Agent CLI found but not logged in.'));
-        console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')('agent login') + chalk.dim(' to authenticate.\n'));
+        console.log(
+          chalk.dim('  Run ') +
+            chalk.hex('#83D1EB')('agent login') +
+            chalk.dim(' to authenticate.\n'),
+        );
         const proceed = await confirm({ message: 'Continue anyway?' });
         if (!proceed) throw new Error('__exit__');
       }
-      config.model = await promptInput(`Model (default: ${DEFAULT_MODELS.cursor}):`) || DEFAULT_MODELS.cursor;
+      config.model =
+        (await promptInput(`Model (default: ${DEFAULT_MODELS.cursor}):`)) || DEFAULT_MODELS.cursor;
       break;
     }
     case 'anthropic': {
-      console.log(chalk.dim('  Get a key at https://console.anthropic.com (same account as Claude Pro/Team/Max).'));
+      console.log(
+        chalk.dim(
+          '  Get a key at https://console.anthropic.com (same account as Claude Pro/Team/Max).',
+        ),
+      );
       config.apiKey = await promptInput('Anthropic API key:');
       if (!config.apiKey) {
         console.log(chalk.red('API key is required.'));
         throw new Error('__exit__');
       }
-      config.model = await promptInput(`Model (default: ${DEFAULT_MODELS.anthropic}):`) || DEFAULT_MODELS.anthropic;
+      config.model =
+        (await promptInput(`Model (default: ${DEFAULT_MODELS.anthropic}):`)) ||
+        DEFAULT_MODELS.anthropic;
       break;
     }
     case 'vertex': {
@@ -89,9 +147,12 @@ export async function runInteractiveProviderSetup(options?: {
         console.log(chalk.red('Project ID is required.'));
         throw new Error('__exit__');
       }
-      config.vertexRegion = await promptInput('Region (default: us-east5):') || 'us-east5';
-      config.vertexCredentials = await promptInput('Service account credentials JSON (or leave empty for ADC):') || undefined;
-      config.model = await promptInput(`Model (default: ${DEFAULT_MODELS.vertex}):`) || DEFAULT_MODELS.vertex;
+      config.vertexRegion = (await promptInput('Region (default: us-east5):')) || 'us-east5';
+      config.vertexCredentials =
+        (await promptInput('Service account credentials JSON (or leave empty for ADC):')) ||
+        undefined;
+      config.model =
+        (await promptInput(`Model (default: ${DEFAULT_MODELS.vertex}):`)) || DEFAULT_MODELS.vertex;
       break;
     }
     case 'openai': {
@@ -100,8 +161,23 @@ export async function runInteractiveProviderSetup(options?: {
         console.log(chalk.red('API key is required.'));
         throw new Error('__exit__');
       }
-      config.baseUrl = await promptInput('Base URL (leave empty for OpenAI, or enter custom endpoint):') || undefined;
-      config.model = await promptInput(`Model (default: ${DEFAULT_MODELS.openai}):`) || DEFAULT_MODELS.openai;
+      config.baseUrl =
+        (await promptInput('Base URL (leave empty for OpenAI, or enter custom endpoint):')) ||
+        undefined;
+      config.model =
+        (await promptInput(`Model (default: ${DEFAULT_MODELS.openai}):`)) || DEFAULT_MODELS.openai;
+      break;
+    }
+    case 'minimax': {
+      console.log(chalk.dim('  Get a key at https://platform.minimax.io'));
+      config.apiKey = await promptInput('MiniMax API key:');
+      if (!config.apiKey) {
+        console.log(chalk.red('API key is required.'));
+        throw new Error('__exit__');
+      }
+      config.model =
+        (await promptInput(`Model (default: ${DEFAULT_MODELS.minimax}):`)) ||
+        DEFAULT_MODELS.minimax;
       break;
     }
   }

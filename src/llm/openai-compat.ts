@@ -1,23 +1,45 @@
 import OpenAI from 'openai';
-import type { LLMProvider, LLMCallOptions, LLMStreamOptions, LLMStreamCallbacks, LLMConfig, TokenUsage } from './types.js';
+import type {
+  LLMProvider,
+  LLMCallOptions,
+  LLMStreamOptions,
+  LLMStreamCallbacks,
+  LLMConfig,
+  TokenUsage,
+} from './types.js';
 import { trackUsage } from './usage.js';
 
-export class OpenAICompatProvider implements LLMProvider {
-  private client: OpenAI;
-  private defaultModel: string;
+const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 
-  constructor(config: LLMConfig) {
+function resolveTimeoutMs(): number {
+  const raw = process.env.CALIBER_OPENAI_TIMEOUT_MS;
+  if (raw) {
+    const parsed = parseInt(raw, 10);
+    if (Number.isFinite(parsed) && parsed >= 1000) return parsed;
+  }
+  return DEFAULT_TIMEOUT_MS;
+}
+
+export class OpenAICompatProvider implements LLMProvider {
+  protected client: OpenAI;
+  protected defaultModel: string;
+  protected temperature: number | undefined;
+
+  constructor(config: LLMConfig, options?: { temperature?: number }) {
     this.client = new OpenAI({
       apiKey: config.apiKey,
       ...(config.baseUrl && { baseURL: config.baseUrl }),
+      timeout: resolveTimeoutMs(),
     });
     this.defaultModel = config.model;
+    this.temperature = options?.temperature;
   }
 
   async call(options: LLMCallOptions): Promise<string> {
     const response = await this.client.chat.completions.create({
       model: options.model || this.defaultModel,
-      max_tokens: options.maxTokens || 4096,
+      max_completion_tokens: options.maxTokens || 4096,
+      ...(this.temperature !== undefined && { temperature: this.temperature }),
       messages: [
         { role: 'system', content: options.system },
         { role: 'user', content: options.prompt },
@@ -58,7 +80,8 @@ export class OpenAICompatProvider implements LLMProvider {
 
     const stream = await this.client.chat.completions.create({
       model: options.model || this.defaultModel,
-      max_tokens: options.maxTokens || 10240,
+      max_completion_tokens: options.maxTokens || 10240,
+      ...(this.temperature !== undefined && { temperature: this.temperature }),
       messages,
       stream: true,
     });

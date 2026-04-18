@@ -13,9 +13,19 @@ import { installLearningHooks, installCursorLearningHooks } from '../lib/learnin
 import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { writeState, getCurrentHeadSha } from '../lib/state.js';
 import { promptInput } from '../utils/prompt.js';
-import { loadConfig, getFastModel, getDisplayModel } from '../llm/config.js';
+import {
+  loadConfig,
+  getFastModel,
+  getDisplayModel,
+  writeConfigFile,
+  DEFAULT_MODELS,
+} from '../llm/config.js';
 import { validateModel } from '../llm/index.js';
 import { runInteractiveProviderSetup } from './interactive-provider-setup.js';
+import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
+import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
+import { isOpenCodeAvailable } from '../llm/opencode.js';
+import confirm from '@inquirer/confirm';
 import { computeLocalScore } from '../scoring/index.js';
 import { displayScoreSummary, displayScoreDelta } from '../scoring/display.js';
 import { readDismissedChecks, writeDismissedChecks } from '../scoring/dismissed.js';
@@ -127,12 +137,53 @@ export async function initCommand(options: InitOptions) {
 
   // 1a. LLM provider
   let config = loadConfig();
+
+  // If user explicitly requested OpenCode agent and no config yet, try to auto-configure OpenCode silently
+  if (!config && options.agent?.includes('opencode')) {
+    if (isOpenCodeAvailable()) {
+      console.log(chalk.dim('  Detected: OpenCode (uses your existing subscription)\n'));
+      const autoConfig = { provider: 'opencode' as const, model: DEFAULT_MODELS.opencode };
+      writeConfigFile(autoConfig);
+      config = autoConfig;
+    }
+  }
+  if (!config && !options.autoApprove) {
+    // Try seat-based auto-detection
+    if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
+      console.log(chalk.dim('  Detected: Claude Code CLI (uses your Pro/Max/Team subscription)\n'));
+      const useIt = await confirm({ message: 'Use Claude Code as your LLM provider?' });
+      if (useIt) {
+        const autoConfig = { provider: 'claude-cli' as const, model: 'default' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      }
+    } else if (isCursorAgentAvailable() && isCursorLoggedIn()) {
+      console.log(chalk.dim('  Detected: Cursor (uses your existing subscription)\n'));
+      const useIt = await confirm({ message: 'Use Cursor as your LLM provider?' });
+      if (useIt) {
+        const autoConfig = { provider: 'cursor' as const, model: 'sonnet-4.6' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      }
+    }
+  }
   if (!config) {
-    console.log(chalk.dim('  No LLM provider configured yet.\n'));
-    await runInteractiveProviderSetup({
-      selectMessage: 'How do you want to use Caliber? (choose LLM provider)',
-    });
-    config = loadConfig();
+    if (options.autoApprove) {
+      // In auto-approve mode, try seat-based silently
+      if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
+        const autoConfig = { provider: 'claude-cli' as const, model: 'default' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      } else if (isCursorAgentAvailable() && isCursorLoggedIn()) {
+        const autoConfig = { provider: 'cursor' as const, model: 'sonnet-4.6' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      } else if (isOpenCodeAvailable()) {
+        const autoConfig = { provider: 'opencode' as const, model: DEFAULT_MODELS.opencode };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      }
+    }
     if (!config) {
       console.log(chalk.red('  Configuration cancelled or failed.\n'));
       throw new Error('__exit__');

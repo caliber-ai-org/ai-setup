@@ -171,9 +171,16 @@ export async function generateSetup(
     ),
   );
 
-  const { failed: failedCount } = mergeSkillResults(skillResults, setup);
+  const { succeeded, failed: failedCount, failedNames } = mergeSkillResults(skillResults, setup);
+
   if (failedCount > 0 && callbacks) {
-    callbacks.onStatus(`${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate`);
+    const msg = succeeded === 0
+      ? `${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate — config saved without skills`
+      : `Warning: ${failedCount} of ${failedCount + succeeded} skill${failedCount === 1 ? '' : 's'} failed to generate`;
+    callbacks.onStatus(msg);
+    for (const name of failedNames) {
+      callbacks.onStatus(`  → ${name}`);
+    }
   }
 
   return coreResult;
@@ -182,9 +189,10 @@ export async function generateSetup(
 function mergeSkillResults(
   results: PromiseSettledResult<{ platform: string; skill: GeneratedSkill }>[],
   setup: Record<string, unknown>,
-): { succeeded: number; failed: number } {
+): { succeeded: number; failed: number; failedNames: string[] } {
   let succeeded = 0;
   let failed = 0;
+  const failedNames: string[] = [];
 
   for (const result of results) {
     if (result.status === 'fulfilled') {
@@ -207,10 +215,12 @@ function mergeSkillResults(
       succeeded++;
     } else {
       failed++;
+      const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      failedNames.push(reason);
     }
   }
 
-  return { succeeded, failed };
+  return { succeeded, failed, failedNames };
 }
 
 const MAX_SKILL_TOPICS = 5;
@@ -631,8 +641,17 @@ export async function generateSkillsForSetup(
     ),
   );
 
-  const { succeeded, failed } = mergeSkillResults(skillResults, setup);
-  if (failed > 0) onStatus?.(`${succeeded} generated, ${failed} failed`);
+  const { succeeded, failed, failedNames } = mergeSkillResults(skillResults, setup);
+  if (failed > 0) {
+    const msg =
+      failed === skillTopics.length
+        ? `All ${failed} skills failed to generate`
+        : `${failed}/${skillTopics.length} skills failed to generate`;
+    onStatus?.(msg);
+    for (const name of failedNames) {
+      onStatus?.(`  → ${name}`);
+    }
+  }
 
   return succeeded;
 }
@@ -644,6 +663,21 @@ const LIMITS = {
   SKILL_CHARS: 3000,
   RULES_MAX: 10,
 } as const;
+
+/** Generate prompts must stay within a predictable cap (large-context models use a higher getMaxPromptTokens()). */
+const BUILD_GENERATE_PROMPT_MAX_TOKENS = 120_000;
+/** Room for the dynamic “Project Files” header line before measuring code payload. */
+const PROJECT_FILES_HEADER_RESERVE_TOKENS = 160;
+
+function maxCharsForCodeFileContent(
+  runningJoinedLen: number,
+  pathLine: string,
+  budgetTokens: number,
+): number {
+  const maxTotalChars = budgetTokens * 4;
+  const overhead = runningJoinedLen + 1 + pathLine.length + 1;
+  return Math.max(0, maxTotalChars - overhead);
+}
 
 function truncate(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
@@ -868,9 +902,12 @@ export function buildGeneratePrompt(
   if (fingerprint.codeAnalysis) {
     const ca = fingerprint.codeAnalysis;
     const basePrompt = parts.join('\n');
-    const maxPromptTokens = getMaxPromptTokens();
+    const effectiveMaxTokens = Math.min(getMaxPromptTokens(), BUILD_GENERATE_PROMPT_MAX_TOKENS);
     const baseTokens = estimateTokens(basePrompt);
-    const tokenBudgetForCode = Math.max(0, maxPromptTokens - baseTokens);
+    const tokenBudgetForCode = Math.max(
+      0,
+      effectiveMaxTokens - baseTokens - PROJECT_FILES_HEADER_RESERVE_TOKENS,
+    );
 
     const codeLines: string[] = [];
     let codeChars = 0;
@@ -884,11 +921,22 @@ export function buildGeneratePrompt(
 
     let includedFiles = 0;
     for (const f of sortedFiles) {
-      const entry = `[${f.path}]\n${f.content}\n`;
+      const pathLine = `[${f.path}]\n`;
+      const maxContent = maxCharsForCodeFileContent(runningCodeLen, pathLine, tokenBudgetForCode);
+      if (maxContent < 1) {
+        if (includedFiles > 0) break;
+        continue;
+      }
+      const content = f.content.slice(0, Math.min(f.content.length, maxContent));
+      const entry = `${pathLine}${content}\n`;
       const projectedLen = runningCodeLen + 1 + entry.length;
-      if (Math.ceil(projectedLen / 4) > tokenBudgetForCode && includedFiles > 0) break;
+      const projectedTokens = Math.ceil(projectedLen / 4);
+      if (projectedTokens > tokenBudgetForCode) {
+        if (includedFiles > 0) break;
+        continue;
+      }
       codeLines.push(entry);
-      codeChars += f.content.length;
+      codeChars += content.length;
       runningCodeLen = projectedLen;
       includedFiles++;
     }

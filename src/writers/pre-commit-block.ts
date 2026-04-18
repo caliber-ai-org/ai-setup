@@ -1,4 +1,5 @@
 import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { DEFAULT_MODELS } from '../llm/config.js';
 
 export type ConfigPlatform = 'claude' | 'copilot' | 'codex';
 
@@ -113,6 +114,34 @@ export function getCursorLearningsRule(): { filename: string; content: string } 
   return { filename: CURSOR_LEARNINGS_FILENAME, content: CURSOR_LEARNINGS_CONTENT };
 }
 
+// ── Model configuration block ─────────────────────────────────────────
+
+const MODEL_BLOCK_START = '<!-- caliber:managed:model-config -->';
+const MODEL_BLOCK_END = '<!-- /caliber:managed:model-config -->';
+
+/** Default model id for generated docs — single source: `DEFAULT_MODELS` in llm/config. */
+function buildManagedModelBlock(): string {
+  const m = DEFAULT_MODELS.anthropic;
+  return `${MODEL_BLOCK_START}
+## Model Configuration
+
+Recommended default: \`${m}\` with high effort (stronger reasoning; higher cost and latency than smaller models).
+Smaller/faster models trade quality for speed and cost — pick what fits the task.
+Pin your choice (\`/model\` in Claude Code, or \`CALIBER_MODEL\` when using Caliber with an API provider) so upstream default changes do not silently change behavior.
+
+${MODEL_BLOCK_END}`;
+}
+
+export function hasModelBlock(content: string): boolean {
+  return content.includes(MODEL_BLOCK_START);
+}
+
+export function appendModelBlock(content: string): string {
+  if (hasModelBlock(content)) return content;
+  const trimmed = content.trimEnd();
+  return trimmed + '\n\n' + buildManagedModelBlock() + '\n';
+}
+
 // ── Context sync block ────────────────────────────────────────────────
 
 const SYNC_BLOCK_START = '<!-- caliber:managed:sync -->';
@@ -156,7 +185,10 @@ export function appendSyncBlock(content: string, platform: ConfigPlatform = 'cla
 }
 
 export function appendManagedBlocks(content: string, platform: ConfigPlatform = 'claude'): string {
-  return appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(content, platform)), platform);
+  return appendSyncBlock(
+    appendModelBlock(appendLearningsBlock(appendPreCommitBlock(content, platform))),
+    platform,
+  );
 }
 
 // ── Cursor sync rule ─────────────────────────────────────────────────
@@ -195,7 +227,7 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "SYNCED" || echo "NO
 \`\`\`
 
 If SYNCED: proceed normally.
-If NOT_SYNCED: Tell the user: "This project uses Caliber to keep agent configs in sync. It's not set up on your machine yet — want me to set it up? (~30 seconds)". If they agree, read \`.cursor/skills/setup-caliber/SKILL.md\` and follow its instructions.
+If NOT_SYNCED: Tell the user: "This project uses Caliber to keep agent configs in sync — it is not set up yet. Want me to run /setup-caliber? (~30 seconds)". If they agree, read \`.cursor/skills/setup-caliber/SKILL.md\` and follow its instructions.
 `;
 }
 
@@ -208,6 +240,7 @@ export function getCursorSetupRule(): { filename: string; content: string } {
 const MANAGED_BLOCK_PAIRS = [
   [BLOCK_START, BLOCK_END],
   [LEARNINGS_BLOCK_START, LEARNINGS_BLOCK_END],
+  [MODEL_BLOCK_START, MODEL_BLOCK_END],
   [SYNC_BLOCK_START, SYNC_BLOCK_END],
 ];
 

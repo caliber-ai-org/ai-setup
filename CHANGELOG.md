@@ -1,3 +1,68 @@
+## v1.46.0 (2026-04-18)
+
+### Features
+
+- **llm**: configurable OpenAI SDK per-request timeout via CALIBER_OPENAI_TIMEOUT_MS (#175)
+
+## v1.45.4 (2026-04-17)
+
+### Bug Fixes
+
+- prevent prompt-too-long errors in caliber refresh (#173)
+- stop hook must not block headless claude sessions (#170)
+- skip all hook commands in caliber-spawned claude sessions (#172)
+
+## v1.45.3 (2026-04-17)
+
+## v1.45.2 (2026-04-16)
+
+### Bug Fixes
+
+- quote exe path on Windows when using shell:true
+- incremental learn finalize spawn fails on Windows (#166)
+
+### Refactoring
+
+- hoist regex literals + share extension list constant
+
+## v1.45.1 (2026-04-16)
+
+### Bug Fixes
+
+- update interactive-provider-setup tests for @inquirer/input mock
+- resolve prompt hang on Windows Git Bash (#135)
+
+## v1.45.0 (2026-04-16)
+
+### Features
+
+- add OpenCode as LLM provider (#154)
+
+### Bug Fixes
+
+- surface skill generation failures with details (#142)
+
+## v1.44.2 (2026-04-16)
+
+### Bug Fixes
+
+- surface skill generation failures via onError callback (#142) (#145)
+- strip all Claude Code env vars to prevent auth failures (#147, #138, #152)
+- use max_completion_tokens for OpenAI provider (#155)
+- respect .gitignore in file tree scanning (#149)
+
+## v1.44.0 (2026-04-16)
+
+### Features
+
+- add MiniMax provider support (#157)
+
+## v1.43.0 (2026-04-16)
+
+### Features
+
+- model & effort pinning check + CLAUDE.md block (#75) (#80)
+
 ## v1.42.0 (2026-04-14)
 
 ### Features
