@@ -75,6 +75,24 @@ describe('checkGrounding', () => {
     expect(densityCheck?.earnedPoints).toBeGreaterThan(0);
   });
 
+  it('scores reference density higher when path refs resolve to the project tree', () => {
+    const filler = Array.from({ length: 18 }, (_, i) => `Narrative line ${i + 1} with no code.`).join('\n');
+    const unresolvedMd = `# Project\n\n${filler}\n\nSee \`no-such-file-zz.ts\` and \`ghost/missing.ts\`.\n`;
+    const resolvedMd = `# Project\n\n${filler}\n\nSee \`package.json\` and \`src/real.ts\`.\n`;
+
+    writeFileSync(join(dir, 'package.json'), '{}');
+    mkdirSync(join(dir, 'src'), { recursive: true });
+    writeFileSync(join(dir, 'src', 'real.ts'), 'export {}');
+
+    writeFileSync(join(dir, 'CLAUDE.md'), unresolvedMd);
+    const unresolvedScore = checkGrounding(dir).find(c => c.id === 'reference_density')?.earnedPoints ?? 0;
+
+    writeFileSync(join(dir, 'CLAUDE.md'), resolvedMd);
+    const resolvedScore = checkGrounding(dir).find(c => c.id === 'reference_density')?.earnedPoints ?? 0;
+
+    expect(resolvedScore).toBeGreaterThan(unresolvedScore);
+  });
+
   it('handles empty project gracefully', () => {
     const checks = checkGrounding(dir);
     const groundingCheck = checks.find((c) => c.id === 'project_grounding');
