@@ -29,12 +29,10 @@ describe('OpenAICompatProvider — CALIBER_OPENAI_TIMEOUT_MS', () => {
   beforeEach(() => {
     openAIConstructor.mockClear();
     delete process.env.CALIBER_OPENAI_TIMEOUT_MS;
-    delete process.env.CALIBER_GENERATION_TIMEOUT_MS;
   });
 
   afterEach(() => {
     delete process.env.CALIBER_OPENAI_TIMEOUT_MS;
-    delete process.env.CALIBER_GENERATION_TIMEOUT_MS;
   });
 
   it('uses the default 10-minute timeout when env var is unset', async () => {
@@ -68,20 +66,5 @@ describe('OpenAICompatProvider — CALIBER_OPENAI_TIMEOUT_MS', () => {
     expect(openAIConstructor).toHaveBeenCalledWith(
       expect.objectContaining({ timeout: 10 * 60 * 1000 }),
     );
-  });
-
-  it('falls back to CALIBER_GENERATION_TIMEOUT_MS when provider-specific is unset', async () => {
-    process.env.CALIBER_GENERATION_TIMEOUT_MS = '1200000';
-    const { OpenAICompatProvider } = await import('../openai-compat.js');
-    new OpenAICompatProvider(config);
-    expect(openAIConstructor).toHaveBeenCalledWith(expect.objectContaining({ timeout: 1200000 }));
-  });
-
-  it('prefers CALIBER_OPENAI_TIMEOUT_MS over CALIBER_GENERATION_TIMEOUT_MS', async () => {
-    process.env.CALIBER_OPENAI_TIMEOUT_MS = '1800000';
-    process.env.CALIBER_GENERATION_TIMEOUT_MS = '900000';
-    const { OpenAICompatProvider } = await import('../openai-compat.js');
-    new OpenAICompatProvider(config);
-    expect(openAIConstructor).toHaveBeenCalledWith(expect.objectContaining({ timeout: 1800000 }));
   });
 });

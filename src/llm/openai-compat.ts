@@ -11,27 +11,9 @@ import { trackUsage } from './usage.js';
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 
-// Per-request timeout for the OpenAI SDK. Non-streaming `provider.call()`
-// invocations (used by refine/detect/recommend/skill scoring) are bounded
-// only by this timeout — they do NOT participate in the wall-clock
-// `CALIBER_GENERATION_TIMEOUT_MS` that wraps `streamGeneration()`. Slow
-// local models (Ollama / vLLM) often need more than the SDK default of
-// 600s for a single call.
-//
-// Resolution order:
-//  1. CALIBER_OPENAI_TIMEOUT_MS   — provider-specific (consistent with
-//                                   CALIBER_OPENCODE_TIMEOUT_MS and
-//                                   CALIBER_CURSOR_TIMEOUT_MS).
-//  2. CALIBER_GENERATION_TIMEOUT_MS — shared with streaming, so setting
-//                                     one generous value covers both paths.
-//  3. 10-minute default.
 function resolveTimeoutMs(): number {
-  const candidates = [
-    process.env.CALIBER_OPENAI_TIMEOUT_MS,
-    process.env.CALIBER_GENERATION_TIMEOUT_MS,
-  ];
-  for (const raw of candidates) {
-    if (!raw) continue;
+  const raw = process.env.CALIBER_OPENAI_TIMEOUT_MS;
+  if (raw) {
     const parsed = parseInt(raw, 10);
     if (Number.isFinite(parsed) && parsed >= 1000) return parsed;
   }
