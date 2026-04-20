@@ -306,7 +306,10 @@ Yes. Run `caliber init` from any directory. `caliber refresh` can update configs
 <details>
 <summary><strong>Does it send my code anywhere?</strong></summary>
 
-Scoring is fully local. Generation sends a project summary (languages, structure, dependencies — not source code) to whatever LLM provider you configure — the same provider your AI editor already uses. Anonymous usage analytics (no code, no file contents) can be disabled via `caliber config`.
+Scoring is fully local. Generation sends a project summary (languages, structure, dependencies — not source code) to whatever LLM provider you configure — the same provider your AI editor already uses. Anonymous usage analytics (command names, durations — no code, no file contents) are collected via PostHog. To opt out:
+
+- **Per-run**: `caliber --no-traces <command>`
+- **Persistent env var**: `export CALIBER_TELEMETRY_DISABLED=1`
 
 </details>
 
