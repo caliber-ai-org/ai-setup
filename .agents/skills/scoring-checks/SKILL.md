@@ -6,109 +6,102 @@ description: Add a new deterministic scoring check in src/scoring/checks/. Retur
 
 ## Critical
 
-1. **Check must return `Check[]`** — Never return a single check or a Promise. Return an empty array `[]` if the condition fails.
-2. **Use constants from `src/scoring/constants.ts`** — All weights, thresholds, and names must reference constants, never hardcoded values.
-3. **Deterministic only** — No LLM calls. Scoring checks inspect existing files, fingerprint data, and git history. Use `src/fingerprint/` data exclusively.
-4. **File structure**: Create one file per check in `src/scoring/checks/`. Export a default function with signature `(ctx: ScoringContext) => Check[]`.
-5. **Integration point**: Add the check function to the `checks` array in `src/scoring/index.ts` — this is the ONLY place checks are orchestrated.
+1. **Check must return `Check[]`** — Never return a single check or a Promise. Return an empty array `[]` only if there are genuinely zero checks; always push at least one check object.
+2. **Use constants from `src/scoring/constants.ts`** — All `maxPoints` and `earnedPoints` values must reference `POINTS_*` constants; never hardcode numbers.
+3. **Deterministic only** — No LLM calls, no network. Scoring checks use `fs`, `path`, and `execSync` for git commands only.
+4. **File structure**: Add checks to existing category files in `src/scoring/checks/`. Export a **named function** with signature `check{Category}(dir: string): Check[]`.
+5. **Integration point**: Spread the result into `allChecks` in `computeLocalScore()` inside `src/scoring/index.ts`.
 
 ## Instructions
 
-1. **Create the check file** at `src/scoring/checks/{check-name}.ts`.
-   - Import `Check` type from `../types.js`.
+1. **Choose or create a check file** in `src/scoring/checks/` matching the category (`existence.ts`, `quality.ts`, `grounding.ts`, `accuracy.ts`, `freshness.ts`, `bonus.ts`, `sources.ts`).
+   - Import `type { Check }` from `../index.js`.
    - Import constants from `../constants.js`.
-   - Export default function: `export default function {checkName}(ctx: ScoringContext): Check[] { }`
+   - Add a new `export function check{Category}(dir: string): Check[]` function (or add to the existing one).
    - Verify file compiles: `npx tsc --noEmit`.
 
-2. **Inspect the ScoringContext** to access fingerprint data.
-   - Available: `ctx.fingerprint`, `ctx.manifest` (existing config), `ctx.git` (history).
-   - Example: `ctx.fingerprint.sources` (detected sources), `ctx.fingerprint.files` (file tree).
-   - Verify using `src/scoring/__tests__/` test setup to mock context.
+2. **Inspect the filesystem** using the `dir` parameter.
+   - Use `fs.existsSync(join(dir, 'path'))`, `fs.readFileSync(join(dir, 'file'), 'utf-8')`, etc.
+   - For git-based checks: `execSync('git log ...', { cwd: dir })`.
+   - No external APIs, no LLM calls.
 
 3. **Build the Check object**.
-   - `id`: Unique string, lowercase-kebab (e.g., `'existence'`, `'freshness-days-old'`).
-   - `name`: Human-readable display name (e.g., `'CLAUDE.md exists'`).
-   - `points`: Number (0–100). Must reference constant from `src/scoring/constants.ts`.
-   - `reasons`: String array explaining why the check passed/failed (max 1–2 sentences each).
-   - `passed`: Boolean.
-   - Return `[check]` if passed, `[]` if failed.
+   - `id`: Unique kebab-case string (e.g., `'claude_md_exists'`, `'skills_count'`).
+   - `name`: Human-readable display name.
+   - `category`: One of `'existence' | 'quality' | 'grounding' | 'accuracy' | 'freshness' | 'bonus'`.
+   - `maxPoints` / `earnedPoints`: Must reference `POINTS_*` constants.
+   - `passed`: `earnedPoints >= Math.ceil(maxPoints * 0.6)` (or custom logic).
+   - `detail`: Human-friendly message explaining the result.
+   - Optional: `suggestion` (if not passed) and `fix` object with `action`, `data`, `instruction`.
 
 4. **Reference constants for all numeric values**.
-   - Open `src/scoring/constants.ts` and use existing constants or add new ones.
-   - Example: `const POINTS_EXISTENCE = 10` in constants, then use `points: POINTS_EXISTENCE` in check.
-   - Verify constant is exported: `export const POINTS_EXISTENCE = 10`.
+   - Add new constants to `src/scoring/constants.ts` if needed.
+   - Example: `export const POINTS_YOUR_CHECK = 4;` then use `maxPoints: POINTS_YOUR_CHECK`.
 
-5. **Add the check to the orchestrator** in `src/scoring/index.ts`.
-   - Import: `import {checkName} from './checks/{check-name}.js'`.
-   - Add to `checks` array: `{checkName}(ctx),`.
-   - Verify tests pass: `npm test -- src/scoring/__tests__/index.test.ts`.
+5. **Register in src/scoring/index.ts**.
+   - The existing category functions (`checkExistence`, `checkQuality`, etc.) are already called in `computeLocalScore()`.
+   - If adding a new function: import it and spread into `allChecks`.
+   - Verify tests pass: `npm test -- src/scoring/__tests__/`.
 
-6. **Write a test** in `src/scoring/checks/__tests__/{check-name}.test.ts`.
-   - Mock `ScoringContext` with fingerprint data using `memfs` or fixtures from existing tests.
-   - Test both pass and fail cases.
-   - Verify test runs: `npx vitest run src/scoring/checks/__tests__/{check-name}.test.ts`.
+6. **Write a test** in `src/scoring/checks/__tests__/{category}.test.ts`.
+   - Use `mkdtempSync` to create a temp directory; write files to simulate conditions.
+   - Test both passing and failing cases.
+   - Verify: `npx vitest run src/scoring/checks/__tests__/{category}.test.ts`.
 
 ## Examples
 
 **User says**: "Add a scoring check that verifies CLAUDE.md exists and is not empty."
 
 **Actions**:
-1. Create `src/scoring/checks/existence.ts`:
+1. In `src/scoring/checks/existence.ts`, add to the `checkExistence(dir: string): Check[]` function:
 ```typescript
-import type { Check, ScoringContext } from '../types.js';
-import { POINTS_EXISTENCE } from '../constants.js';
+import type { Check } from '../index.js';
+import { POINTS_CLAUDE_MD_EXISTS } from '../constants.js';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 
-export default function existence(ctx: ScoringContext): Check[] {
-  const claudeMd = ctx.manifest.claude;
-  const passed = claudeMd && claudeMd.trim().length > 0;
-
-  if (!passed) {
-    return [];
-  }
-
-  return [{
-    id: 'existence',
+export function checkExistence(dir: string): Check[] {
+  const checks: Check[] = [];
+  const claudeMdPath = join(dir, 'CLAUDE.md');
+  const exists = existsSync(claudeMdPath);
+  const nonEmpty = exists && readFileSync(claudeMdPath, 'utf-8').trim().length > 0;
+  const earned = nonEmpty ? POINTS_CLAUDE_MD_EXISTS : 0;
+  checks.push({
+    id: 'claude_md_exists',
     name: 'CLAUDE.md exists and is not empty',
-    points: POINTS_EXISTENCE,
-    reasons: ['CLAUDE.md is present and contains configuration.'],
-    passed: true,
-  }];
+    category: 'existence',
+    maxPoints: POINTS_CLAUDE_MD_EXISTS,
+    earnedPoints: earned,
+    passed: earned > 0,
+    detail: exists ? (nonEmpty ? 'CLAUDE.md present and non-empty' : 'CLAUDE.md is empty') : 'CLAUDE.md missing',
+  });
+  return checks;
 }
 ```
 
-2. Add to `src/scoring/constants.ts`: `export const POINTS_EXISTENCE = 10`.
+2. Add to `src/scoring/constants.ts`: `export const POINTS_CLAUDE_MD_EXISTS = 10;`
 
-3. Update `src/scoring/index.ts`:
-```typescript
-import existence from './checks/existence.js';
-// ...
-const checks = [
-  existence(ctx),
-  // other checks
-];
-```
+3. `checkExistence` is already called in `computeLocalScore()` in `src/scoring/index.ts` — no changes needed there.
 
-4. Test with `npm test`.
+4. Test with `npm test -- src/scoring/`.
 
-**Result**: Check is integrated and appears in score output.
+**Result**: Check appears in score output under the existence category.
 
 ## Common Issues
 
 **"Check is not appearing in score output"**
-- Verify check is added to `checks` array in `src/scoring/index.ts`.
-- Verify it returns `Check[]` (not a single object or Promise).
+- Verify the check ID is not in a `*_ONLY_CHECKS` set that excludes your target agent.
+- Verify the function is called (or its result is spread) in `computeLocalScore()` in `src/scoring/index.ts`.
 - Run `npm run build && npm test` to ensure no import errors.
 
-**"Type error: ScoringContext has no property X"**
-- Check `src/scoring/types.ts` for available context properties.
-- Use `ctx.fingerprint`, `ctx.manifest`, `ctx.git` — not custom properties.
-- Verify fingerprint data exists in test fixture: `console.log(ctx)` in test.
+**"Points are hardcoded but should use constants"**
+- Replace all literal numbers like `earnedPoints: 5` with `earnedPoints: POINTS_YOUR_CHECK`.
+- Constants are in `src/scoring/constants.ts` — add new ones if needed.
 
-**"Constant is undefined"**
-- Open `src/scoring/constants.ts` and confirm constant is exported.
-- Use `npm run build` to catch missing exports.
-- Add new constants if needed and commit to constants.ts first.
+**"Platform-specific check appears for wrong agent"**
+- Add check ID to the appropriate `*_ONLY_CHECKS` set in `src/scoring/constants.ts`.
+- Verify `filterChecksForTarget()` in `src/scoring/index.ts` handles your platform set.
 
-**"Test fails with 'memfs is not found'"**
-- Import from test setup: `import { vol } from 'memfs'`.
-- See existing tests in `src/scoring/checks/__tests__/` for memfs usage patterns.
+**"Test fails with file not found"**
+- Use `mkdtempSync` to create a real temp directory; write files with `writeFileSync`.
+- Always clean up in a `finally` block: `rmSync(dir, { recursive: true })`.

@@ -6,135 +6,132 @@ description: Adds a new deterministic scoring check in src/scoring/checks/. Foll
 
 ## Critical
 
-- **All checks must be deterministic**: No randomness, no timestamps. Same input → same output.
-- **Return type is always `Check[]`**: Each check has `id`, `name`, `weight`, `maxScore`, `score`, `reasons`.
-- **Weights must sum to 100** across all checks in `src/scoring/index.ts`. Verify: `existenceWeight + qualityWeight + groundingWeight + accuracyWeight + freshnessWeight + bonusWeight + sourcesWeight === 100`.
-- **Only import from `src/scoring/constants.ts`** for weight/threshold values. Never hardcode thresholds.
-- **Check logic is synchronous**. No async/await in check functions.
+- **All checks must be deterministic**: No randomness, no external APIs. Same filesystem state → same result.
+- **Return type is always `Check[]`**: Each check has `id`, `name`, `category`, `maxPoints`, `earnedPoints`, `passed`, `detail`.
+- **Function signature**: `export function check{Category}(dir: string): Check[]` — takes a directory path, not a fingerprint or config object.
+- **Only import from `src/scoring/constants.ts`** for `POINTS_*` values. Never hardcode numbers.
+- **Check logic is synchronous**. No async/await. Use `fs`, `path`, and `execSync` for git commands.
 
 ## Instructions
 
-### Step 1: Define the check function in a new file
+### Step 1: Add check to the appropriate category file
 
-Create `src/scoring/checks/<checkName>.ts`.
+Choose the right file in `src/scoring/checks/` based on category (`existence.ts`, `quality.ts`, `grounding.ts`, `accuracy.ts`, `freshness.ts`, `bonus.ts`, `sources.ts`). Add your logic to that file's exported function.
 
 Use this template:
 
 ```typescript
-import { Check } from '../types.js';
-import { <CONSTANT_NAME> } from '../constants.js';
+import type { Check } from '../index.js';
+import { POINTS_YOUR_CHECK, YOUR_THRESHOLD_ARRAY } from '../constants.js';
+import { existsSync, readFileSync } from 'fs';
+import { join } from 'path';
 
-export function <checkName>(
-  fingerprint: Fingerprint,
-  config: ParsedConfig,
-): Check[] {
-  const checkId = '<checkName>';
-  let score = 0;
-  const reasons: string[] = [];
+export function checkYourCategory(dir: string): Check[] {
+  const checks: Check[] = [];
 
-  // Logic here: inspect fingerprint/config, calculate score 0–maxScore
-  // Add reason strings for each deduction
+  // Inspect the filesystem using `dir`
+  const metric = /* e.g., count files, parse content */;
+  const threshold = YOUR_THRESHOLD_ARRAY.find(t => metric >= t.minValue);
+  const earned = threshold?.points ?? 0;
 
-  return [
-    {
-      id: checkId,
-      name: 'Check Display Name',
-      weight: <WEIGHT_CONSTANT>,
-      maxScore: 100,
-      score,
-      reasons,
-    },
-  ];
+  checks.push({
+    id: 'your_unique_check_id',
+    name: 'Human-readable check name',
+    category: 'quality', // matches the category file
+    maxPoints: POINTS_YOUR_CHECK,
+    earnedPoints: earned,
+    passed: earned >= Math.ceil(POINTS_YOUR_CHECK * 0.6),
+    detail: `${earned}/${POINTS_YOUR_CHECK} points — ${metric} items found`,
+    suggestion: earned >= POINTS_YOUR_CHECK ? undefined : 'Action to improve',
+  });
+
+  return checks;
 }
 ```
 
-Verify the function returns exactly one `Check` object (or multiple if logically grouped). Verify `score` is between 0 and `maxScore`.
+Verify the function signature is `check{Category}(dir: string): Check[]` — NOT `(fingerprint, config)` or `(ctx: ScoringContext)`.
 
-### Step 2: Export from `src/scoring/checks/index.ts`
-
-Add the import and export:
+### Step 2: Add point constants in `src/scoring/constants.ts`
 
 ```typescript
-export { <checkName> } from './<checkName>.js';
+export const POINTS_YOUR_CHECK = 4; // fits within category budget
 ```
 
-Verify file is listed in the barrel export.
+Check the `CATEGORY_MAX` object to ensure your check fits within its category's point budget.
 
-### Step 3: Call the check in `src/scoring/index.ts`
+### Step 3: Register new function in `src/scoring/index.ts` (if adding a new function)
 
-In the `score()` function, add a line:
+If you created a new function (rather than adding to an existing one):
 
 ```typescript
-const <checkName>Results = <checkName>(fingerprint, config);
-allChecks.push(...<checkName>Results);
+import { checkYourCategory } from './checks/your-file.js';
+// In computeLocalScore():
+const allChecks: Check[] = [
+  ...checkExistence(dir),
+  ...checkQuality(dir),
+  ...checkYourCategory(dir), // ← ADD IN ORDER
+  ...checkFreshness(dir),
+  ...checkBonus(dir),
+];
 ```
 
-Verify placement is before the weight-sum validation at the end of `score()`.
+### Step 4: Handle platform-specific filtering (if applicable)
 
-### Step 4: Update weight constants in `src/scoring/constants.ts`
+If the check only applies to certain platforms, add its ID to a `*_ONLY_CHECKS` set in `src/scoring/constants.ts`.
 
-If adding a new check type (not modifying an existing one), add the weight constant:
-
-```typescript
-export const <CHECK_NAME>_WEIGHT = <number>;
-```
-
-Then update all other weight constants so the sum remains 100. Verify the weights comment block lists all active checks.
-
-Verify: Run `npm run test -- src/scoring/__tests__/index.test.ts` to ensure weight validation passes.
-
-### Step 5: Write or update the test
-
-In `src/scoring/__tests__/`, create or update `<checkName>.test.ts`. Test both pass and fail cases:
+### Step 5: Write a test
 
 ```typescript
-it('returns maxScore when condition is met', () => {
-  const result = <checkName>({ /* fingerprint */ }, { /* config */ });
-  expect(result[0].score).toBe(100);
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { join } from 'path';
+import { checkYourCategory } from '../your-file.js';
+
+it('awards full points when condition passes', () => {
+  const dir = mkdtempSync('test-scoring-');
+  try {
+    writeFileSync(join(dir, 'SOME_FILE.md'), 'content');
+    const checks = checkYourCategory(dir);
+    const check = checks.find(c => c.id === 'your_unique_check_id');
+    expect(check?.passed).toBe(true);
+    expect(check?.earnedPoints).toBe(POINTS_YOUR_CHECK);
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
 });
-
-it('returns 0 when condition is not met', () => {
-  const result = <checkName>({ /* fingerprint */ }, { /* config */ });
-  expect(result[0].score).toBe(0);
-  expect(result[0].reasons.length).toBeGreaterThan(0);
-});
 ```
 
-Verify: Run `npm run test -- src/scoring/__tests__/<checkName>.test.ts`.
+Verify: `npm run test -- src/scoring/checks/__tests__/{category}.test.ts`.
 
 ## Examples
 
 **User says**: "Add a scoring check that penalizes repos without a CLAUDE.md file."
 
 **Actions**:
-1. Create `src/scoring/checks/existence.ts` (or modify if exists).
-2. Check if `config.claudeMdPath` exists and is non-empty: if yes, `score = 100`; if no, `score = 0` with reason "CLAUDE.md not found".
-3. Add export to `src/scoring/checks/index.ts`.
-4. Call `existenceResults = existence(fingerprint, config)` in `src/scoring/index.ts` and push to `allChecks`.
-5. Ensure weight is defined in `constants.ts` (e.g., `EXISTENCE_WEIGHT = 20`).
-6. Test: `npm run test -- src/scoring/__tests__/existence.test.ts`.
+1. In `src/scoring/checks/existence.ts`, add to the `checkExistence(dir: string): Check[]` function:
+   - `const exists = existsSync(join(dir, 'CLAUDE.md'));`
+   - Push a check with `id: 'claude_md_exists'`, `maxPoints: POINTS_CLAUDE_MD_EXISTS`, `earnedPoints: exists ? POINTS_CLAUDE_MD_EXISTS : 0`.
+2. Add `export const POINTS_CLAUDE_MD_EXISTS = 10;` to `src/scoring/constants.ts`.
+3. `checkExistence` is already called in `computeLocalScore()` — no `src/scoring/index.ts` changes needed.
+4. Test: create temp dir with/without `CLAUDE.md`, call `checkExistence(dir)`, verify `passed` and `earnedPoints`.
+
+**Result**: Check appears in score output under the existence category.
 
 ## Common Issues
 
-**Error: "Weights do not sum to 100"**
-- Check `src/scoring/index.ts` at the end of `score()`: find the validation that sums all weights.
-- List all active checks and their weights from `constants.ts`.
-- Adjust the weight constant so the sum equals 100. Example: if adding a new check with weight 15, reduce an existing check's weight by 15.
+**"My check doesn't appear in the score report"**
+- Verify the check ID is not in a `*_ONLY_CHECKS` set that excludes your target agent.
+- Verify the category function is called and its result is spread into `allChecks` in `computeLocalScore()`.
+- Run `npm run build && npm test` to catch import errors.
 
-**Error: "Check returned undefined score"**
-- Ensure the check function always initializes `score` to a number before any logic.
-- Verify no conditional path leaves `score` unset.
-- Check must always return a `Check` object with `score` field.
+**"Points are hardcoded"**
+- Replace literal numbers with `POINTS_*` constants from `src/scoring/constants.ts`.
+- Add a new constant if one doesn't exist for your check.
 
-**Error: "Test fails with 'score out of bounds'"**
-- Verify `score` is >= 0 and <= `maxScore` (usually 100).
-- Check logic should cap: `Math.max(0, Math.min(maxScore, score))`.
-- Verify no negative deductions drop score below 0.
+**"Type error: Property X does not exist on Check"**
+- The `Check` interface in `src/scoring/index.ts` requires: `id`, `name`, `category`, `maxPoints`, `earnedPoints`, `passed`, `detail`.
+- Optional fields: `suggestion`, `fix` (object with `action`, `data`, `instruction`).
+- Do NOT use `score`, `weight`, `reasons` — those are from a different shape.
 
-**Error: "Check is called twice or results are duplicated in allChecks"**
-- Ensure `<checkName>()` is called exactly once in `src/scoring/index.ts`.
-- Verify you push the result array with spread: `allChecks.push(...result)` not `allChecks.push(result)`.
-
-**Error: "Fingerprint/config types are unknown"**
-- Import `Fingerprint` from `src/fingerprint/types.js` and `ParsedConfig` from `src/commands/types.js` (or check existing check files for the correct imports).
-- Match the type signature of an existing check function.
+**"Test fails — can't create real files"**
+- Use `mkdtempSync` to create a temp dir; write files with `writeFileSync`; clean up with `rmSync(dir, { recursive: true })` in a `finally` block.
+- See `src/scoring/checks/__tests__/` for existing patterns.
