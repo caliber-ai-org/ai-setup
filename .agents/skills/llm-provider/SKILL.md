@@ -6,7 +6,7 @@ description: Adds a new LLM provider implementing LLMProvider interface from src
 
 ## Critical
 
-- **Interface contract**: Provider MUST implement `LLMProvider` from `src/llm/types.ts` — both `call()` (non-streaming) and `stream()` methods are required
+- **Interface contract**: Provider MUST implement `LLMProvider` from `src/llm/types.ts` — both `call(options: LLMCallOptions): Promise<string>` and `stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void>` are required
 - **No authentication in code**: API keys/tokens come from env vars only (e.g., `process.env.PROVIDER_API_KEY`). Never hardcode secrets
 - **Validation before integration**: Provider must pass a unit test in `src/llm/__tests__/` before wiring into config/factory
 - **Error handling**: All errors must extend or match the patterns in `src/llm/types.ts` (e.g., `LLMError` or provider-specific exceptions)
@@ -27,14 +27,14 @@ Implement:
 export class MyProvider implements LLMProvider<MyConfig> {
   constructor(config: MyConfig) { this.config = config; }
   
-  async call(request: LLMRequest): Promise<string> {
+  async call(options: LLMCallOptions): Promise<string> {
     // Non-streaming call
     // Return full text response
   }
-  
-  async *stream(request: LLMRequest): AsyncGenerator<string> {
-    // Streaming call — yield text chunks
-    // Handle protocol-specific events (if any)
+
+  async stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks): Promise<void> {
+    // Streaming call — invoke callbacks.onText() for each chunk
+    // Call callbacks.onEnd() when complete, callbacks.onError() on error
   }
 }
 ```
@@ -126,7 +126,7 @@ If provider requires user setup (interactive prompts), add to `src/commands/inte
 
 **"MyProvider does not implement LLMProvider"**
 - Ensure both `call()` and `stream()` methods exist and match signature in `src/llm/types.ts`
-- `call()` returns `Promise<string>`, `stream()` returns `AsyncGenerator<string>`
+- `call(options: LLMCallOptions)` returns `Promise<string>`; `stream(options: LLMStreamOptions, callbacks: LLMStreamCallbacks)` returns `Promise<void>`
 - Run `npx tsc --noEmit` for full type errors
 
 **"Provider not found in factory"**
@@ -138,7 +138,7 @@ If provider requires user setup (interactive prompts), add to `src/commands/inte
 - User must set env var or pass in config
 - Check `.env` file or shell: `echo $PROVIDER_API_KEY`
 
-**"Stream yields nothing / incomplete chunks"**
-- Verify `stream()` parses protocol correctly (event vs. line delimiters)
-- Test against mock: `npm run test -- src/llm/__tests__/my-provider.test.ts`
-- Compare event structure to `anthropic.ts` (SSE) or `openai-compat.ts` (JSON Lines)
+**"Stream callbacks never fire; onEnd not called"**
+- Verify `stream()` calls `callbacks.onText()` for each chunk and `callbacks.onEnd()` when done
+- Ensure the async iterator is fully consumed before `callbacks.onEnd()` is called
+- Compare streaming pattern to `anthropic.ts` as reference
