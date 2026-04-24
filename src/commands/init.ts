@@ -234,6 +234,16 @@ export async function initCommand(options: InitOptions) {
   console.log(chalk.dim(`  Target: ${targetAgent.join(', ')}\n`));
   trackInitAgentSelected(targetAgent, agentAutoDetected);
 
+  if (targetAgent.length === 1 && targetAgent[0] === 'github-copilot') {
+    console.log(
+      chalk.yellow(
+        '  Note: GitHub Copilot is a sync target — Caliber writes .github/copilot-instructions.md\n' +
+          '  but needs an LLM provider (configured above) to power generation.\n' +
+          '  For the best experience, also select claude or cursor as a target agent.\n',
+      ),
+    );
+  }
+
   // ───────────────────────────────────────────────────────────────────────────
   // Step 2 — Setup (fingerprint + install sync infrastructure)
   // ───────────────────────────────────────────────────────────────────────────

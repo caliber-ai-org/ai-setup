@@ -26,11 +26,27 @@ export function detectAgents(dir: string): TargetAgent {
 
 export async function promptAgent(detected?: TargetAgent): Promise<TargetAgent> {
   const choices = [
-    { name: 'Claude Code', value: 'claude' as const, checked: detected?.includes('claude') ?? false },
+    {
+      name: 'Claude Code',
+      value: 'claude' as const,
+      checked: detected?.includes('claude') ?? false,
+    },
     { name: 'Cursor', value: 'cursor' as const, checked: detected?.includes('cursor') ?? false },
-    { name: 'Codex (OpenAI)', value: 'codex' as const, checked: detected?.includes('codex') ?? false },
-    { name: 'OpenCode', value: 'opencode' as const, checked: detected?.includes('opencode') ?? false },
-    { name: 'GitHub Copilot', value: 'github-copilot' as const, checked: detected?.includes('github-copilot') ?? false },
+    {
+      name: 'Codex (OpenAI)',
+      value: 'codex' as const,
+      checked: detected?.includes('codex') ?? false,
+    },
+    {
+      name: 'OpenCode',
+      value: 'opencode' as const,
+      checked: detected?.includes('opencode') ?? false,
+    },
+    {
+      name: 'GitHub Copilot (sync target — writes copilot-instructions.md)',
+      value: 'github-copilot' as const,
+      checked: detected?.includes('github-copilot') ?? false,
+    },
   ];
 
   const hasDefaults = detected && detected.length > 0;
@@ -52,8 +68,7 @@ export async function promptAgent(detected?: TargetAgent): Promise<TargetAgent> 
 export async function promptLearnInstall(targetAgent: TargetAgent): Promise<boolean> {
   const hasClaude = targetAgent.includes('claude');
   const hasCursor = targetAgent.includes('cursor');
-  const agentName = hasClaude && hasCursor ? 'Claude and Cursor'
-    : hasClaude ? 'Claude' : 'Cursor';
+  const agentName = hasClaude && hasCursor ? 'Claude and Cursor' : hasClaude ? 'Claude' : 'Cursor';
 
   console.log(chalk.bold(`\n  Session Learning\n`));
   console.log(chalk.dim(`  Caliber can learn from your ${agentName} sessions — when a tool fails`));
@@ -143,7 +158,7 @@ export async function refineLoop(
 
     const isValid = await classifyRefineIntent(message);
     if (!isValid) {
-      console.log(chalk.dim('  This doesn\'t look like a config change request.'));
+      console.log(chalk.dim("  This doesn't look like a config change request."));
       console.log(chalk.dim('  Describe what to add, remove, or modify in your configs.'));
       console.log(chalk.dim('  Type "done" to accept the current config.\n'));
       continue;
@@ -169,7 +184,9 @@ export async function refineLoop(
       console.log(chalk.dim('Type "done" to accept, or describe more changes.'));
     } else {
       refineSpinner.fail('Refinement failed — could not parse AI response.');
-      console.log(chalk.dim('Try rephrasing your request, or type "done" to keep the current config.'));
+      console.log(
+        chalk.dim('Try rephrasing your request, or type "done" to keep the current config.'),
+      );
     }
   }
 }
