@@ -42,6 +42,10 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || ech
   2. Run: \`${bin} refresh && git add ${MANAGED_DOC_PATHS} 2>/dev/null\`
   3. After it completes, briefly tell the user what Caliber updated. Then proceed with the commit.
 
+**Valid \`${bin} refresh\` options:** \`--quiet\` (suppress output) and \`--dry-run\` (preview without writing). Do not pass any other flags — options like \`--auto-approve\`, \`--debug\`, or \`--force\` do not exist and will cause errors.
+
+**\`${bin} config\`** takes no flags — it runs an interactive provider setup. Do not pass \`--provider\`, \`--api-key\`, or \`--endpoint\`.
+
 ${getCaliberNotFoundFallback(platform, bin)}
 ${BLOCK_END}`;
 }
