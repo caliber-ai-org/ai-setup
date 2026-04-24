@@ -171,9 +171,16 @@ export async function generateSetup(
     ),
   );
 
-  const { failed: failedCount } = mergeSkillResults(skillResults, setup);
+  const { succeeded, failed: failedCount, failedNames } = mergeSkillResults(skillResults, setup);
+
   if (failedCount > 0 && callbacks) {
-    callbacks.onStatus(`${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate`);
+    const msg = succeeded === 0
+      ? `${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate — config saved without skills`
+      : `Warning: ${failedCount} of ${failedCount + succeeded} skill${failedCount === 1 ? '' : 's'} failed to generate`;
+    callbacks.onStatus(msg);
+    for (const name of failedNames) {
+      callbacks.onStatus(`  → ${name}`);
+    }
   }
 
   return coreResult;
@@ -182,9 +189,10 @@ export async function generateSetup(
 function mergeSkillResults(
   results: PromiseSettledResult<{ platform: string; skill: GeneratedSkill }>[],
   setup: Record<string, unknown>,
-): { succeeded: number; failed: number } {
+): { succeeded: number; failed: number; failedNames: string[] } {
   let succeeded = 0;
   let failed = 0;
+  const failedNames: string[] = [];
 
   for (const result of results) {
     if (result.status === 'fulfilled') {
@@ -207,10 +215,12 @@ function mergeSkillResults(
       succeeded++;
     } else {
       failed++;
+      const reason = result.reason instanceof Error ? result.reason.message : String(result.reason);
+      failedNames.push(reason);
     }
   }
 
-  return { succeeded, failed };
+  return { succeeded, failed, failedNames };
 }
 
 const MAX_SKILL_TOPICS = 5;
@@ -631,8 +641,17 @@ export async function generateSkillsForSetup(
     ),
   );
 
-  const { succeeded, failed } = mergeSkillResults(skillResults, setup);
-  if (failed > 0) onStatus?.(`${succeeded} generated, ${failed} failed`);
+  const { succeeded, failed, failedNames } = mergeSkillResults(skillResults, setup);
+  if (failed > 0) {
+    const msg =
+      failed === skillTopics.length
+        ? `All ${failed} skills failed to generate`
+        : `${failed}/${skillTopics.length} skills failed to generate`;
+    onStatus?.(msg);
+    for (const name of failedNames) {
+      onStatus?.(`  → ${name}`);
+    }
+  }
 
   return succeeded;
 }

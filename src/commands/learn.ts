@@ -15,7 +15,13 @@ import {
   releaseFinalizeLock,
 } from '../learner/storage.js';
 import type { ToolEvent, PromptEvent } from '../learner/storage.js';
-import { writeLearnedContent, readLearnedSection, readPersonalLearnings, migrateInlineLearnings, addLearning } from '../learner/writer.js';
+import {
+  writeLearnedContent,
+  readLearnedSection,
+  readPersonalLearnings,
+  migrateInlineLearnings,
+  addLearning,
+} from '../learner/writer.js';
 import { sanitizeSecrets } from '../lib/sanitize.js';
 import { writeFinalizeSummary } from '../lib/notifications.js';
 import {
@@ -32,8 +38,18 @@ import { loadConfig } from '../llm/config.js';
 import { validateModel } from '../llm/index.js';
 import { recordSession, formatROISummary, readROIStats, writeROIStats } from '../learner/roi.js';
 import type { LearningCostEntry, SessionROISummary } from '../learner/roi.js';
-import { matchLearningsToFailures, semanticMatchFallback, updateActivations, findStaleLearnings } from '../learner/attribution.js';
-import { PERSONAL_LEARNINGS_FILE, getLearningDir, LEARNING_FINALIZE_LOG, LEARNING_LAST_ERROR_FILE } from '../constants.js';
+import {
+  matchLearningsToFailures,
+  semanticMatchFallback,
+  updateActivations,
+  findStaleLearnings,
+} from '../learner/attribution.js';
+import {
+  PERSONAL_LEARNINGS_FILE,
+  getLearningDir,
+  LEARNING_FINALIZE_LOG,
+  LEARNING_LAST_ERROR_FILE,
+} from '../constants.js';
 import { resolveCaliber } from '../lib/resolve-caliber.js';
 import {
   trackLearnSessionAnalyzed,
@@ -51,11 +67,18 @@ function writeFinalizeError(message: string): void {
   try {
     const errorPath = path.join(getLearningDir(), LEARNING_LAST_ERROR_FILE);
     if (!fs.existsSync(getLearningDir())) fs.mkdirSync(getLearningDir(), { recursive: true });
-    fs.writeFileSync(errorPath, JSON.stringify({
-      timestamp: new Date().toISOString(),
-      error: message,
-      pid: process.pid,
-    }, null, 2));
+    fs.writeFileSync(
+      errorPath,
+      JSON.stringify(
+        {
+          timestamp: new Date().toISOString(),
+          error: message,
+          pid: process.pid,
+        },
+        null,
+        2,
+      ),
+    );
   } catch {
     // Best effort
   }
@@ -72,6 +95,8 @@ function readFinalizeError(): { timestamp: string; error: string } | null {
 }
 
 export async function learnObserveCommand(options: { failure?: boolean; prompt?: boolean }) {
+  // Skip in caliber-spawned headless sessions to prevent recursive hook execution.
+  if (process.env.CALIBER_SPAWNED === '1') return;
   try {
     const raw = await readStdin();
     if (!raw.trim()) return;
@@ -128,16 +153,46 @@ export async function learnObserveCommand(options: { failure?: boolean; prompt?:
     const eventsSinceLastAnalysis = state.eventCount - (state.lastAnalysisEventCount || 0);
     if (eventsSinceLastAnalysis >= INCREMENTAL_INTERVAL) {
       try {
-        const { resolveCaliber } = await import('../lib/resolve-caliber.js');
+        const { resolveCaliber, isNpxResolution } = await import('../lib/resolve-caliber.js');
         const bin = resolveCaliber();
         const { spawn } = await import('child_process');
         const logPath = path.join(getLearningDir(), LEARNING_FINALIZE_LOG);
         if (!fs.existsSync(getLearningDir())) fs.mkdirSync(getLearningDir(), { recursive: true });
         const logFd = fs.openSync(logPath, 'a');
-        spawn(bin, ['learn', 'finalize', '--auto', '--incremental'], {
-          detached: true,
-          stdio: ['ignore', logFd, logFd],
-        }).unref();
+        // resolveCaliber() returns multi-word strings only for npx invocations:
+        // '<npx_path> --yes @rely-ai/caliber'. The npx path itself may contain
+        // spaces, so split(' ') is fragile. Detect the known suffix instead.
+        const NPX_SUFFIX = ' --yes @rely-ai/caliber';
+        const [exe, binArgs] = isNpxResolution()
+          ? [bin.slice(0, -NPX_SUFFIX.length) || 'npx', ['--yes', '@rely-ai/caliber']]
+          : [bin, []];
+        // Windows requires shell:true to spawn .cmd/.bat (CVE-2024-27980 hardening),
+        // and shell:true skips Node's exe quoting — quote here so paths like
+        // `C:\Users\First Last\AppData\Roaming\npm\caliber.cmd` survive cmd.exe parsing.
+        const isWin = process.platform === 'win32';
+        const spawnExe = isWin ? `"${exe}"` : exe;
+        const child = spawn(
+          spawnExe,
+          [...binArgs, 'learn', 'finalize', '--auto', '--incremental'],
+          {
+            detached: true,
+            stdio: ['ignore', logFd, logFd],
+            ...(isWin && { shell: true }),
+          },
+        );
+        // If spawn fails the child never advances lastAnalysisEventCount, so without
+        // this guard every subsequent observe call past the threshold re-fires the
+        // broken spawn. Bump the counter on error to back off until the next interval.
+        child.on('error', () => {
+          try {
+            const s = readState();
+            s.lastAnalysisEventCount = s.eventCount;
+            writeState(s);
+          } catch {
+            // Best effort
+          }
+        });
+        child.unref();
         fs.closeSync(logFd);
       } catch {
         // Best effort — don't block the hook
@@ -148,26 +203,35 @@ export async function learnObserveCommand(options: { failure?: boolean; prompt?:
   }
 }
 
-export async function learnFinalizeCommand(options?: { force?: boolean; auto?: boolean; incremental?: boolean }) {
+export async function learnFinalizeCommand(options?: {
+  force?: boolean;
+  auto?: boolean;
+  incremental?: boolean;
+}) {
   const isAuto = options?.auto === true;
   const isIncremental = options?.incremental === true;
+
+  // Skip in caliber-spawned headless sessions to prevent recursive hook execution.
+  if (isAuto && process.env.CALIBER_SPAWNED === '1') return;
 
   if (!options?.force && !isAuto) {
     const { isCaliberRunning } = await import('../lib/lock.js');
     if (isCaliberRunning()) {
-      if (!isAuto) console.log(chalk.dim('caliber: skipping finalize — another caliber process is running'));
+      if (!isAuto)
+        console.log(chalk.dim('caliber: skipping finalize — another caliber process is running'));
       return;
     }
   }
 
   // Wait for event hooks to finish writing (race condition guard)
   if (isAuto) {
-    await new Promise(r => setTimeout(r, AUTO_SETTLE_MS));
+    await new Promise((r) => setTimeout(r, AUTO_SETTLE_MS));
   }
 
   // Prevent concurrent finalize from parallel sessions
   if (!acquireFinalizeLock()) {
-    if (!isAuto) console.log(chalk.dim('caliber: skipping finalize — another finalize is in progress'));
+    if (!isAuto)
+      console.log(chalk.dim('caliber: skipping finalize — another finalize is in progress'));
     return;
   }
 
@@ -176,7 +240,11 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     const config = loadConfig();
     if (!config) {
       if (isAuto) return; // Graceful degradation: preserve events for later
-      console.log(chalk.yellow(`caliber: no LLM provider configured — run \`${resolveCaliber()} config\` first`));
+      console.log(
+        chalk.yellow(
+          `caliber: no LLM provider configured — run \`${resolveCaliber()} config\` first`,
+        ),
+      );
       clearSession();
       resetState();
       return;
@@ -185,7 +253,12 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     const allEvents = readAllEvents();
     const threshold = isAuto ? MIN_EVENTS_AUTO : MIN_EVENTS_FOR_ANALYSIS;
     if (allEvents.length < threshold) {
-      if (!isAuto) console.log(chalk.dim(`caliber: ${allEvents.length}/${threshold} events recorded — need more before analysis`));
+      if (!isAuto)
+        console.log(
+          chalk.dim(
+            `caliber: ${allEvents.length}/${threshold} events recorded — need more before analysis`,
+          ),
+        );
       return;
     }
 
@@ -195,11 +268,16 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
 
     // For incremental analysis, only analyze events after the last analysis point
     const state = readState();
-    const analysisOffset = isIncremental ? (state.lastAnalysisEventCount || 0) : 0;
+    const analysisOffset = isIncremental ? state.lastAnalysisEventCount || 0 : 0;
     const events = analysisOffset > 0 ? allEvents.slice(analysisOffset) : allEvents;
 
     if (events.length < threshold) {
-      if (!isAuto) console.log(chalk.dim(`caliber: ${events.length}/${threshold} new events since last analysis — need more`));
+      if (!isAuto)
+        console.log(
+          chalk.dim(
+            `caliber: ${events.length}/${threshold} new events since last analysis — need more`,
+          ),
+        );
       return;
     }
 
@@ -220,7 +298,7 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
 
     const waste = calculateSessionWaste(allEvents);
     const existingLearnedItems = existingLearnedSection
-      ? existingLearnedSection.split('\n').filter(l => l.startsWith('- ')).length
+      ? existingLearnedSection.split('\n').filter((l) => l.startsWith('- ')).length
       : 0;
     const hadLearnings = existingLearnedItems > 0;
     let newLearningsProduced = 0;
@@ -242,10 +320,15 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
             wasteTokens: waste.totalWasteTokens,
           });
         } else {
-          const wasteLabel = waste.totalWasteTokens > 0
-            ? ` (~${waste.totalWasteTokens.toLocaleString()} wasted tokens captured)`
-            : '';
-          console.log(chalk.dim(`caliber: learned ${result.newItemCount} new pattern${result.newItemCount === 1 ? '' : 's'}${wasteLabel}`));
+          const wasteLabel =
+            waste.totalWasteTokens > 0
+              ? ` (~${waste.totalWasteTokens.toLocaleString()} wasted tokens captured)`
+              : '';
+          console.log(
+            chalk.dim(
+              `caliber: learned ${result.newItemCount} new pattern${result.newItemCount === 1 ? '' : 's'}${wasteLabel}`,
+            ),
+          );
           for (const item of result.newItems) {
             console.log(chalk.dim(`  + ${item.replace(/^- /, '').slice(0, 80)}`));
           }
@@ -312,7 +395,7 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     // Attribution: match existing learnings against session failure events
     if (roiStats.learnings.length > 0 && waste.failureCount > 0) {
       const failureEvents = allEvents.filter(
-        e => e.hook_event_name === 'PostToolUseFailure'
+        (e) => e.hook_event_name === 'PostToolUseFailure',
       ) as ToolEvent[];
 
       let attribution = matchLearningsToFailures(roiStats.learnings, failureEvents);
@@ -347,12 +430,14 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
       totalSessions,
       sessionsWithLearnings: t.totalSessionsWithLearnings,
       sessionsWithoutLearnings: t.totalSessionsWithoutLearnings,
-      failureRateWithLearnings: t.totalSessionsWithLearnings > 0
-        ? t.totalFailuresWithLearnings / t.totalSessionsWithLearnings
-        : 0,
-      failureRateWithoutLearnings: t.totalSessionsWithoutLearnings > 0
-        ? t.totalFailuresWithoutLearnings / t.totalSessionsWithoutLearnings
-        : 0,
+      failureRateWithLearnings:
+        t.totalSessionsWithLearnings > 0
+          ? t.totalFailuresWithLearnings / t.totalSessionsWithLearnings
+          : 0,
+      failureRateWithoutLearnings:
+        t.totalSessionsWithoutLearnings > 0
+          ? t.totalFailuresWithoutLearnings / t.totalSessionsWithoutLearnings
+          : 0,
       estimatedSavingsTokens: t.estimatedSavingsTokens,
       estimatedSavingsSeconds: t.estimatedSavingsSeconds,
       learningCount: roiStats.learnings.length,
@@ -362,14 +447,22 @@ export async function learnFinalizeCommand(options?: { force?: boolean; auto?: b
     if (!isIncremental) {
       const staleLearnings = findStaleLearnings(roiStats);
       if (staleLearnings.length > 0 && !isAuto) {
-        console.log(chalk.yellow(`caliber: ${staleLearnings.length} learning${staleLearnings.length === 1 ? '' : 's'} never activated — run \`${resolveCaliber()} learn list --verbose\` to review`));
+        console.log(
+          chalk.yellow(
+            `caliber: ${staleLearnings.length} learning${staleLearnings.length === 1 ? '' : 's'} never activated — run \`${resolveCaliber()} learn list --verbose\` to review`,
+          ),
+        );
       }
     }
 
     // Show savings summary if we have history
     if (!isAuto && t.estimatedSavingsTokens > 0) {
       const totalLearnings = existingLearnedItems + newLearningsProduced;
-      console.log(chalk.dim(`caliber: ${totalLearnings} learnings active — est. ~${t.estimatedSavingsTokens.toLocaleString()} tokens saved across ${t.totalSessionsWithLearnings} sessions`));
+      console.log(
+        chalk.dim(
+          `caliber: ${totalLearnings} learnings active — est. ~${t.estimatedSavingsTokens.toLocaleString()} tokens saved across ${t.totalSessionsWithLearnings} sessions`,
+        ),
+      );
     }
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
@@ -419,12 +512,18 @@ export async function learnInstallCommand() {
 
   if (!fs.existsSync('.claude') && !fs.existsSync('.cursor')) {
     console.log(chalk.yellow('No .claude/ or .cursor/ directory found.'));
-    console.log(chalk.dim(`  Run \`${resolveCaliber()} init\` first, or create the directory manually.`));
+    console.log(
+      chalk.dim(`  Run \`${resolveCaliber()} init\` first, or create the directory manually.`),
+    );
     return;
   }
 
   if (anyInstalled) {
-    console.log(chalk.dim(`  Tool usage will be recorded and learnings extracted after ≥${MIN_EVENTS_FOR_ANALYSIS} events.`));
+    console.log(
+      chalk.dim(
+        `  Tool usage will be recorded and learnings extracted after ≥${MIN_EVENTS_FOR_ANALYSIS} events.`,
+      ),
+    );
     console.log(chalk.dim('  Learnings written to CALIBER_LEARNINGS.md.'));
   }
 }
@@ -471,7 +570,9 @@ export async function learnStatusCommand() {
   }
 
   if (!claudeInstalled && !cursorInstalled) {
-    console.log(chalk.dim(`  Run \`${resolveCaliber()} learn install\` to enable session learning.`));
+    console.log(
+      chalk.dim(`  Run \`${resolveCaliber()} learn install\` to enable session learning.`),
+    );
   }
 
   console.log();
@@ -523,14 +624,14 @@ function getAllLearnings(): LearningItem[] {
 
   const projectSection = readLearnedSection();
   if (projectSection) {
-    for (const line of projectSection.split('\n').filter(l => l.startsWith('- '))) {
+    for (const line of projectSection.split('\n').filter((l) => l.startsWith('- '))) {
       items.push({ text: line, source: 'project', index: idx++ });
     }
   }
 
   const personalSection = readPersonalLearnings();
   if (personalSection) {
-    for (const line of personalSection.split('\n').filter(l => l.startsWith('- '))) {
+    for (const line of personalSection.split('\n').filter((l) => l.startsWith('- '))) {
       items.push({ text: line, source: 'personal', index: idx++ });
     }
   }
@@ -556,7 +657,7 @@ export async function learnListCommand(options?: { verbose?: boolean }) {
     console.log(`  ${chalk.dim(String(item.index + 1).padStart(2, ' '))}. ${tag} ${display}`);
 
     if (options?.verbose && roiStats) {
-      const match = roiStats.learnings.find(l => display.includes(l.summary.slice(0, 40)));
+      const match = roiStats.learnings.find((l) => display.includes(l.summary.slice(0, 40)));
       if (match) {
         const activations = match.activationCount ?? 0;
         const stale = activations === 0 && roiStats.sessions.length >= 10;
@@ -576,7 +677,11 @@ export async function learnListCommand(options?: { verbose?: boolean }) {
 export async function learnDeleteCommand(indexStr: string) {
   const index = parseInt(indexStr, 10);
   if (isNaN(index) || index < 1) {
-    console.log(chalk.red(`Invalid index: "${indexStr}". Use a number from \`${resolveCaliber()} learn list\`.`));
+    console.log(
+      chalk.red(
+        `Invalid index: "${indexStr}". Use a number from \`${resolveCaliber()} learn list\`.`,
+      ),
+    );
     return;
   }
 
@@ -589,9 +694,7 @@ export async function learnDeleteCommand(indexStr: string) {
   }
 
   const item = items[targetIdx];
-  const filePath = item.source === 'personal'
-    ? PERSONAL_LEARNINGS_FILE
-    : 'CALIBER_LEARNINGS.md';
+  const filePath = item.source === 'personal' ? PERSONAL_LEARNINGS_FILE : 'CALIBER_LEARNINGS.md';
 
   if (!fs.existsSync(filePath)) {
     console.log(chalk.red('Learnings file not found.'));
@@ -602,7 +705,7 @@ export async function learnDeleteCommand(indexStr: string) {
   const lines = content.split('\n');
 
   // Find which bullet within this file corresponds to our item
-  const bulletsOfSource = items.filter(i => i.source === item.source);
+  const bulletsOfSource = items.filter((i) => i.source === item.source);
   const posInFile = bulletsOfSource.indexOf(item);
 
   // Find the Nth bullet line in the file
@@ -633,8 +736,11 @@ export async function learnDeleteCommand(indexStr: string) {
 
   // Clean up corresponding ROI stats entry
   const roiStats = readROIStats();
-  const cleanText = bulletToRemove.replace(/^- /, '').replace(/^\*\*\[[^\]]+\]\*\*\s*/, '').trim();
-  const roiIdx = roiStats.learnings.findIndex(l => cleanText.includes(l.summary.slice(0, 30)));
+  const cleanText = bulletToRemove
+    .replace(/^- /, '')
+    .replace(/^\*\*\[[^\]]+\]\*\*\s*/, '')
+    .trim();
+  const roiIdx = roiStats.learnings.findIndex((l) => cleanText.includes(l.summary.slice(0, 30)));
   if (roiIdx !== -1) {
     roiStats.learnings.splice(roiIdx, 1);
     writeROIStats(roiStats);

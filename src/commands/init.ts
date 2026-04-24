@@ -14,11 +14,18 @@ import { installLearningHooks, installCursorLearningHooks } from '../lib/learnin
 import { resolveCaliber } from '../lib/resolve-caliber.js';
 import { writeState, getCurrentHeadSha } from '../lib/state.js';
 import { promptInput } from '../utils/prompt.js';
-import { loadConfig, getFastModel, getDisplayModel, writeConfigFile } from '../llm/config.js';
+import {
+  loadConfig,
+  getFastModel,
+  getDisplayModel,
+  writeConfigFile,
+  DEFAULT_MODELS,
+} from '../llm/config.js';
 import { validateModel } from '../llm/index.js';
 import { runInteractiveProviderSetup } from './interactive-provider-setup.js';
 import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
 import { isCursorAgentAvailable, isCursorLoggedIn } from '../llm/cursor-acp.js';
+import { isOpenCodeAvailable } from '../llm/opencode.js';
 import confirm from '@inquirer/confirm';
 import { computeLocalScore } from '../scoring/index.js';
 import { displayScoreDelta, displayScoreSummary } from '../scoring/display.js';
@@ -129,6 +136,16 @@ export async function initCommand(options: InitOptions) {
 
   // 1a. LLM provider — auto-detect before prompting
   let config = loadConfig();
+
+  // If user explicitly requested OpenCode agent and no config yet, try to auto-configure OpenCode silently
+  if (!config && options.agent?.includes('opencode')) {
+    if (isOpenCodeAvailable()) {
+      console.log(chalk.dim('  Detected: OpenCode (uses your existing subscription)\n'));
+      const autoConfig = { provider: 'opencode' as const, model: DEFAULT_MODELS.opencode };
+      writeConfigFile(autoConfig);
+      config = autoConfig;
+    }
+  }
   if (!config && !options.autoApprove) {
     // Try seat-based auto-detection
     if (isClaudeCliAvailable() && isClaudeCliLoggedIn()) {
@@ -158,6 +175,10 @@ export async function initCommand(options: InitOptions) {
         config = autoConfig;
       } else if (isCursorAgentAvailable() && isCursorLoggedIn()) {
         const autoConfig = { provider: 'cursor' as const, model: 'sonnet-4.6' };
+        writeConfigFile(autoConfig);
+        config = autoConfig;
+      } else if (isOpenCodeAvailable()) {
+        const autoConfig = { provider: 'opencode' as const, model: DEFAULT_MODELS.opencode };
         writeConfigFile(autoConfig);
         config = autoConfig;
       }

@@ -1,10 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import {
-  appendPreCommitBlock,
-  appendLearningsBlock,
-  appendSyncBlock,
-} from '../pre-commit-block.js';
+import { appendManagedBlocks } from '../pre-commit-block.js';
 
 interface CopilotConfig {
   instructions: string;
@@ -18,7 +14,7 @@ export function writeGithubCopilotConfig(config: CopilotConfig): string[] {
     fs.mkdirSync('.github', { recursive: true });
     fs.writeFileSync(
       path.join('.github', 'copilot-instructions.md'),
-      appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(config.instructions, 'copilot'))),
+      appendManagedBlocks(config.instructions, 'copilot'),
     );
     written.push('.github/copilot-instructions.md');
   }

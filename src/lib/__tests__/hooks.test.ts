@@ -38,7 +38,7 @@ describe('pre-commit hook generation', () => {
       process.argv[1] = '/home/user/.npm/_npx/abc123/node_modules/.bin/caliber';
     });
 
-    it('uses command -v npx as the guard condition', async () => {
+    it('uses command -v npx guard and unquoted invocation when npx path is unknown', async () => {
       const { installPreCommitHook } = await import('../hooks.js');
 
       const tmpDir = makeTmpDir();
@@ -46,7 +46,12 @@ describe('pre-commit hook generation', () => {
       const hooksDir = path.join(gitDir, 'hooks');
       fs.mkdirSync(hooksDir, { recursive: true });
 
-      mockedExecSync.mockReturnValue(`${gitDir}\n`);
+      mockedExecSync.mockImplementation((cmd: string) => {
+        if (typeof cmd === 'string' && (cmd.includes('which') || cmd.includes('where'))) {
+          throw new Error('not found');
+        }
+        return `${gitDir}\n`;
+      });
 
       const origCwd = process.cwd();
       process.chdir(tmpDir);
@@ -57,13 +62,18 @@ describe('pre-commit hook generation', () => {
         expect(hookContent).toContain('command -v npx >/dev/null 2>&1');
         expect(hookContent).not.toContain('[ -x "npx');
         expect(hookContent).not.toContain('command -v "npx --yes');
+        expect(hookContent).not.toContain('"npx --yes @rely-ai/caliber"');
+        expect(hookContent).toContain('npx --yes @rely-ai/caliber refresh');
+        expect(hookContent).toContain('npx --yes @rely-ai/caliber learn finalize');
       } finally {
         process.chdir(origCwd);
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
 
-    it('invokes npx without quotes so shell word-splits correctly', async () => {
+    it('uses absolute npx path and -x guard when npx is found on PATH', async () => {
+      const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+      resetResolvedCaliber();
       const { installPreCommitHook } = await import('../hooks.js');
 
       const tmpDir = makeTmpDir();
@@ -71,7 +81,18 @@ describe('pre-commit hook generation', () => {
       const hooksDir = path.join(gitDir, 'hooks');
       fs.mkdirSync(hooksDir, { recursive: true });
 
-      mockedExecSync.mockReturnValue(`${gitDir}\n`);
+      mockedExecSync.mockImplementation((cmd: string) => {
+        if (
+          typeof cmd === 'string' &&
+          (cmd.includes('which caliber') || cmd.includes('where caliber'))
+        ) {
+          throw new Error('not found');
+        }
+        if (typeof cmd === 'string' && (cmd.includes('which npx') || cmd.includes('where npx'))) {
+          return '/opt/homebrew/bin/npx\n';
+        }
+        return `${gitDir}\n`;
+      });
 
       const origCwd = process.cwd();
       process.chdir(tmpDir);
@@ -79,9 +100,12 @@ describe('pre-commit hook generation', () => {
         installPreCommitHook();
         const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
 
-        expect(hookContent).not.toContain('"npx --yes @rely-ai/caliber"');
-        expect(hookContent).toContain('npx --yes @rely-ai/caliber refresh');
-        expect(hookContent).toContain('npx --yes @rely-ai/caliber learn finalize');
+        expect(hookContent).toContain('[ -x "/opt/homebrew/bin/npx" ]');
+        expect(hookContent).not.toContain('command -v npx');
+        expect(hookContent).toContain('"/opt/homebrew/bin/npx" --yes @rely-ai/caliber refresh');
+        expect(hookContent).toContain(
+          '"/opt/homebrew/bin/npx" --yes @rely-ai/caliber learn finalize',
+        );
       } finally {
         process.chdir(origCwd);
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -94,7 +118,10 @@ describe('pre-commit hook generation', () => {
       process.argv[1] = '/usr/local/bin/caliber';
       delete process.env.npm_execpath;
       mockedExecSync.mockImplementation((cmd: string) => {
-        if (typeof cmd === 'string' && cmd.includes('which caliber')) {
+        if (
+          typeof cmd === 'string' &&
+          (cmd.includes('which caliber') || cmd.includes('where caliber'))
+        ) {
           return '/usr/local/bin/caliber\n';
         }
         if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
@@ -115,7 +142,10 @@ describe('pre-commit hook generation', () => {
       fs.mkdirSync(hooksDir, { recursive: true });
 
       mockedExecSync.mockImplementation((cmd: string) => {
-        if (typeof cmd === 'string' && cmd.includes('which caliber')) {
+        if (
+          typeof cmd === 'string' &&
+          (cmd.includes('which caliber') || cmd.includes('where caliber'))
+        ) {
           return '/usr/local/bin/caliber\n';
         }
         if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
@@ -130,8 +160,8 @@ describe('pre-commit hook generation', () => {
         installPreCommitHook();
         const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
 
-        expect(hookContent).toContain('[ -x "caliber" ] || command -v "caliber"');
-        expect(hookContent).toContain('"caliber" refresh');
+        expect(hookContent).toContain('[ -x "/usr/local/bin/caliber" ]');
+        expect(hookContent).toContain('"/usr/local/bin/caliber" refresh');
       } finally {
         process.chdir(origCwd);
         fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -158,8 +188,12 @@ describe('SessionEnd hook command', () => {
     vi.resetModules();
   });
 
-  it('uses npx command in Claude settings when in npx context', async () => {
+  it('uses bare npx command in Claude settings when caliber is not globally installed', async () => {
     process.argv[1] = '/home/user/.npm/_npx/abc/node_modules/.bin/caliber';
+    // Neither caliber nor npx on PATH — falls back to bare 'npx --yes @rely-ai/caliber'
+    mockedExecSync.mockImplementation(() => {
+      throw new Error('not found');
+    });
 
     const { installHook } = await import('../hooks.js');
 

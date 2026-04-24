@@ -10,8 +10,10 @@ export const DEFAULT_MODELS: Record<ProviderType, string> = {
   anthropic: 'claude-sonnet-4-6',
   vertex: 'claude-sonnet-4-6',
   openai: 'gpt-5.4-mini',
+  minimax: 'MiniMax-M2.7',
   cursor: 'sonnet-4.6',
   'claude-cli': 'default',
+  opencode: 'default',
 };
 
 export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
@@ -23,6 +25,8 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'gpt-4o': 128_000,
   'gpt-4o-mini': 128_000,
   'sonnet-4.6': 200_000,
+  'MiniMax-M2.7': 1_000_000,
+  'MiniMax-M2.7-highspeed': 1_000_000,
 };
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
@@ -44,6 +48,7 @@ export const DEFAULT_FAST_MODELS: Partial<Record<ProviderType, string>> = {
   anthropic: 'claude-haiku-4-5-20251001',
   vertex: 'claude-haiku-4-5-20251001',
   openai: 'gpt-5.4-mini',
+  minimax: 'MiniMax-M2.7-highspeed',
   cursor: 'gpt-5.3-codex-fast',
 };
 
@@ -85,6 +90,15 @@ export function resolveFromEnv(): LLMConfig | null {
     };
   }
 
+  if (process.env.MINIMAX_API_KEY) {
+    return {
+      provider: 'minimax',
+      apiKey: process.env.MINIMAX_API_KEY,
+      model: process.env.CALIBER_MODEL || DEFAULT_MODELS.minimax,
+      baseUrl: process.env.MINIMAX_BASE_URL,
+    };
+  }
+
   // Prefer Cursor seat when explicitly requested (no API key; uses agent acp + agent login)
   if (
     process.env.CALIBER_USE_CURSOR_SEAT === '1' ||
@@ -104,6 +118,14 @@ export function resolveFromEnv(): LLMConfig | null {
     };
   }
 
+  // Prefer OpenCode (uses opencode CLI; no API key)
+  if (process.env.CALIBER_USE_OPENCODE === '1' || process.env.CALIBER_USE_OPENCODE === 'true') {
+    return {
+      provider: 'opencode',
+      model: process.env.CALIBER_MODEL || DEFAULT_MODELS.opencode,
+    };
+  }
+
   return null;
 }
 
@@ -114,7 +136,9 @@ export function readConfigFile(): LLMConfig | null {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     if (
       !parsed.provider ||
-      !['anthropic', 'vertex', 'openai', 'cursor', 'claude-cli'].includes(parsed.provider as string)
+      !['anthropic', 'vertex', 'openai', 'minimax', 'cursor', 'claude-cli', 'opencode'].includes(
+        parsed.provider as string,
+      )
     ) {
       return null;
     }
@@ -144,6 +168,9 @@ export function getConfigFilePath(): string {
 export function getDisplayModel(config: { provider: string; model: string }): string {
   if (config.model === 'default' && config.provider === 'claude-cli') {
     return process.env.ANTHROPIC_MODEL || 'default (inherited from Claude Code)';
+  }
+  if (config.model === 'default' && config.provider === 'opencode') {
+    return 'default (inherited from OpenCode)';
   }
   return config.model;
 }

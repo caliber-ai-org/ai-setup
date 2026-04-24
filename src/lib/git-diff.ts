@@ -1,6 +1,10 @@
 import { execSync } from 'child_process';
 
 const MAX_DIFF_BYTES = 100_000;
+// Large projects can have tens of thousands of untracked build artifacts.
+// The changed-files list is joined into the prompt; cap it to prevent it from
+// dominating the token budget before the LLM even sees the actual diffs.
+const MAX_CHANGED_FILES = 500;
 
 const DOC_PATTERNS = [
   'CLAUDE.md',
@@ -81,9 +85,9 @@ export function collectDiff(lastSha: string | null): DiffResult {
     changedFiles.push(...untrackedFiles.split('\n').filter(Boolean));
   }
 
-  changedFiles = [...new Set(changedFiles)].filter(
-    (f) => !DOC_PATTERNS.some((p) => f === p || f.startsWith(p)),
-  );
+  changedFiles = [...new Set(changedFiles)]
+    .filter((f) => !DOC_PATTERNS.some((p) => f === p || f.startsWith(p)))
+    .slice(0, MAX_CHANGED_FILES);
 
   const totalSize = committedDiff.length + stagedDiff.length + unstagedDiff.length;
   if (totalSize > MAX_DIFF_BYTES) {

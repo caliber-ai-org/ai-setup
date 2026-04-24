@@ -28,6 +28,7 @@ describe('writeGithubCopilotConfig', () => {
     const content = fs.readFileSync('.github/copilot-instructions.md', 'utf-8');
     expect(content).toContain('# Project\n\nBuild with `npm run build`.');
     expect(content).toContain('caliber:managed:pre-commit');
+    expect(content).toContain('caliber:managed:model-config');
   });
 
   it('skips writing when instructions is empty', () => {

@@ -8,7 +8,7 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "SYNCED" || echo "NO
 
 If the result is NOT_SYNCED, tell the user:
 
-"This project uses Caliber to keep AI agent configs in sync. It's not set up on your machine yet — want me to set it up? (~30 seconds)"
+"This project uses Caliber to keep agent configs in sync — it is not set up yet. Want me to run /setup-caliber? (~30 seconds)"
 
 If they agree, run /setup-caliber. Then proceed with their original request.
 If they decline, proceed normally.

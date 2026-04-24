@@ -1,10 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import {
-  appendPreCommitBlock,
-  appendLearningsBlock,
-  appendSyncBlock,
-} from '../pre-commit-block.js';
+import { appendManagedBlocks } from '../pre-commit-block.js';
 
 interface ClaudeConfig {
   claudeMd: string;
@@ -18,7 +14,7 @@ export function writeClaudeConfig(config: ClaudeConfig): string[] {
 
   fs.writeFileSync(
     'CLAUDE.md',
-    appendSyncBlock(appendLearningsBlock(appendPreCommitBlock(config.claudeMd))),
+    appendManagedBlocks(config.claudeMd),
   );
   written.push('CLAUDE.md');
 

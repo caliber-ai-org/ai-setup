@@ -1,10 +1,21 @@
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 
 export const IGNORE_DIRS = new Set([
-  'node_modules', '.git', '.next', 'dist', 'build', '.cache',
-  '.turbo', 'coverage', '.caliber', '__pycache__', '.venv',
-  'vendor', 'target',
+  'node_modules',
+  '.git',
+  '.next',
+  'dist',
+  'build',
+  '.cache',
+  '.turbo',
+  'coverage',
+  '.caliber',
+  '__pycache__',
+  '.venv',
+  'vendor',
+  'target',
 ]);
 
 interface TreeEntry {
@@ -14,16 +25,81 @@ interface TreeEntry {
 }
 
 export function getFileTree(dir: string, maxDepth = 3): string[] {
+  const gitFiles = getGitTrackedFiles(dir);
+  const entries: TreeEntry[] = gitFiles
+    ? buildTreeFromGitFiles(dir, gitFiles, maxDepth)
+    : scanEntries(dir, maxDepth);
+
+  return sortAndFormat(entries);
+}
+
+function getGitTrackedFiles(dir: string): string[] | null {
+  try {
+    const output = execSync('git ls-files --cached --others --exclude-standard', {
+      cwd: dir,
+      encoding: 'utf-8',
+      maxBuffer: 10 * 1024 * 1024,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    return output.trim().split('\n').filter(Boolean);
+  } catch {
+    return null;
+  }
+}
+
+function buildTreeFromGitFiles(dir: string, files: string[], maxDepth: number): TreeEntry[] {
+  const result: TreeEntry[] = [];
+  const seenDirs = new Set<string>();
+
+  for (const relFile of files) {
+    const parts = relFile.split('/');
+    if (parts.length - 1 > maxDepth) continue;
+
+    const absPath = path.join(dir, relFile);
+    let mtime = 0;
+    try {
+      mtime = fs.statSync(absPath).mtimeMs;
+    } catch {
+      continue;
+    }
+
+    result.push({ relPath: relFile, isDir: false, mtime });
+
+    for (let i = 1; i < parts.length; i++) {
+      const dirRel = parts.slice(0, i).join('/') + '/';
+      if (seenDirs.has(dirRel)) continue;
+      seenDirs.add(dirRel);
+
+      const depth = i;
+      if (depth > maxDepth) break;
+
+      let dirMtime = 0;
+      try {
+        dirMtime = fs.statSync(path.join(dir, dirRel)).mtimeMs;
+      } catch {
+        /* skip */
+      }
+
+      result.push({ relPath: dirRel, isDir: true, mtime: dirMtime });
+    }
+  }
+
+  return result;
+}
+
+function scanEntries(dir: string, maxDepth: number): TreeEntry[] {
   const entries: TreeEntry[] = [];
   scan(dir, '', 0, maxDepth, entries);
+  return entries;
+}
 
+function sortAndFormat(entries: TreeEntry[]): string[] {
   const dirs: TreeEntry[] = [];
   const files: TreeEntry[] = [];
   for (const e of entries) {
     (e.isDir ? dirs : files).push(e);
   }
 
-  // Score each directory by the max mtime of any descendant file (single-pass)
   const dirMaxMtime = new Map<string, number>();
   for (const d of dirs) dirMaxMtime.set(d.relPath, d.mtime);
 
@@ -48,7 +124,7 @@ export function getFileTree(dir: string, maxDepth = 3): string[] {
   dirs.sort((a, b) => b.mtime - a.mtime);
   files.sort((a, b) => b.mtime - a.mtime);
 
-  return [...dirs.map(e => e.relPath), ...files.map(e => e.relPath)];
+  return [...dirs.map((e) => e.relPath), ...files.map((e) => e.relPath)];
 }
 
 function scan(base: string, rel: string, depth: number, maxDepth: number, result: TreeEntry[]) {
@@ -72,7 +148,9 @@ function scan(base: string, rel: string, depth: number, maxDepth: number, result
     let mtime = 0;
     try {
       mtime = fs.statSync(entryPath).mtimeMs;
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
 
     if (entry.isDirectory()) {
       result.push({ relPath: `${relPath}/`, isDir: true, mtime });
