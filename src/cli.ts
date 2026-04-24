@@ -187,7 +187,7 @@ program
   .option('--quiet', 'One-line output for scripts/hooks')
   .option(
     '--agent <type>',
-    'Target agents (comma-separated): claude, cursor, codex, opencode, github-copilot. Note: github-copilot is a sync target only — requires another provider for generation',
+    'Target agents (comma-separated): claude, cursor, codex, opencode, github-copilot',
     parseAgentOption,
   )
   .option('--compare <ref>', 'Compare score against a git ref (branch, tag, or SHA)')
