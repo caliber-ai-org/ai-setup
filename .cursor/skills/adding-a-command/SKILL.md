@@ -1,106 +1,184 @@
 ---
 name: adding-a-command
-description: Create a new CLI command following Commander.js pattern. Handles command file in src/commands/, registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says 'add command', 'new CLI command', 'create subcommand', or adds files to src/commands/. Do NOT use for modifying existing commands or refactoring command structure.
+description: Creates a new CLI command following the Commander.js pattern in src/commands/. Handles command registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says add command, new CLI command, create subcommand, or adds files to src/commands/. Do NOT use for modifying existing commands or fixing bugs in existing commands.
+paths:
+  - src/commands/**/*.ts
+  - src/cli.ts
 ---
 # Adding a Command
 
 ## Critical
 
-- Commands MUST be registered in `src/cli.ts` using `.command()` and `.action()` with the `tracked()` wrapper for telemetry.
-- Command file MUST be in `src/commands/{commandName}.ts` and export a default async function with signature: `async (options: CommandOptions, ctx: CLIContext) => Promise<void>`.
-- Always use `tracked(commandName, async () => { ... })` wrapper in `src/cli.ts` to enable telemetry tracking.
-- Test file MUST be in `src/commands/__tests__/{commandName}.test.ts` with at least one happy-path test.
+- **Export pattern**: Command must export a named async function: `export async function myCommand(options?: OptionType)`. Never use default exports.
+- **Registration in cli.ts**: Every command must be imported and registered with `.command()` chain in `src/cli.ts`, wrapped with `tracked()` for telemetry.
+- **Error signaling**: Use `throw new Error('__exit__')` to exit gracefully without printing the error message. Use chalk for user-facing messages.
+- **Options typing**: Commands receiving options must define a TypeScript interface for those options. Pass options as a destructured object parameter.
 
 ## Instructions
 
-1. **Create command file** in `src/commands/{commandName}.ts`
-   - Export default async function: `export default async (options: any, ctx: CLIContext) => { ... }`
-   - Import `CLIContext` from `src/cli.ts`
-   - Use `ctx.log()` for output (respects quiet mode via `--quiet`)
-   - Use `ctx.spinner()` for async operations
-   - Verify function signature matches existing commands like `src/commands/score.ts`
+1. **Create the command file** at `src/commands/{commandName}.ts` with named async export.
+   - Signature: `export async function {commandName}Command(options?: { optionName?: optionType }) { ... }`
+   - Import only what you need (avoid kitchen-sink imports).
+   - Return void (handle all output via console.log or chalk).
+   - Verify the file follows the naming convention: camelCase function + "Command" suffix.
 
-2. **Register in src/cli.ts**
-   - Import the command: `import addCommand from './commands/mycommand.js'`
-   - Add command definition:
-     ```ts
-     program
-       .command('mycommand')
-       .description('One-line description')
-       .option('--option', 'Option description')
-       .action(tracked('mycommand', addCommand))
-     ```
-   - Verify imports are `.js` (ESM)
-   - Verify `tracked()` wrapper is applied to `.action()`
+2. **Handle errors consistently**: Wrap error-prone operations in try/catch. Distinguish between user errors and system errors:
+   - User error (bad input): `console.error(chalk.red('message')); throw new Error('__exit__');`
+   - System error (missing dependency): `throw new Error('Detailed error message');` — this will print and exit with code 1.
+   - Parse-like errors: Use ora spinner with `.fail()` before throwing.
+   - This step prevents double error printing in bin.ts.
 
-3. **Add telemetry event** in `src/telemetry/events.ts`
-   - Add event type: `export type MyCommandEvent = { type: 'mycommand:start' | 'mycommand:success' | 'mycommand:error'; ... }`
-   - Include `duration?: number` field for timed events
-   - Update `export type AllEvents = ... | MyCommandEvent`
-   - Verify event matches pattern in existing events
+3. **Import and register in src/cli.ts** in the correct location:
+   - Add import at the top: `import { {commandName}Command } from './commands/{commandName}.js';`
+   - Register the command in the appropriate section (main commands, or nested under a group like `sources`).
+   - For main commands: `.command('{kebab-name}').description('...').option(...).action(tracked('{kebab-name}', {commandName}Command))`
+   - For subcommands (like `sources add`): `sources.command('add').description(...).action(tracked('sources:add', sourcesAddCommand))`
+   - Key: Wrap handler with `tracked('{command-name}', handler)` for automatic telemetry.
+   - Verify the command name in tracked() uses kebab-case for main commands and colon-separated for subcommands.
 
-4. **Create test file** in `src/commands/__tests__/{commandName}.test.ts`
-   - Import `describe`, `it`, `expect`, `vi` from `vitest`
-   - Import command from parent: `import addCommand from '../mycommand.js'`
-   - Create mock `CLIContext`: `{ log: vi.fn(), spinner: vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn() }) }`
-   - Test happy path: `await addCommand({}, ctx); expect(ctx.log).toHaveBeenCalled()`
-   - Verify test runs: `npx vitest run src/commands/__tests__/{commandName}.test.ts`
+4. **Define options (if needed)**:
+   - Add `.option()` chains before `.action()`: `.option('--flag', 'Description')` or `.option('--opt <value>', 'Description')`
+   - For parsed options (like comma-separated agents), add a parse function: `.option('--opt <value>', 'Description', parseFunction)`
+   - Pass options to handler: `.action(tracked('name', (opts) => command(opts)))`
+   - Define TypeScript interface for the options object.
+   - Verify option names use camelCase (Commander converts kebab-case flags to camelCase).
 
-5. **Build and validate**
-   - Run `npm run build` → verify no TypeScript errors
-   - Run `npm run lint` → verify ESLint passes
-   - Test command: `node dist/bin.js mycommand --help` → verify options listed
-   - Run `npm run test` → verify new test passes
+5. **Verify before proceeding**:
+   - Function exports correctly and is imported in cli.ts.
+   - Command is registered with tracked() wrapper.
+   - Output uses chalk for colors, not plain console.log.
+   - Error paths throw `new Error('__exit__')` for user errors.
 
 ## Examples
 
-User says: "Add a new `verify` command that checks if config files exist"
+### Example 1: Simple command (status)
 
-**Actions:**
-1. Create `src/commands/verify.ts`:
-   ```ts
-   import { CLIContext } from '../cli.js';
-   export default async (options: any, ctx: CLIContext) => {
-     const spinner = ctx.spinner('Verifying config files...');
-     spinner.start();
-     const exists = await checkFilesExist();
-     spinner.stop();
-     ctx.log(`✓ Config files ${exists ? 'found' : 'missing'}`);
-   };
-   ```
-2. Register in `src/cli.ts`:
-   ```ts
-   import verifyCommand from './commands/verify.js';
-   program
-     .command('verify')
-     .description('Verify configuration files exist')
-     .action(tracked('verify', verifyCommand))
-   ```
-3. Add to `src/telemetry/events.ts`:
-   ```ts
-   export type VerifyEvent = {
-     type: 'verify:start' | 'verify:success' | 'verify:error';
-     duration?: number;
-   };
-   ```
-4. Create `src/commands/__tests__/verify.test.ts` with happy-path test
-5. Run `npm run build && npm run test && npm run lint`
+User says: "Add a command to show config status"
+
+**Actions taken**:
+1. Create src/commands/status.ts with statusCommand() export
+2. Import and register in src/cli.ts with tracked() wrapper
+
+**Result**: `caliber status` displays config status; `caliber status --json` outputs JSON.
+
+Code example:
+```typescript
+import chalk from 'chalk';
+import { loadConfig } from '../llm/config.js';
+
+export async function statusCommand(options?: { json?: boolean }) {
+  const config = loadConfig();
+  
+  if (options?.json) {
+    console.log(JSON.stringify({ configured: !!config }, null, 2));
+    return;
+  }
+  
+  console.log(chalk.bold('Status'));
+  console.log(`  LLM: ${chalk.green(config?.provider || 'Not configured')}`);
+}
+```
+
+Registration in src/cli.ts:
+```typescript
+import { statusCommand } from './commands/status.js';
+program
+  .command('status')
+  .description('Show config status')
+  .option('--json', 'Output as JSON')
+  .action(tracked('status', statusCommand));
+```
+
+---
+
+### Example 2: Subcommand with arguments
+
+User says: "Add a sources add subcommand"
+
+**Actions taken**:
+1. Create src/commands/sources.ts with sourcesAddCommand() export
+2. Register under sources group with tracked('sources:add', ...)
+
+**Result**: `caliber sources add ../lib` adds a source.
+
+Code example:
+```typescript
+export async function sourcesAddCommand(sourcePath: string) {
+  if (!fs.existsSync(sourcePath)) {
+    console.log(chalk.red(`Path not found: ${sourcePath}`));
+    throw new Error('__exit__');
+  }
+  const existing = loadSourcesConfig(process.cwd());
+  existing.push({ type: 'repo', path: sourcePath });
+  writeSourcesConfig(process.cwd(), existing);
+  console.log(chalk.green(`Added ${sourcePath}`));
+}
+```
+
+Registration:
+```typescript
+const sources = program.command('sources');
+sources
+  .command('add')
+  .argument('<path>', 'Path to add')
+  .action(tracked('sources:add', sourcesAddCommand));
+```
+
+---
+
+### Example 3: Command with option parsing
+
+User says: "Add init with --agent flag supporting comma-separated values"
+
+**Actions taken**:
+1. Create parseAgentOption() parser in src/cli.ts
+2. Create src/commands/init.ts with initCommand(options)
+3. Register with custom parser
+
+**Result**: `caliber init --agent claude,cursor` passes parsed array to handler.
+
+Parser code:
+```typescript
+function parseAgentOption(value: string) {
+  const agents = value.split(',').map(s => s.trim().toLowerCase());
+  if (agents.length === 0) {
+    console.error('Invalid agent');
+    process.exit(1);
+  }
+  return agents;
+}
+
+program.command('init')
+  .option('--agent <type>', 'Agents (comma-separated)', parseAgentOption)
+  .action(tracked('init', initCommand));
+```
 
 ## Common Issues
 
-**"Cannot find module './commands/mycommand.js'"**
-- Verify file is at `src/commands/mycommand.ts` (TypeScript)
-- Verify import in `src/cli.ts` uses `.js` extension: `from './commands/mycommand.js'`
-- Rebuild: `npm run build`
+**Issue**: "SyntaxError: The requested module does not provide an export named 'myCommand'"
+- **Cause**: Function not exported or exported as default instead of named.
+- **Fix**: Use `export async function myCommand(...)` (not `export default`).
 
-**"tracked is not exported from src/cli.ts"**
-- Verify `tracked()` function exists in `src/cli.ts` (it should; check existing commands)
-- Verify you're using it as `.action(tracked('commandName', commandFunction))`
+**Issue**: Command appears in help but crashes when run
+- **Cause**: Handler not wrapped with `tracked()` or function import mismatch.
+- **Fix**: Verify import name matches function export. Wrap with `tracked('command-name', handler)`.
 
-**Test fails with "CLIContext is not a constructor"**
-- Create mock object manually: `const ctx = { log: vi.fn(), spinner: vi.fn().mockReturnValue({ start: vi.fn(), stop: vi.fn() }) }`
-- Do NOT try to instantiate CLIContext; it's an interface
+**Issue**: "Error: __exit__" appears in output for user errors
+- **Cause**: Throwing generic error instead of using error exit pattern.
+- **Fix**: Use `console.error(chalk.red('message')); throw new Error('__exit__');` for user-facing errors.
 
-**"--option not recognized" when testing**
-- Verify `.option()` is chained in `src/cli.ts` BEFORE `.action()`
-- Rebuild and test with `npm run build && node dist/bin.js mycommand --help`
+**Issue**: --dry-run flag not recognized
+- **Cause**: Option not declared with `.option()` or wrong camelCase in interface.
+- **Fix**: Add `.option('--dry-run', 'Description')` and ensure options interface has `dryRun?: boolean`.
+
+**Issue**: Subcommand crashes but parent command works
+- **Cause**: Using `program.command()` instead of `groupVar.command()` for subcommands.
+- **Fix**: Register on group: `const sources = program.command('sources'); sources.command('add')...`
+
+**Issue**: Telemetry not appearing
+- **Cause**: Handler not wrapped with `tracked()` or wrong command name.
+- **Fix**: Ensure `.action(tracked('{kebab-case}', handler))` wraps handler. Use colon for subcommands like 'sources:add'.
+
+**Issue**: "Cannot find module" with relative imports
+- **Cause**: Using `.ts` extension in imports.
+- **Fix**: Always use `.js` extension: `import { x } from '../lib/file.js'` (required for ESM).
