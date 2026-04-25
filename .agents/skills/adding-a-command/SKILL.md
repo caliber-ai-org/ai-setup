@@ -1,184 +1,88 @@
 ---
 name: adding-a-command
-description: Creates a new CLI command following the Commander.js pattern in src/commands/. Handles command registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says add command, new CLI command, create subcommand, or adds files to src/commands/. Do NOT use for modifying existing commands or fixing bugs in existing commands.
-paths:
-  - src/commands/**/*.ts
-  - src/cli.ts
+description: Creates a new CLI command following the Commander.js pattern in src/commands/. Handles command registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says 'add command', 'new CLI command', 'create subcommand', or asks to add files to src/commands/. Do NOT use for modifying existing commands or refactoring command logic.
 ---
 # Adding a Command
 
 ## Critical
 
-- **Export pattern**: Command must export a named async function: `export async function myCommand(options?: OptionType)`. Never use default exports.
-- **Registration in cli.ts**: Every command must be imported and registered with `.command()` chain in `src/cli.ts`, wrapped with `tracked()` for telemetry.
-- **Error signaling**: Use `throw new Error('__exit__')` to exit gracefully without printing the error message. Use chalk for user-facing messages.
-- **Options typing**: Commands receiving options must define a TypeScript interface for those options. Pass options as a destructured object parameter.
+- **Every command must be wrapped with `tracked()`** — this enables telemetry. Without it, the command will not report usage.
+- **Commands are registered in `src/cli.ts`**, not auto-discovered. You must manually import and attach each command.
+- **Use Commander.js patterns exactly** — `.option()` for flags, `.argument()` for positional args, `.action()` for the handler.
+- **Always provide a `.description()`** — it appears in `caliber --help`.
 
 ## Instructions
 
-1. **Create the command file** at `src/commands/{commandName}.ts` with named async export.
-   - Signature: `export async function {commandName}Command(options?: { optionName?: optionType }) { ... }`
-   - Import only what you need (avoid kitchen-sink imports).
-   - Return void (handle all output via console.log or chalk).
-   - Verify the file follows the naming convention: camelCase function + "Command" suffix.
+1. **Create the command file** in `src/commands/{{command-name}}.ts`.
+   - Signature: `export async function {{commandName}}(options: OptionType, ...args: any[]) { ... }`
+   - Use async/await for all async operations (DB, LLM, file I/O).
+   - Import `tracked` from `src/lib/hooks.ts`: `import { tracked } from '../lib/hooks.js';`
+   - Verify the command exports the handler function before proceeding.
 
-2. **Handle errors consistently**: Wrap error-prone operations in try/catch. Distinguish between user errors and system errors:
-   - User error (bad input): `console.error(chalk.red('message')); throw new Error('__exit__');`
-   - System error (missing dependency): `throw new Error('Detailed error message');` — this will print and exit with code 1.
-   - Parse-like errors: Use ora spinner with `.fail()` before throwing.
-   - This step prevents double error printing in bin.ts.
+2. **Define the OptionType interface** (if needed).
+   - Place above the handler function in the same file.
+   - Example from `score.ts`: `interface ScoreOptions { json?: boolean; verbose?: boolean; }`
+   - Verify the interface matches all `.option()` calls in Step 3.
 
-3. **Import and register in src/cli.ts** in the correct location:
-   - Add import at the top: `import { {commandName}Command } from './commands/{commandName}.js';`
-   - Register the command in the appropriate section (main commands, or nested under a group like `sources`).
-   - For main commands: `.command('{kebab-name}').description('...').option(...).action(tracked('{kebab-name}', {commandName}Command))`
-   - For subcommands (like `sources add`): `sources.command('add').description(...).action(tracked('sources:add', sourcesAddCommand))`
-   - Key: Wrap handler with `tracked('{command-name}', handler)` for automatic telemetry.
-   - Verify the command name in tracked() uses kebab-case for main commands and colon-separated for subcommands.
+3. **Register in `src/cli.ts`**.
+   - Import: `import { {{commandName}} } from './commands/{{command-name}}.js';`
+   - Attach to program: `program.command('{{cmd-name}}').description('...').option('--flag', '...').action(tracked({{commandName}}));`
+   - Use `.option()` for optional flags, `.argument()` for required positional args.
+   - Verify the import path includes `.js` extension (ESM).
 
-4. **Define options (if needed)**:
-   - Add `.option()` chains before `.action()`: `.option('--flag', 'Description')` or `.option('--opt <value>', 'Description')`
-   - For parsed options (like comma-separated agents), add a parse function: `.option('--opt <value>', 'Description', parseFunction)`
-   - Pass options to handler: `.action(tracked('name', (opts) => command(opts)))`
-   - Define TypeScript interface for the options object.
-   - Verify option names use camelCase (Commander converts kebab-case flags to camelCase).
+4. **Add tests** in `src/commands/__tests__/{{command-name}}.test.ts`.
+   - Use Vitest + `vi.mock()` for LLM, file I/O, and hooks.
+   - Test both success and error paths.
+   - Verify tests pass: `npm run test -- {{command-name}}.test.ts`.
 
-5. **Verify before proceeding**:
-   - Function exports correctly and is imported in cli.ts.
-   - Command is registered with tracked() wrapper.
-   - Output uses chalk for colors, not plain console.log.
-   - Error paths throw `new Error('__exit__')` for user errors.
+5. **Validate telemetry**.
+   - Confirm `tracked()` wraps the action handler.
+   - Verify the command fires an event in PostHog.
 
 ## Examples
 
-### Example 1: Simple command (status)
+**User says:** "Add a 'debug' command that prints the fingerprint JSON."
 
-User says: "Add a command to show config status"
+**Actions taken:**
 
-**Actions taken**:
-1. Create src/commands/status.ts with statusCommand() export
-2. Import and register in src/cli.ts with tracked() wrapper
-
-**Result**: `caliber status` displays config status; `caliber status --json` outputs JSON.
-
-Code example:
+1. Create `src/commands/debug.ts`:
 ```typescript
-import chalk from 'chalk';
-import { loadConfig } from '../llm/config.js';
+import { tracked } from '../lib/hooks.js';
+import { collectFingerprint } from '../fingerprint/index.js';
 
-export async function statusCommand(options?: { json?: boolean }) {
-  const config = loadConfig();
-  
-  if (options?.json) {
-    console.log(JSON.stringify({ configured: !!config }, null, 2));
-    return;
-  }
-  
-  console.log(chalk.bold('Status'));
-  console.log(`  LLM: ${chalk.green(config?.provider || 'Not configured')}`);
+export async function debug(options: { verbose?: boolean }) {
+  const fp = await collectFingerprint();
+  console.log(JSON.stringify(fp, null, 2));
 }
 ```
 
-Registration in src/cli.ts:
+2. Register in `src/cli.ts`:
 ```typescript
-import { statusCommand } from './commands/status.js';
+import { debug } from './commands/debug.js';
+
 program
-  .command('status')
-  .description('Show config status')
-  .option('--json', 'Output as JSON')
-  .action(tracked('status', statusCommand));
+  .command('debug')
+  .description('Print fingerprint JSON')
+  .option('--verbose', 'Include timing info')
+  .action(tracked(debug));
 ```
 
----
-
-### Example 2: Subcommand with arguments
-
-User says: "Add a sources add subcommand"
-
-**Actions taken**:
-1. Create src/commands/sources.ts with sourcesAddCommand() export
-2. Register under sources group with tracked('sources:add', ...)
-
-**Result**: `caliber sources add ../lib` adds a source.
-
-Code example:
+3. Test in `src/commands/__tests__/debug.test.ts`:
 ```typescript
-export async function sourcesAddCommand(sourcePath: string) {
-  if (!fs.existsSync(sourcePath)) {
-    console.log(chalk.red(`Path not found: ${sourcePath}`));
-    throw new Error('__exit__');
-  }
-  const existing = loadSourcesConfig(process.cwd());
-  existing.push({ type: 'repo', path: sourcePath });
-  writeSourcesConfig(process.cwd(), existing);
-  console.log(chalk.green(`Added ${sourcePath}`));
-}
+vi.mock('../fingerprint/index.js');
+it('should print fingerprint', async () => {
+  const consoleSpy = vi.spyOn(console, 'log');
+  await debug({ verbose: false });
+  expect(consoleSpy).toHaveBeenCalled();
+});
 ```
 
-Registration:
-```typescript
-const sources = program.command('sources');
-sources
-  .command('add')
-  .argument('<path>', 'Path to add')
-  .action(tracked('sources:add', sourcesAddCommand));
-```
-
----
-
-### Example 3: Command with option parsing
-
-User says: "Add init with --agent flag supporting comma-separated values"
-
-**Actions taken**:
-1. Create parseAgentOption() parser in src/cli.ts
-2. Create src/commands/init.ts with initCommand(options)
-3. Register with custom parser
-
-**Result**: `caliber init --agent claude,cursor` passes parsed array to handler.
-
-Parser code:
-```typescript
-function parseAgentOption(value: string) {
-  const agents = value.split(',').map(s => s.trim().toLowerCase());
-  if (agents.length === 0) {
-    console.error('Invalid agent');
-    process.exit(1);
-  }
-  return agents;
-}
-
-program.command('init')
-  .option('--agent <type>', 'Agents (comma-separated)', parseAgentOption)
-  .action(tracked('init', initCommand));
-```
+**Result:** Running `caliber debug` prints the fingerprint and logs a telemetry event.
 
 ## Common Issues
 
-**Issue**: "SyntaxError: The requested module does not provide an export named 'myCommand'"
-- **Cause**: Function not exported or exported as default instead of named.
-- **Fix**: Use `export async function myCommand(...)` (not `export default`).
-
-**Issue**: Command appears in help but crashes when run
-- **Cause**: Handler not wrapped with `tracked()` or function import mismatch.
-- **Fix**: Verify import name matches function export. Wrap with `tracked('command-name', handler)`.
-
-**Issue**: "Error: __exit__" appears in output for user errors
-- **Cause**: Throwing generic error instead of using error exit pattern.
-- **Fix**: Use `console.error(chalk.red('message')); throw new Error('__exit__');` for user-facing errors.
-
-**Issue**: --dry-run flag not recognized
-- **Cause**: Option not declared with `.option()` or wrong camelCase in interface.
-- **Fix**: Add `.option('--dry-run', 'Description')` and ensure options interface has `dryRun?: boolean`.
-
-**Issue**: Subcommand crashes but parent command works
-- **Cause**: Using `program.command()` instead of `groupVar.command()` for subcommands.
-- **Fix**: Register on group: `const sources = program.command('sources'); sources.command('add')...`
-
-**Issue**: Telemetry not appearing
-- **Cause**: Handler not wrapped with `tracked()` or wrong command name.
-- **Fix**: Ensure `.action(tracked('{kebab-case}', handler))` wraps handler. Use colon for subcommands like 'sources:add'.
-
-**Issue**: "Cannot find module" with relative imports
-- **Cause**: Using `.ts` extension in imports.
-- **Fix**: Always use `.js` extension: `import { x } from '../lib/file.js'` (required for ESM).
+- **"tracked is not defined"** — Verify import: `import { tracked } from '../lib/hooks.js';` with `.js` extension.
+- **"Command not found"** — Check `src/cli.ts` for the import and `.action(tracked(...))` attachment.
+- **"options is undefined"** — Ensure the handler signature is `async function(options: Type, ...args: any[])` and the Commander action passes options as the first parameter.
+- **"PostHog event not firing"** — Confirm `tracked()` wraps the action handler; without it, events won't emit.
+- **ESM import errors** — Always include `.js` extensions in import paths (e.g., `../lib/hooks.js` not `../lib/hooks`).
