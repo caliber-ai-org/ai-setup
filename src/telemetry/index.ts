@@ -27,10 +27,9 @@ export function initTelemetry(): void {
     flushInterval: 10000,
   });
 
-  // Show first-run notice
   if (!wasNoticeShown()) {
     console.log(
-      chalk.dim('  Caliber collects anonymous usage data to improve the product.') +
+      chalk.dim('  Caliber telemetry is enabled. Thank you for helping improve the product!') +
       '\n' +
       chalk.dim('  Disable with --no-traces or CALIBER_TELEMETRY_DISABLED=1\n')
     );

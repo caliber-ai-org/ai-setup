@@ -41,16 +41,31 @@ vi.mock('child_process', () => ({
 }));
 
 describe('telemetry', () => {
+  const savedEnv: Record<string, string | undefined> = {};
+
   beforeEach(() => {
     vi.resetModules();
     mockCapture.mockClear();
     mockIdentify.mockClear();
     mockShutdown.mockClear();
+    savedEnv.CALIBER_TELEMETRY_DISABLED = process.env.CALIBER_TELEMETRY_DISABLED;
+    savedEnv.CALIBER_TELEMETRY_ENABLED = process.env.CALIBER_TELEMETRY_ENABLED;
     delete process.env.CALIBER_TELEMETRY_DISABLED;
+    delete process.env.CALIBER_TELEMETRY_ENABLED;
+    for (const key of Object.keys(mockConfig)) delete mockConfig[key];
   });
 
   afterEach(() => {
-    delete process.env.CALIBER_TELEMETRY_DISABLED;
+    if (savedEnv.CALIBER_TELEMETRY_DISABLED === undefined) {
+      delete process.env.CALIBER_TELEMETRY_DISABLED;
+    } else {
+      process.env.CALIBER_TELEMETRY_DISABLED = savedEnv.CALIBER_TELEMETRY_DISABLED;
+    }
+    if (savedEnv.CALIBER_TELEMETRY_ENABLED === undefined) {
+      delete process.env.CALIBER_TELEMETRY_ENABLED;
+    } else {
+      process.env.CALIBER_TELEMETRY_ENABLED = savedEnv.CALIBER_TELEMETRY_ENABLED;
+    }
   });
 
   describe('config', () => {
@@ -67,22 +82,59 @@ describe('telemetry', () => {
       expect(hash).toBe(expected);
     });
 
-    it('isTelemetryDisabled respects env var', async () => {
+    it('isTelemetryDisabled returns true by default (opt-in)', async () => {
+      const { isTelemetryDisabled } = await import('../config.js');
+      expect(isTelemetryDisabled()).toBe(true);
+    });
+
+    it('isTelemetryDisabled respects CALIBER_TELEMETRY_DISABLED env var', async () => {
       process.env.CALIBER_TELEMETRY_DISABLED = '1';
       const { isTelemetryDisabled } = await import('../config.js');
       expect(isTelemetryDisabled()).toBe(true);
     });
 
+    it('isTelemetryDisabled returns false when CALIBER_TELEMETRY_ENABLED is set', async () => {
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
+      const { isTelemetryDisabled } = await import('../config.js');
+      expect(isTelemetryDisabled()).toBe(false);
+    });
+
+    it('CALIBER_TELEMETRY_DISABLED takes precedence over CALIBER_TELEMETRY_ENABLED', async () => {
+      process.env.CALIBER_TELEMETRY_DISABLED = '1';
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
+      const { isTelemetryDisabled } = await import('../config.js');
+      expect(isTelemetryDisabled()).toBe(true);
+    });
+
+    it('isTelemetryDisabled returns false when telemetryConsent is true in config', async () => {
+      mockConfig.telemetryConsent = true;
+      const { isTelemetryDisabled } = await import('../config.js');
+      expect(isTelemetryDisabled()).toBe(false);
+    });
+
     it('setTelemetryDisabled sets runtime flag', async () => {
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
       const { isTelemetryDisabled, setTelemetryDisabled } = await import('../config.js');
       setTelemetryDisabled(true);
       expect(isTelemetryDisabled()).toBe(true);
       setTelemetryDisabled(false);
     });
+
+    it('setTelemetryConsent persists consent to config', async () => {
+      const fs = await import('fs');
+      const { setTelemetryConsent } = await import('../config.js');
+      setTelemetryConsent(true);
+      expect(fs.default.writeFileSync).toHaveBeenCalledWith(
+        expect.stringContaining('config.json'),
+        expect.stringContaining('"telemetryConsent": true'),
+        expect.any(Object),
+      );
+    });
   });
 
   describe('trackEvent', () => {
-    it('captures events after init', async () => {
+    it('captures events after init when opted in', async () => {
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
       const { initTelemetry, trackEvent } = await import('../index.js');
       initTelemetry();
       trackEvent('test_event', { foo: 'bar' });
@@ -94,7 +146,14 @@ describe('telemetry', () => {
       );
     });
 
-    it('is a no-op when disabled', async () => {
+    it('is a no-op when not opted in (default)', async () => {
+      const { initTelemetry, trackEvent } = await import('../index.js');
+      initTelemetry();
+      trackEvent('test_event', { foo: 'bar' });
+      expect(mockCapture).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op when explicitly disabled', async () => {
       process.env.CALIBER_TELEMETRY_DISABLED = '1';
       const { initTelemetry, trackEvent } = await import('../index.js');
       initTelemetry();
@@ -105,6 +164,7 @@ describe('telemetry', () => {
 
   describe('flushTelemetry', () => {
     it('calls shutdown on client', async () => {
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
       const { initTelemetry, flushTelemetry } = await import('../index.js');
       initTelemetry();
       await flushTelemetry();
@@ -112,6 +172,7 @@ describe('telemetry', () => {
     });
 
     it('does not throw if shutdown fails', async () => {
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
       mockShutdown.mockRejectedValueOnce(new Error('network error'));
       const { initTelemetry, flushTelemetry } = await import('../index.js');
       initTelemetry();
@@ -121,6 +182,7 @@ describe('telemetry', () => {
 
   describe('event helpers', () => {
     it('trackInitProviderSelected captures correct event', async () => {
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
       const { initTelemetry } = await import('../index.js');
       const { trackInitProviderSelected } = await import('../events.js');
       initTelemetry();
@@ -134,6 +196,7 @@ describe('telemetry', () => {
     });
 
     it('trackScoreComputed captures correct event', async () => {
+      process.env.CALIBER_TELEMETRY_ENABLED = '1';
       const { initTelemetry } = await import('../index.js');
       const { trackScoreComputed } = await import('../events.js');
       initTelemetry();
