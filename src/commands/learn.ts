@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import chalk from 'chalk';
+import { quoteForWindows } from '../utils/windows.js';
 import { readStdin } from '../learner/stdin.js';
 import {
   appendEvent,
@@ -170,16 +171,17 @@ export async function learnObserveCommand(options: { failure?: boolean; prompt?:
         // and shell:true skips Node's exe quoting — quote here so paths like
         // `C:\Users\First Last\AppData\Roaming\npm\caliber.cmd` survive cmd.exe parsing.
         const isWin = process.platform === 'win32';
-        const spawnExe = isWin ? `"${exe}"` : exe;
-        const child = spawn(
-          spawnExe,
-          [...binArgs, 'learn', 'finalize', '--auto', '--incremental'],
-          {
-            detached: true,
-            stdio: ['ignore', logFd, logFd],
-            ...(isWin && { shell: true }),
-          },
-        );
+        const argsArray = [...binArgs, 'learn', 'finalize', '--auto', '--incremental'];
+        const child = isWin
+          ? spawn([`"${exe}"`, ...argsArray.map(quoteForWindows)].join(' '), {
+              detached: true,
+              stdio: ['ignore', logFd, logFd],
+              shell: true,
+            })
+          : spawn(exe, argsArray, {
+              detached: true,
+              stdio: ['ignore', logFd, logFd],
+            });
         // If spawn fails the child never advances lastAnalysisEventCount, so without
         // this guard every subsequent observe call past the threshold re-fires the
         // broken spawn. Bump the counter on error to back off until the next interval.

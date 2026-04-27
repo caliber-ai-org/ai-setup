@@ -10,6 +10,7 @@ import type {
 import { parseSeatBasedError, isRateLimitError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
+import { quoteForWindows } from '../utils/windows.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 
@@ -111,11 +112,17 @@ export class CursorAcpProvider implements LLMProvider {
     if (this.warmProcess && !this.warmProcess.killed && this.warmModel === targetModel) return;
 
     const args = this.buildArgs(targetModel, false);
-    this.warmProcess = spawn(resolveAgentBin(), args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) },
-      ...(IS_WINDOWS && { shell: true }),
-    });
+    const env = { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) };
+    this.warmProcess = IS_WINDOWS
+      ? spawn([quoteForWindows(resolveAgentBin()), ...args.map(quoteForWindows)].join(' '), {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          env,
+          shell: true,
+        })
+      : spawn(resolveAgentBin(), args, {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          env,
+        });
     this.warmModel = targetModel;
 
     this.warmProcess.on('error', () => {
@@ -170,11 +177,17 @@ export class CursorAcpProvider implements LLMProvider {
     }
 
     const args = this.buildArgs(model, streaming);
-    const child = spawn(resolveAgentBin(), args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      env: { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) },
-      ...(IS_WINDOWS && { shell: true }),
-    });
+    const env = { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) };
+    const child = IS_WINDOWS
+      ? spawn([quoteForWindows(resolveAgentBin()), ...args.map(quoteForWindows)].join(' '), {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          env,
+          shell: true,
+        })
+      : spawn(resolveAgentBin(), args, {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          env,
+        });
 
     const stderrChunks: Buffer[] = [];
     child.stderr!.on('data', (chunk: Buffer) => {
