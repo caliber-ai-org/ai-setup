@@ -22,7 +22,11 @@ function mockPrintAgent(output: string, exitCode = 0) {
   };
   child.stdout = new EventEmitter();
   child.stderr = new EventEmitter();
-  child.stdin = new Writable({ write(_chunk, _enc, cb) { cb(); } });
+  child.stdin = new Writable({
+    write(_chunk, _enc, cb) {
+      cb();
+    },
+  });
   child.kill = vi.fn();
   child.killed = false;
 
@@ -39,6 +43,24 @@ function mockPrintAgent(output: string, exitCode = 0) {
 
 describe('CursorAcpProvider', () => {
   const originalEnv = process.env;
+
+  function assertSpawnArgs(expectedArgs: any[]) {
+    if (process.platform === 'win32') {
+      expect(spawn).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ shell: true }),
+      );
+      const cmdStr = spawn.mock.calls[0][0] as string;
+      expect(cmdStr).toContain('agent');
+      for (const arg of expectedArgs) {
+        if (typeof arg === 'string') {
+          expect(cmdStr).toContain(arg);
+        }
+      }
+    } else {
+      expect(spawn).toHaveBeenCalledWith('agent', expectedArgs, expect.any(Object));
+    }
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,11 +80,14 @@ describe('CursorAcpProvider', () => {
     const result = await provider.call({ system: 'Return JSON.', prompt: 'Detect stack.' });
 
     expect(result).toBe('{"languages":["TypeScript"]}');
-    expect(spawn).toHaveBeenCalledWith(
-      'agent',
-      ['--print', '--trust', '--workspace', expect.any(String), '--model', 'sonnet-4.6'],
-      expect.any(Object),
-    );
+    assertSpawnArgs([
+      '--print',
+      '--trust',
+      '--workspace',
+      expect.any(String),
+      '--model',
+      'sonnet-4.6',
+    ]);
   });
 
   it('includes --api-key when CURSOR_API_KEY is set', async () => {
@@ -72,11 +97,16 @@ describe('CursorAcpProvider', () => {
     const provider = new CursorAcpProvider({ provider: 'cursor', model: 'sonnet-4.6' });
     await provider.call({ system: 'S', prompt: 'P' });
 
-    expect(spawn).toHaveBeenCalledWith(
-      'agent',
-      ['--print', '--trust', '--workspace', expect.any(String), '--model', 'sonnet-4.6', '--api-key', 'test-key'],
-      expect.any(Object),
-    );
+    assertSpawnArgs([
+      '--print',
+      '--trust',
+      '--workspace',
+      expect.any(String),
+      '--model',
+      'sonnet-4.6',
+      '--api-key',
+      'test-key',
+    ]);
   });
 
   it('includes --model auto when model is "auto"', async () => {
@@ -85,11 +115,7 @@ describe('CursorAcpProvider', () => {
     const provider = new CursorAcpProvider({ provider: 'cursor', model: 'auto' });
     await provider.call({ system: 'S', prompt: 'P' });
 
-    expect(spawn).toHaveBeenCalledWith(
-      'agent',
-      ['--print', '--trust', '--workspace', expect.any(String), '--model', 'auto'],
-      expect.any(Object),
-    );
+    assertSpawnArgs(['--print', '--trust', '--workspace', expect.any(String), '--model', 'auto']);
   });
 
   it('does not include --model when model is "default"', async () => {
@@ -98,19 +124,24 @@ describe('CursorAcpProvider', () => {
     const provider = new CursorAcpProvider({ provider: 'cursor', model: 'default' });
     await provider.call({ system: 'S', prompt: 'P' });
 
-    expect(spawn).toHaveBeenCalledWith(
-      'agent',
-      ['--print', '--trust', '--workspace', expect.any(String)],
-      expect.any(Object),
-    );
+    assertSpawnArgs(['--print', '--trust', '--workspace', expect.any(String)]);
   });
 
   it('stream() emits text from stream-json events', async () => {
-    const events = [
-      JSON.stringify({ type: 'assistant', message: { content: [{ text: 'Hello' }] }, timestamp_ms: 1 }),
-      JSON.stringify({ type: 'assistant', message: { content: [{ text: ' World' }] }, timestamp_ms: 2 }),
-      JSON.stringify({ type: 'result', duration_ms: 100 }),
-    ].join('\n') + '\n';
+    const events =
+      [
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ text: 'Hello' }] },
+          timestamp_ms: 1,
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          message: { content: [{ text: ' World' }] },
+          timestamp_ms: 2,
+        }),
+        JSON.stringify({ type: 'result', duration_ms: 100 }),
+      ].join('\n') + '\n';
 
     mockPrintAgent(events);
 
@@ -122,18 +153,26 @@ describe('CursorAcpProvider', () => {
       { system: 'S', prompt: 'P' },
       {
         onText: (text) => chunks.push(text),
-        onEnd: () => { ended = true; },
+        onEnd: () => {
+          ended = true;
+        },
         onError: () => {},
       },
     );
 
     expect(chunks).toEqual(['Hello', ' World']);
     expect(ended).toBe(true);
-    expect(spawn).toHaveBeenCalledWith(
-      'agent',
-      ['--print', '--trust', '--workspace', expect.any(String), '--model', 'sonnet-4.6', '--output-format', 'stream-json', '--stream-partial-output'],
-      expect.any(Object),
-    );
+    assertSpawnArgs([
+      '--print',
+      '--trust',
+      '--workspace',
+      expect.any(String),
+      '--model',
+      'sonnet-4.6',
+      '--output-format',
+      'stream-json',
+      '--stream-partial-output',
+    ]);
   });
 
   it('uses CURSOR_API_KEY from env when set', () => {
