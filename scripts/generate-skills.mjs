@@ -30,17 +30,30 @@ const TARGETS = [
   { dir: path.join(ROOT, '.cursor', 'skills'), stripPaths: true, label: '.cursor' },
 ];
 
-const CHECK_MODE = process.argv.includes('--check');
-
 /**
  * Split a SKILL.md into [frontmatterRaw, body]. Frontmatter is the block between
- * the first two `---` lines. Returns [null, fullContent] if no frontmatter present.
+ * the opening `---` and the next `---` line. Returns [null, fullContent] if no
+ * frontmatter present.
+ *
+ * Robust against:
+ * - CRLF line endings (Windows contributors): normalized to LF before parsing.
+ * - Missing trailing newline before/after the closing fence: regex anchors on
+ *   `---` followed by either `\n` or EOF.
  */
-function splitFrontmatter(content) {
-  if (!content.startsWith('---\n')) return [null, content];
-  const end = content.indexOf('\n---\n', 4);
-  if (end === -1) return [null, content];
-  return [content.slice(4, end), content.slice(end + 5)];
+export function splitFrontmatter(content) {
+  // CRLF → LF so a Windows-saved SKILL.md parses identically to a Unix one.
+  // Without this, indexOf('---\n') misses everything after a CR and the whole
+  // file is treated as bodyless — the strip-paths step is never invoked.
+  const normalized = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (!normalized.startsWith('---\n')) return [null, normalized];
+  // Closing fence: `---` on its own line, followed by either a newline or EOF.
+  // Editors that drop the trailing newline (or open the file at EOF) used to
+  // skip this branch entirely — same broken outcome as the CRLF case.
+  const match = normalized.slice(4).match(/^---(?:\n|$)/m);
+  if (!match) return [null, normalized];
+  const fenceStart = 4 + (match.index ?? 0);
+  const fenceEnd = fenceStart + match[0].length;
+  return [normalized.slice(4, fenceStart - 1), normalized.slice(fenceEnd)];
 }
 
 /**
@@ -48,7 +61,7 @@ function splitFrontmatter(content) {
  * block. Knows about the minimal YAML shape used by SKILL.md: top-level keys at
  * column 0, nested array items indented with whitespace.
  */
-function stripPathsKey(frontmatter) {
+export function stripPathsKey(frontmatter) {
   const out = [];
   let inPathsBlock = false;
   for (const line of frontmatter.split('\n')) {
@@ -67,20 +80,25 @@ function stripPathsKey(frontmatter) {
   return out.join('\n');
 }
 
-function renderForTarget(content, stripPaths) {
-  if (!stripPaths) return content;
+export function renderForTarget(content, stripPaths) {
   const [fm, body] = splitFrontmatter(content);
+  // No frontmatter at all → passthrough. (Don't try to strip — there's no fence.)
   if (fm === null) return content;
+  if (!stripPaths) {
+    // Even for passthrough, return the normalized form so a CRLF-saved source
+    // doesn't show as drift on the next --check run.
+    return `---\n${fm}\n---\n${body}`;
+  }
   const stripped = stripPathsKey(fm);
   return `---\n${stripped}\n---\n${body}`;
 }
 
-function listSkills() {
-  if (!fs.existsSync(SOURCE_DIR)) return [];
+export function listSkills(sourceDir = SOURCE_DIR) {
+  if (!fs.existsSync(sourceDir)) return [];
   return fs
-    .readdirSync(SOURCE_DIR)
-    .filter((name) => fs.statSync(path.join(SOURCE_DIR, name)).isDirectory())
-    .filter((name) => fs.existsSync(path.join(SOURCE_DIR, name, 'SKILL.md')))
+    .readdirSync(sourceDir)
+    .filter((name) => fs.statSync(path.join(sourceDir, name)).isDirectory())
+    .filter((name) => fs.existsSync(path.join(sourceDir, name, 'SKILL.md')))
     .sort();
 }
 
@@ -100,11 +118,45 @@ function writeIfChanged(filePath, content) {
   return true;
 }
 
-function main() {
+/**
+ * Detect orphan skill directories in each target (skills that exist in a
+ * derived location but NOT in the source). Returns array of relative paths
+ * for reporting. In write mode the caller deletes them; in check mode the
+ * caller treats them as drift.
+ */
+export function findOrphans(skillNames, targets = TARGETS) {
+  const sourceSet = new Set(skillNames);
+  const orphans = [];
+  for (const { dir } of targets) {
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) {
+      const full = path.join(dir, name);
+      if (!fs.statSync(full).isDirectory()) continue;
+      if (!sourceSet.has(name)) orphans.push(full);
+    }
+  }
+  return orphans;
+}
+
+function removeOrphans(orphans) {
+  for (const full of orphans) {
+    fs.rmSync(full, { recursive: true, force: true });
+  }
+}
+
+function main(argv = process.argv) {
+  const checkMode = argv.includes('--check');
+
   const skills = listSkills();
   if (skills.length === 0) {
+    // In CI, "no skills found" is a misconfiguration (likely a moved/deleted
+    // source dir) and should fail loudly rather than silently passing.
+    if (checkMode) {
+      console.error('No skills found in skills/ — source directory missing or empty.');
+      return 1;
+    }
     console.error('No skills found in skills/ — nothing to generate.');
-    process.exit(0);
+    return 0;
   }
 
   const drift = [];
@@ -118,7 +170,7 @@ function main() {
       const out = renderForTarget(source, stripPaths);
       const targetPath = path.join(dir, name, 'SKILL.md');
 
-      if (CHECK_MODE) {
+      if (checkMode) {
         if (readMaybe(targetPath) !== out) {
           drift.push(path.relative(ROOT, targetPath));
         }
@@ -128,19 +180,40 @@ function main() {
     }
   }
 
-  if (CHECK_MODE) {
+  // Orphan handling: a skill removed from source/ should not linger in
+  // .claude/.agents/.cursor. In write mode we delete; in check mode we
+  // report — both prevent stale artifacts from outliving their source.
+  const orphans = findOrphans(skills);
+
+  if (checkMode) {
+    for (const o of orphans) drift.push(path.relative(ROOT, o));
     if (drift.length > 0) {
       console.error('Skill outputs are out of sync with skills/ source:');
       for (const f of drift) console.error('  ' + f);
       console.error('\nRun: npm run build:skills');
-      process.exit(1);
+      return 1;
     }
     console.log(`✓ ${skills.length} skills × ${TARGETS.length} targets in sync`);
-  } else if (written > 0) {
+    return 0;
+  }
+
+  if (orphans.length > 0) {
+    removeOrphans(orphans);
+    console.log(
+      `Removed ${orphans.length} orphan skill director${orphans.length === 1 ? 'y' : 'ies'}`,
+    );
+  }
+  if (written > 0) {
     console.log(`Generated ${written} skill files from skills/ → .claude/.agents/.cursor`);
-  } else {
+  } else if (orphans.length === 0) {
     console.log(`✓ All ${skills.length * TARGETS.length} skill outputs already up to date`);
   }
+  return 0;
 }
 
-main();
+// Only run main() when invoked directly (`node scripts/generate-skills.mjs`).
+// When imported from a unit test, the helpers above are usable in isolation.
+const invokedDirectly = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+if (invokedDirectly) {
+  process.exit(main());
+}

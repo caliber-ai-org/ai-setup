@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/__tests__/**/*.test.{mjs,ts}'],
     setupFiles: ['./src/test/setup.ts'],
     // Default 5s is too tight for cold-start GitHub Windows runners — sync tests
     // with no I/O occasionally time out. Bumping to 15s eliminates the flake
