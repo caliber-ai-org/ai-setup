@@ -139,6 +139,16 @@ describe('pre-commit hook generation', () => {
       }
     }
 
+    async function withPosix<T>(fn: () => T | Promise<T>): Promise<T> {
+      const original = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
+      try {
+        return await fn();
+      } finally {
+        Object.defineProperty(process, 'platform', { value: original, configurable: true });
+      }
+    }
+
     beforeEach(() => {
       delete process.env.npm_execpath;
       process.argv[1] = WIN_CALIBER_CMD;
@@ -322,8 +332,18 @@ describe('pre-commit hook generation', () => {
       const hooksDir = path.join(gitDir, 'hooks');
       fs.mkdirSync(hooksDir, { recursive: true });
 
+      // Override the WIN_CALIBER_CMD argv[1] set in beforeEach so
+      // resolveCaliber's argv-shortcut returns a POSIX-shaped path.
+      process.argv[1] = '/usr/local/bin/caliber';
+
+      // Answer both `which caliber` (POSIX) and `where caliber` (Windows)
+      // so this test passes regardless of which CLI resolveCaliber shells
+      // out to — the matrix runs on Windows runners too.
       mockedExecSync.mockImplementation((cmd: string) => {
-        if (typeof cmd === 'string' && cmd.includes('which caliber')) {
+        if (
+          typeof cmd === 'string' &&
+          (cmd.includes('which caliber') || cmd.includes('where caliber'))
+        ) {
           return '/usr/local/bin/caliber.cmd\n';
         }
         if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
@@ -335,9 +355,13 @@ describe('pre-commit hook generation', () => {
       const origCwd = process.cwd();
       process.chdir(tmpDir);
       try {
-        // No platform override — runs on the test host (POSIX in CI).
-        const { installPreCommitHook } = await import('../hooks.js');
-        installPreCommitHook();
+        // Pin platform to 'linux' so this exercises the POSIX code path
+        // regardless of host runner OS — the test's premise is about the
+        // code branch, not the OS the test happens to land on.
+        await withPosix(async () => {
+          const { installPreCommitHook } = await import('../hooks.js');
+          installPreCommitHook();
+        });
         const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
 
         // Plain absolute-path invocation, no node redirection.
