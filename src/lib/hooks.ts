@@ -183,6 +183,10 @@ function createScriptHook(config: ScriptHookConfig) {
 // ── Stop hook (onboarding nudge) ────────────────────────────────────
 
 const STOP_HOOK_SCRIPT_CONTENT = `#!/bin/sh
+# Don't block headless claude sessions spawned by caliber itself (e.g. during caliber refresh)
+if [ "$CALIBER_SUBPROCESS" = "1" ] || [ -n "$CALIBER_SPAWNED" ]; then
+  exit 0
+fi
 if grep -q "caliber" .git/hooks/pre-commit 2>/dev/null; then
   exit 0
 fi
@@ -210,6 +214,11 @@ export const removeStopHook = stopHook.remove;
 function getFreshnessScript(): string {
   const bin = resolveCaliber();
   return `#!/bin/sh
+# Don't run inside a caliber-spawned headless session — the systemMessage would
+# pollute the spawned agent's output and serves no purpose there.
+if [ "$CALIBER_SUBPROCESS" = "1" ] || [ -n "$CALIBER_SPAWNED" ]; then
+  exit 0
+fi
 STATE_FILE=".caliber/.caliber-state.json"
 [ ! -f "$STATE_FILE" ] && exit 0
 LAST_SHA=$(grep -o '"lastRefreshSha":"[^"]*"' "$STATE_FILE" 2>/dev/null | cut -d'"' -f4)

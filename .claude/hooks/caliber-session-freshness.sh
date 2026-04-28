@@ -1,4 +1,9 @@
 #!/bin/sh
+# Don't run inside a caliber-spawned headless session — the systemMessage would
+# pollute the spawned agent's output and serves no purpose there.
+if [ "$CALIBER_SUBPROCESS" = "1" ] || [ -n "$CALIBER_SPAWNED" ]; then
+  exit 0
+fi
 STATE_FILE=".caliber/.caliber-state.json"
 [ ! -f "$STATE_FILE" ] && exit 0
 LAST_SHA=$(grep -o '"lastRefreshSha":"[^"]*"' "$STATE_FILE" 2>/dev/null | cut -d'"' -f4)

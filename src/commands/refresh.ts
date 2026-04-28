@@ -14,6 +14,7 @@ import { loadConfig } from '../llm/config.js';
 import { validateModel, TRANSIENT_ERRORS } from '../llm/index.js';
 import { trackRefreshCompleted } from '../telemetry/events.js';
 import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { isCaliberSubprocess } from '../lib/subprocess-sentinel.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
@@ -433,10 +434,10 @@ export async function refreshCommand(options: RefreshOptions) {
   const quiet = !!options.quiet;
 
   // Skip entirely when running inside a caliber-spawned headless claude session.
-  // caliber sets CLAUDE_CODE_SIMPLE=1 in spawnClaude(); hooks inherit it. Without
+  // caliber sets CALIBER_SUBPROCESS=1 in spawnClaude(); hooks inherit it. Without
   // this guard the SessionEnd hooks cascade: each spawns another claude -p which
   // fires the same hooks again until Claude Code times one out → "Hook cancelled".
-  if (quiet && process.env.CALIBER_SPAWNED === '1') return;
+  if (quiet && isCaliberSubprocess()) return;
 
   // Skip if another caliber process is already running (e.g. hook fired mid-session)
   if (quiet) {

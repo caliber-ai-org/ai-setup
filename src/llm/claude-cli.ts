@@ -10,6 +10,7 @@ import type {
 import { parseSeatBasedError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
+import { withCaliberSubprocessEnv } from '../lib/subprocess-sentinel.js';
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
@@ -92,9 +93,10 @@ function cleanClaudeEnv(): Record<string, string | undefined> {
 
 function spawnClaude(args: string[]): ChildProcess {
   const bin = resolveClaudeBin();
-  // CALIBER_SPAWNED=1 signals to caliber's own hooks that they are running inside
-  // a caliber-spawned session and should be no-ops (prevents recursive hook cascade).
-  const env = { ...cleanClaudeEnv(), CALIBER_SPAWNED: '1' };
+  // Mark the spawned process (and all descendants) as a Caliber subprocess so
+  // Caliber's own hooks short-circuit instead of re-invoking Caliber recursively.
+  // See src/lib/subprocess-sentinel.ts.
+  const env = withCaliberSubprocessEnv(cleanClaudeEnv());
   return IS_WINDOWS
     ? spawn([bin, ...args].join(' '), {
         cwd: process.cwd(),
@@ -309,7 +311,7 @@ export function isClaudeCliLoggedIn(): boolean {
       input: '',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 5000,
-      env: cleanClaudeEnv(),
+      env: withCaliberSubprocessEnv(cleanClaudeEnv()),
     });
     const output = result.toString().trim();
     try {

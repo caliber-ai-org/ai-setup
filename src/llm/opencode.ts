@@ -9,6 +9,7 @@ import type {
 import { parseSeatBasedError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
+import { withCaliberSubprocessEnv } from '../lib/subprocess-sentinel.js';
 
 const OPENCODE_BIN = 'opencode';
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
@@ -57,7 +58,8 @@ export function isOpenCodeLoggedIn(): boolean {
  * Common spawn helper for OpenCode. Handles Windows vs Unix, env with OPENCODE_DISABLE_AUTOCOMPACT=TRUE.
  */
 function spawnOpenCode(args: string[]): ChildProcess {
-  const env = { ...process.env, OPENCODE_DISABLE_AUTOCOMPACT: 'TRUE' };
+  // Same subprocess sentinel pattern as spawnClaude — see src/lib/subprocess-sentinel.ts.
+  const env = withCaliberSubprocessEnv({ ...process.env, OPENCODE_DISABLE_AUTOCOMPACT: 'TRUE' });
   if (IS_WINDOWS) {
     return spawn([OPENCODE_BIN, ...args].join(' '), {
       cwd: process.cwd(),

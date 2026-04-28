@@ -11,6 +11,7 @@ import { parseSeatBasedError, isRateLimitError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
 import { quoteForWindows } from '../utils/windows.js';
+import { withCaliberSubprocessEnv } from '../lib/subprocess-sentinel.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 
@@ -112,7 +113,10 @@ export class CursorAcpProvider implements LLMProvider {
     if (this.warmProcess && !this.warmProcess.killed && this.warmModel === targetModel) return;
 
     const args = this.buildArgs(targetModel, false);
-    const env = { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) };
+    const env = withCaliberSubprocessEnv({
+      ...process.env,
+      ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }),
+    });
     this.warmProcess = IS_WINDOWS
       ? spawn([quoteForWindows(resolveAgentBin()), ...args.map(quoteForWindows)].join(' '), {
           stdio: ['pipe', 'pipe', 'pipe'],
@@ -177,7 +181,10 @@ export class CursorAcpProvider implements LLMProvider {
     }
 
     const args = this.buildArgs(model, streaming);
-    const env = { ...process.env, ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }) };
+    const env = withCaliberSubprocessEnv({
+      ...process.env,
+      ...(this.cursorApiKey && { CURSOR_API_KEY: this.cursorApiKey }),
+    });
     const child = IS_WINDOWS
       ? spawn([quoteForWindows(resolveAgentBin()), ...args.map(quoteForWindows)].join(' '), {
           stdio: ['pipe', 'pipe', 'pipe'],

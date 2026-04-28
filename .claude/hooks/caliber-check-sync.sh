@@ -1,6 +1,6 @@
 #!/bin/sh
 # Don't block headless claude sessions spawned by caliber itself (e.g. during caliber refresh)
-if [ -n "$CALIBER_SPAWNED" ]; then
+if [ "$CALIBER_SUBPROCESS" = "1" ] || [ -n "$CALIBER_SPAWNED" ]; then
   exit 0
 fi
 if grep -q "caliber" .git/hooks/pre-commit 2>/dev/null; then

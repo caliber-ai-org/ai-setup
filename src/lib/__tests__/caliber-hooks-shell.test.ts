@@ -42,10 +42,19 @@ describe('caliber-check-sync.sh', () => {
     }
   });
 
-  it('exits 0 immediately when CALIBER_SPAWNED=1 (spawned by caliber)', () => {
-    // caliber spawns `claude -p` with CALIBER_SPAWNED=1 (injected after cleanClaudeEnv()).
+  it('exits 0 immediately when CALIBER_SUBPROCESS=1 (spawned by caliber)', () => {
+    // Caliber spawns LLM subprocesses with CALIBER_SUBPROCESS=1 via spawnClaude/etc.
     // The Stop hook must not block in that context or it will cancel SessionEnd hooks,
     // causing Claude CLI to exit with code 1 and breaking `caliber refresh`.
+    const { status, stdout } = runScript(tmpDir, { CALIBER_SUBPROCESS: '1' });
+    expect(status).toBe(0);
+    expect(stdout).not.toContain('"decision":"block"');
+  });
+
+  it('exits 0 immediately when legacy CALIBER_SPAWNED=1 (transition compatibility)', () => {
+    // Legacy env var is still written by spawn helpers for one release window so
+    // stale .claude/hooks/*.sh files installed by older Caliber keep working.
+    // The script honors both names; this test pins that contract.
     const { status, stdout } = runScript(tmpDir, { CALIBER_SPAWNED: '1' });
     expect(status).toBe(0);
     expect(stdout).not.toContain('"decision":"block"');

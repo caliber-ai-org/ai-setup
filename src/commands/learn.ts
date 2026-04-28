@@ -52,6 +52,7 @@ import {
   LEARNING_LAST_ERROR_FILE,
 } from '../constants.js';
 import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { isCaliberSubprocess } from '../lib/subprocess-sentinel.js';
 import {
   trackLearnSessionAnalyzed,
   trackLearnROISnapshot,
@@ -97,7 +98,7 @@ function readFinalizeError(): { timestamp: string; error: string } | null {
 
 export async function learnObserveCommand(options: { failure?: boolean; prompt?: boolean }) {
   // Skip in caliber-spawned headless sessions to prevent recursive hook execution.
-  if (process.env.CALIBER_SPAWNED === '1') return;
+  if (isCaliberSubprocess()) return;
   try {
     const raw = await readStdin();
     if (!raw.trim()) return;
@@ -214,7 +215,7 @@ export async function learnFinalizeCommand(options?: {
   const isIncremental = options?.incremental === true;
 
   // Skip in caliber-spawned headless sessions to prevent recursive hook execution.
-  if (isAuto && process.env.CALIBER_SPAWNED === '1') return;
+  if (isAuto && isCaliberSubprocess()) return;
 
   if (!options?.force && !isAuto) {
     const { isCaliberRunning } = await import('../lib/lock.js');
