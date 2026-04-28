@@ -15,7 +15,9 @@ const whichCmd = IS_WINDOWS ? 'where' : 'which';
 describe('detectAvailableEditors', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(execSync).mockImplementation(() => { throw new Error('not found'); });
+    vi.mocked(execSync).mockImplementation(() => {
+      throw new Error('not found');
+    });
   });
 
   it('returns cursor and terminal when cursor is available', () => {
@@ -66,46 +68,68 @@ describe('openDiffsInEditor', () => {
     ]);
 
     if (IS_WINDOWS) {
+      // quoteForWindows only wraps when whitespace/quotes are present; these
+      // paths have neither, so cmd.exe parses them correctly unquoted.
       expect(spawn).toHaveBeenCalledWith(
-        'cursor --diff "/project/CLAUDE.md" "/tmp/proposed/CLAUDE.md"',
-        { shell: true, stdio: 'ignore', detached: true }
+        'cursor --diff /project/CLAUDE.md /tmp/proposed/CLAUDE.md',
+        { shell: true, stdio: 'ignore', detached: true },
       );
     } else {
       expect(spawn).toHaveBeenCalledWith(
         'cursor',
         ['--diff', '/project/CLAUDE.md', '/tmp/proposed/CLAUDE.md'],
-        { stdio: 'ignore', detached: true }
+        { stdio: 'ignore', detached: true },
       );
     }
     expect(mockUnref).toHaveBeenCalled();
   });
 
-  it('opens new files with --diff against empty temp file', () => {
-    openDiffsInEditor('vscode', [
-      { proposedPath: '/tmp/proposed/new.md' },
+  it('quotes Windows paths that contain spaces (the actual bug quoteForWindows fixes)', () => {
+    if (!IS_WINDOWS) return; // Windows-specific path-quoting test
+    openDiffsInEditor('cursor', [
+      {
+        originalPath: 'C:\\Program Files\\foo\\bar.md',
+        proposedPath: 'C:\\Users\\First Last\\Desktop\\bar.md',
+      },
     ]);
+    expect(spawn).toHaveBeenCalledWith(
+      'cursor --diff "C:\\Program Files\\foo\\bar.md" "C:\\Users\\First Last\\Desktop\\bar.md"',
+      { shell: true, stdio: 'ignore', detached: true },
+    );
+  });
+
+  it('opens new files with --diff against empty temp file', () => {
+    openDiffsInEditor('vscode', [{ proposedPath: '/tmp/proposed/new.md' }]);
 
     const expectedTempPath = path.join(os.tmpdir(), 'caliber-diff', 'new.md');
     expect(fs.mkdirSync).toHaveBeenCalled();
     expect(fs.writeFileSync).toHaveBeenCalledWith(expectedTempPath, '');
 
     if (IS_WINDOWS) {
-      expect(spawn).toHaveBeenCalledWith(
-        `code --diff "${expectedTempPath}" "/tmp/proposed/new.md"`,
-        { shell: true, stdio: 'ignore', detached: true }
-      );
+      // quoteForWindows wraps the temp path only if it contains whitespace.
+      // The Windows runner happens to land in C:\Users\RUNNER~1\... (no spaces
+      // after the short-path mangling), so the result is unquoted. On a
+      // contributor box where USERNAME has spaces, the path WOULD be wrapped.
+      // The 'spaces' test below explicitly verifies the wrapping branch.
+      expect(spawn).toHaveBeenCalledWith(`code --diff ${expectedTempPath} /tmp/proposed/new.md`, {
+        shell: true,
+        stdio: 'ignore',
+        detached: true,
+      });
     } else {
       expect(spawn).toHaveBeenCalledWith(
         'code',
         ['--diff', expectedTempPath, '/tmp/proposed/new.md'],
-        { stdio: 'ignore', detached: true }
+        { stdio: 'ignore', detached: true },
       );
     }
   });
 
   it('continues on error for individual files', () => {
     vi.mocked(spawn)
-      .mockImplementationOnce(() => { throw new Error('failed'); })
+      .mockImplementationOnce(() => {
+        throw new Error('failed');
+      })
       .mockReturnValueOnce({ unref: mockUnref } as unknown as ReturnType<typeof spawn>);
 
     openDiffsInEditor('cursor', [
