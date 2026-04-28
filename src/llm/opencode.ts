@@ -11,6 +11,10 @@ import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
 import { withCaliberSubprocessEnv } from '../lib/subprocess-sentinel.js';
 
+// IMPORTANT: keep this a bare command name. If this ever becomes a resolved
+// absolute path, the spawnOpenCode call below needs `quoteForWindows()` per
+// arg (mirroring spawnClaude in claude-cli.ts) — paths with spaces would
+// otherwise be parsed as multiple words by cmd.exe under shell:true.
 const OPENCODE_BIN = 'opencode';
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
