@@ -110,7 +110,25 @@ function readMaybe(filePath) {
   }
 }
 
+/**
+ * Line-ending-agnostic read for --check mode only.
+ *
+ * On Windows with `core.autocrlf=true` (the default on Windows GitHub runners),
+ * git checkout converts LF in the index to CRLF in the working tree. The
+ * generator always writes LF; without normalization, `--check` would report
+ * every file as drift even when content is semantically equal. .gitattributes
+ * pins LF for SKILL.md too, but this is defensive in case a contributor's repo
+ * config doesn't honor it. Write mode uses readMaybe() directly so it actively
+ * normalizes any CRLF that snuck in.
+ */
+function readNormalized(filePath) {
+  const raw = readMaybe(filePath);
+  return raw === null ? null : raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
 function writeIfChanged(filePath, content) {
+  // Strict byte-exact compare so write mode rewrites any CRLF on disk back
+  // to the canonical LF form the generator emits.
   if (readMaybe(filePath) === content) return false;
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -171,7 +189,9 @@ function main(argv = process.argv) {
       const targetPath = path.join(dir, name, 'SKILL.md');
 
       if (checkMode) {
-        if (readMaybe(targetPath) !== out) {
+        // Use the line-ending-agnostic read so Windows autocrlf checkouts
+        // don't trigger false drift.
+        if (readNormalized(targetPath) !== out) {
           drift.push(path.relative(ROOT, targetPath));
         }
       } else if (writeIfChanged(targetPath, out)) {

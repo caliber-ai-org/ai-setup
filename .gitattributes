@@ -1,0 +1,14 @@
+# Skill files (source + all three generated targets) must be LF.
+#
+# Why: the skill generator (scripts/generate-skills.mjs) emits LF unconditionally,
+# normalizing CRLF inputs to LF outputs. Without this rule, Windows contributors
+# with default `core.autocrlf=true` get CRLF on checkout, which makes --check
+# report every file as drift even when the source matches the derived output.
+**/SKILL.md text eol=lf
+
+# Build scripts shipped to all platforms — keep LF for cross-platform sanity.
+scripts/*.mjs text eol=lf
+
+# Bash hook scripts must be LF or they fail to execute on POSIX shells (Git Bash
+# on Windows still expects LF since it runs sh, not cmd).
+.claude/hooks/*.sh text eol=lf
