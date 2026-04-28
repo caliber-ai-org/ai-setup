@@ -7,17 +7,18 @@ import { restoreTerminal } from './lib/terminal.js';
 
 let signalCleanupDone = false;
 
-function signalCleanup(code: number) {
+async function signalCleanup(code: number) {
   if (signalCleanupDone) return;
   signalCleanupDone = true;
   restoreTerminal();
   releaseLock();
+  await flushTelemetry();
   process.exit(code);
 }
 
 process.on('exit', restoreTerminal);
-process.on('SIGINT', () => signalCleanup(130));
-process.on('SIGTERM', () => signalCleanup(143));
+process.on('SIGINT', () => void signalCleanup(130));
+process.on('SIGTERM', () => void signalCleanup(143));
 
 acquireLock();
 
@@ -45,5 +46,10 @@ program
   .finally(async () => {
     releaseLock();
     await flushTelemetry();
-    process.exit(Number(process.exitCode ?? 0));
+    // Let Node drain remaining handles before exiting. A short timeout
+    // guards against the process hanging if something keeps a handle alive
+    // (e.g. Commander internals). Using setTimeout + unref ensures the
+    // timer itself won't keep the process alive.
+    const safetyExit = setTimeout(() => process.exit(Number(process.exitCode ?? 0)), 200);
+    safetyExit.unref();
   });

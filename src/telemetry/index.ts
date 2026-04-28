@@ -31,8 +31,8 @@ export function initTelemetry(): void {
   if (!wasNoticeShown()) {
     console.log(
       chalk.dim('  Caliber collects anonymous usage data to improve the product.') +
-      '\n' +
-      chalk.dim('  Disable with --no-traces or CALIBER_TELEMETRY_DISABLED=1\n')
+        '\n' +
+        chalk.dim('  Disable with --no-traces or CALIBER_TELEMETRY_DISABLED=1\n'),
     );
     markNoticeShown();
   }
@@ -63,12 +63,13 @@ export function trackEvent(name: string, properties?: Record<string, unknown>): 
   });
 }
 
+let flushPromise: Promise<void> | null = null;
+
 export async function flushTelemetry(): Promise<void> {
   if (!client) return;
-  try {
-    await client.shutdown();
-  } catch {
-    // never throw — fire-and-forget
-  }
+  if (flushPromise) return flushPromise;
+  const c = client;
   client = null;
+  flushPromise = c.shutdown().catch(() => {});
+  return flushPromise;
 }
