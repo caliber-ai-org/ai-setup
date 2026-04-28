@@ -231,6 +231,72 @@ describe('script hook paths use forward slashes', () => {
   });
 });
 
+describe('pre-commit block on Windows paths', () => {
+  let originalCwd: string;
+  let tmpDir: string;
+  let originalArgv: string[];
+
+  beforeEach(async () => {
+    const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+    resetResolvedCaliber();
+    tmpDir = makeTmpDir();
+    fs.mkdirSync(path.join(tmpDir, '.git', 'hooks'), { recursive: true });
+    originalCwd = process.cwd();
+    originalArgv = [...process.argv];
+    process.chdir(tmpDir);
+  });
+
+  afterEach(() => {
+    process.argv = originalArgv;
+    process.chdir(originalCwd);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it('normalizes Windows backslashes in caliber path so bash quote-removal does not eat them', async () => {
+    // Simulate Windows resolveCaliber result: absolute path with backslashes.
+    // Without bashPath() the embedded path becomes `"C:\Users\foo\caliber.cmd"`
+    // and bash quote-removal strips the backslashes, leaving `C:Usersfoocaliber.cmd`
+    // — which doesn't exist.
+    const winPath = 'C:\\Users\\First Last\\AppData\\Roaming\\npm\\caliber.cmd';
+    process.argv[1] = '/path/to/some/caliber'; // not npx
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+        return `${path.join(tmpDir, '.git')}\n`;
+      }
+      // resolveCaliber `where caliber` lookup
+      return `${winPath}\n`;
+    });
+
+    const { installPreCommitHook } = await import('../hooks.js');
+    installPreCommitHook();
+
+    const hookContent = fs.readFileSync(path.join(tmpDir, '.git', 'hooks', 'pre-commit'), 'utf-8');
+    expect(hookContent).not.toContain('\\Users');
+    expect(hookContent).not.toContain('\\AppData');
+    expect(hookContent).toContain('C:/Users/First Last/AppData/Roaming/npm/caliber.cmd');
+  });
+
+  it('normalizes Windows backslashes for npx-resolved invocations too', async () => {
+    const winNpx = 'C:\\Program Files\\nodejs\\npx.cmd';
+    process.argv[1] = '/some/.npm/_npx/abc/node_modules/.bin/caliber';
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+        return `${path.join(tmpDir, '.git')}\n`;
+      }
+      return `${winNpx}\n`;
+    });
+
+    const { installPreCommitHook } = await import('../hooks.js');
+    installPreCommitHook();
+
+    const hookContent = fs.readFileSync(path.join(tmpDir, '.git', 'hooks', 'pre-commit'), 'utf-8');
+    expect(hookContent).not.toContain('Program Files\\nodejs');
+    expect(hookContent).toContain('C:/Program Files/nodejs/npx.cmd');
+  });
+});
+
 describe('SessionEnd hook command', () => {
   let originalArgv: string[];
   let originalEnv: NodeJS.ProcessEnv;

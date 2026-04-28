@@ -11,6 +11,7 @@ import { parseSeatBasedError } from './seat-based-errors.js';
 import { trackUsage } from './usage.js';
 import { estimateTokens } from './utils.js';
 import { withCaliberSubprocessEnv } from '../lib/subprocess-sentinel.js';
+import { quoteForWindows } from '../utils/windows.js';
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 const IS_WINDOWS = process.platform === 'win32';
@@ -98,7 +99,11 @@ function spawnClaude(args: string[]): ChildProcess {
   // See src/lib/subprocess-sentinel.ts.
   const env = withCaliberSubprocessEnv(cleanClaudeEnv());
   return IS_WINDOWS
-    ? spawn([bin, ...args].join(' '), {
+    ? // Windows path: shell:true skips Node's exe quoting, so paths like
+      // `C:\Program Files\caliber\claude.cmd` (with spaces) would be parsed by
+      // cmd.exe as multiple words. Quote each piece explicitly. Mirrors the
+      // pattern used in cursor-acp.ts and the learn-finalize background spawn.
+      spawn([quoteForWindows(bin), ...args.map(quoteForWindows)].join(' '), {
         cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'] as const,
         env,

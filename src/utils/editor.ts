@@ -2,6 +2,7 @@ import { execSync, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { quoteForWindows } from './windows.js';
 
 const IS_WINDOWS = process.platform === 'win32';
 const DIFF_TEMP_DIR = path.join(os.tmpdir(), 'caliber-diff');
@@ -35,7 +36,7 @@ export function detectAvailableEditors(): ReviewMethod[] {
 
 export function openDiffsInEditor(
   editor: 'cursor' | 'vscode',
-  files: Array<{ originalPath?: string; proposedPath: string }>
+  files: Array<{ originalPath?: string; proposedPath: string }>,
 ): void {
   const cmd = editor === 'cursor' ? 'cursor' : 'code';
 
@@ -43,10 +44,23 @@ export function openDiffsInEditor(
     try {
       const leftPath = file.originalPath ?? getEmptyFilePath(file.proposedPath);
       if (IS_WINDOWS) {
-        const quote = (s: string) => `"${s}"`;
-        spawn([cmd, '--diff', quote(leftPath), quote(file.proposedPath)].join(' '), { shell: true, stdio: 'ignore', detached: true }).unref();
+        // Use canonical quoteForWindows which escapes embedded quotes per
+        // CommandLineToArgvW rules. The previous local quote() didn't escape
+        // " inside paths, so a path with a literal quote would break parsing.
+        spawn(
+          [
+            quoteForWindows(cmd),
+            '--diff',
+            quoteForWindows(leftPath),
+            quoteForWindows(file.proposedPath),
+          ].join(' '),
+          { shell: true, stdio: 'ignore', detached: true },
+        ).unref();
       } else {
-        spawn(cmd, ['--diff', leftPath, file.proposedPath], { stdio: 'ignore', detached: true }).unref();
+        spawn(cmd, ['--diff', leftPath, file.proposedPath], {
+          stdio: 'ignore',
+          detached: true,
+        }).unref();
       }
     } catch {
       continue;

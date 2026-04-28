@@ -13,8 +13,10 @@ jobs:
   test:
     strategy:
       matrix:
+        # Node 25 added to catch the libuv UV_HANDLE_CLOSING + DEP0190
+        # regressions documented in #192/#194. Keep 20+22 for stable LTS coverage.
         os: [ubuntu-latest, windows-latest]
-        node: [20, 22]
+        node: [20, 22, 25]
       fail-fast: false
     runs-on: ${{ matrix.os }}
     steps:

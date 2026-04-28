@@ -110,10 +110,12 @@ function parseAgentOption(
     ),
   ];
   if (agents.length === 0) {
-    console.error(
+    // Throw rather than process.exit so bin.ts's .finally() runs flushTelemetry().
+    // process.exit() bypasses the Node event loop teardown, leaving the PostHog
+    // client mid-flight on Windows + Node 25 (libuv UV_HANDLE_CLOSING crash).
+    throw new Error(
       `Invalid agent "${value}". Choose from: claude, cursor, codex, opencode, github-copilot (comma-separated for multiple)`,
     );
-    process.exit(1);
   }
   return agents as ('claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot')[];
 }

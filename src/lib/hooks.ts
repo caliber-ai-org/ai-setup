@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { resolveCaliber, isCaliberCommand, isNpxResolution } from './resolve-caliber.js';
+import { bashPath } from '../utils/windows.js';
 
 const SETTINGS_PATH = path.join('.claude', 'settings.json');
 const REFRESH_TAIL = 'refresh --quiet';
@@ -271,12 +272,15 @@ function getPrecommitBlock(): string {
   let invoke: string;
 
   if (npx) {
-    // cmd is either 'npx --yes @rely-ai/caliber' (bare) or '/abs/path/npx --yes @rely-ai/caliber'
-    const npxBin = cmd.split(' ')[0];
-    if (npxBin.startsWith('/')) {
+    // cmd is either 'npx --yes @rely-ai/caliber' (bare) or '<npx_path> --yes @rely-ai/caliber'.
+    // The npx_path may be a Windows path (C:\Users\...\npx.cmd) — bashPath() converts
+    // backslashes to forward slashes so bash quote-removal doesn't mangle it.
+    const npxBinRaw = cmd.split(' ')[0];
+    const npxBin = bashPath(npxBinRaw);
+    if (path.isAbsolute(npxBinRaw)) {
       // Absolute path — guard on the binary directly, no $PATH lookup needed
       guard = `[ -x "${npxBin}" ]`;
-      const npxArgs = cmd.slice(npxBin.length); // ' --yes @rely-ai/caliber'
+      const npxArgs = cmd.slice(npxBinRaw.length); // ' --yes @rely-ai/caliber'
       invoke = `"${npxBin}"${npxArgs}`;
     } else {
       // Bare 'npx' — fall back to PATH-based check; leave unquoted for word-splitting
@@ -284,13 +288,15 @@ function getPrecommitBlock(): string {
       invoke = cmd;
     }
   } else {
-    // cmd is an absolute path (e.g. /opt/homebrew/bin/caliber) or bare 'caliber' as last resort
-    if (cmd.startsWith('/')) {
-      guard = `[ -x "${cmd}" ]`;
+    // cmd is an absolute path (e.g. /opt/homebrew/bin/caliber, C:\Users\...\caliber.cmd)
+    // or bare 'caliber' as last resort. bashPath() normalizes backslashes for bash.
+    const cmdBash = bashPath(cmd);
+    if (path.isAbsolute(cmd)) {
+      guard = `[ -x "${cmdBash}" ]`;
     } else {
-      guard = `[ -x "${cmd}" ] || command -v "${cmd}" >/dev/null 2>&1`;
+      guard = `[ -x "${cmdBash}" ] || command -v "${cmdBash}" >/dev/null 2>&1`;
     }
-    invoke = `"${cmd}"`;
+    invoke = `"${cmdBash}"`;
   }
 
   return `${PRECOMMIT_START}
