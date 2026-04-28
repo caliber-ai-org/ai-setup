@@ -197,7 +197,7 @@ printf '{"decision":"block","reason":"Caliber agent config sync is not set up on
 
 const stopHook = createScriptHook({
   eventName: 'Stop',
-  scriptPath: path.join('.claude', 'hooks', 'caliber-check-sync.sh'),
+  scriptPath: path.posix.join('.claude', 'hooks', 'caliber-check-sync.sh'),
   scriptContent: STOP_HOOK_SCRIPT_CONTENT,
   description: 'Caliber: offer setup if not configured',
 });
@@ -227,7 +227,7 @@ fi
 
 const sessionStartHook = createScriptHook({
   eventName: 'SessionStart',
-  scriptPath: path.join('.claude', 'hooks', 'caliber-session-freshness.sh'),
+  scriptPath: path.posix.join('.claude', 'hooks', 'caliber-session-freshness.sh'),
   scriptContent: getFreshnessScript,
   description: 'Caliber: check config freshness on session start',
 });
@@ -240,7 +240,7 @@ export const removeSessionStartHook = sessionStartHook.remove;
 
 const notificationHook = createScriptHook({
   eventName: 'Notification',
-  scriptPath: path.join('.claude', 'hooks', 'caliber-freshness-notify.sh'),
+  scriptPath: path.posix.join('.claude', 'hooks', 'caliber-freshness-notify.sh'),
   scriptContent: getFreshnessScript,
   description: 'Caliber: warn when agent configs are stale',
 });

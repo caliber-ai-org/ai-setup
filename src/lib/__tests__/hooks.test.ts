@@ -170,6 +170,67 @@ describe('pre-commit hook generation', () => {
   });
 });
 
+describe('script hook paths use forward slashes', () => {
+  let originalCwd: string;
+  let tmpDir: string;
+
+  beforeEach(async () => {
+    const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+    resetResolvedCaliber();
+    tmpDir = makeTmpDir();
+    originalCwd = process.cwd();
+    process.chdir(tmpDir);
+
+    mockedExecSync.mockImplementation(() => {
+      throw new Error('not found');
+    });
+    process.argv[1] = '/usr/local/bin/caliber';
+  });
+
+  afterEach(() => {
+    process.chdir(originalCwd);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  it('Stop hook script path contains only forward slashes', async () => {
+    const { installStopHook } = await import('../hooks.js');
+    installStopHook();
+
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, '.claude', 'settings.json'), 'utf-8'),
+    );
+    const command = settings.hooks.Stop[0].hooks[0].command;
+    expect(command).not.toContain('\\');
+    expect(command).toBe('.claude/hooks/caliber-check-sync.sh');
+  });
+
+  it('SessionStart hook script path contains only forward slashes', async () => {
+    const { installSessionStartHook } = await import('../hooks.js');
+    installSessionStartHook();
+
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, '.claude', 'settings.json'), 'utf-8'),
+    );
+    const command = settings.hooks.SessionStart[0].hooks[0].command;
+    expect(command).not.toContain('\\');
+    expect(command).toBe('.claude/hooks/caliber-session-freshness.sh');
+  });
+
+  it('Notification hook script path contains only forward slashes', async () => {
+    const { installNotificationHook } = await import('../hooks.js');
+    installNotificationHook();
+
+    const settings = JSON.parse(
+      fs.readFileSync(path.join(tmpDir, '.claude', 'settings.json'), 'utf-8'),
+    );
+    const command = settings.hooks.Notification[0].hooks[0].command;
+    expect(command).not.toContain('\\');
+    expect(command).toBe('.claude/hooks/caliber-freshness-notify.sh');
+  });
+});
+
 describe('SessionEnd hook command', () => {
   let originalArgv: string[];
   let originalEnv: NodeJS.ProcessEnv;
