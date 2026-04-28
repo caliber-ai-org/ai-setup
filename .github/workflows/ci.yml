@@ -30,6 +30,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Skills in sync
+        run: npm run build:skills:check
+
       - name: Type check
         run: npx tsc --noEmit
 

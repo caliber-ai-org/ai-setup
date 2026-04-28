@@ -5,3 +5,11 @@ if [ -n "$BREW_PREFIX" ]; then
 fi
 
 npx lint-staged
+
+# Skill source-of-truth: regenerate derived outputs when skills/ source changes.
+# Sources live in skills/; .claude/.agents/.cursor copies are derived. See
+# scripts/generate-skills.mjs.
+if git diff --cached --name-only | grep -qE '^skills/.*\.md$'; then
+  node scripts/generate-skills.mjs
+  git add .claude/skills .agents/skills .cursor/skills 2>/dev/null || true
+fi

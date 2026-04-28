@@ -1,6 +1,8 @@
 ---
 name: caliber-testing
 description: Writes Vitest tests following project patterns: __tests__/ directories, vi.mock() for module mocking with vi.hoisted() for test-time factories, global LLM mock from src/test/setup.ts, environment variable save/restore in beforeEach/afterEach, vi.clearAllMocks() lifecycle, and test file organization. Use when user says 'write tests', 'add test coverage', 'test this', creates *.test.ts files, or when test failures appear in CI. Do NOT use for non-test code or for debugging without writing tests.
+paths:
+  - src/**/__tests__/*.test.ts
 ---
 # Caliber Testing
 

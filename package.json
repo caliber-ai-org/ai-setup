@@ -7,7 +7,10 @@
     "caliber": "./dist/bin.js"
   },
   "scripts": {
+    "prebuild": "npm run build:skills:check",
     "build": "tsup",
+    "build:skills": "node scripts/generate-skills.mjs",
+    "build:skills:check": "node scripts/generate-skills.mjs --check",
     "dev": "tsup --watch",
     "dev:install": "npm run build && npm link",
     "test": "vitest run",

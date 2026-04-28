@@ -1,6 +1,10 @@
 ---
 name: scoring-checks
 description: Add a new deterministic scoring check in src/scoring/checks/ that evaluates config quality. Follows the Check[] return pattern, uses point constants from src/scoring/constants.ts, and integrates via filterChecksForTarget() in src/scoring/index.ts. Use when user says 'add scoring check', 'new check', 'modify scoring criteria', or works in src/scoring/checks/. Do NOT use for display changes or refactoring scoring logic.
+paths:
+  - src/scoring/checks/**/*.ts
+  - src/scoring/constants.ts
+  - src/scoring/index.ts
 ---
 # Adding a Scoring Check
 

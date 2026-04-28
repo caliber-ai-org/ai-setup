@@ -1,6 +1,9 @@
 ---
 name: llm-provider
 description: Adds a new LLM provider implementing LLMProvider interface with call() and stream() methods. Integrates with provider factory in src/llm/index.ts, config detection in src/llm/config.ts, and error handling via tracking and recovery. Use when adding a new model backend, integrating a third-party LLM API, or extending LLM platform support. Do NOT use for fixing bugs in existing providers, modifying existing provider behavior, or changing the LLMProvider interface.
+paths:
+  - src/llm/**/*.ts
+  - src/llm/__tests__/**/*.ts
 ---
 # LLM Provider
 

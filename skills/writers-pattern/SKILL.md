@@ -1,6 +1,10 @@
 ---
 name: writers-pattern
 description: Add a new platform writer module in src/writers/ that generates and writes agent config files for a supported platform. Each writer exports a function that accepts a config interface, creates directories (rules/, skills/, mcp configs), writes files with proper formatting and frontmatter, and returns string[] of written file paths. Use when adding platform support for a new agent, integrating a new code AI tool, or extending caliber to support new targets. Do NOT use for modifying existing writers, refactoring scoring logic, or changing how writers are invoked.
+paths:
+  - src/writers/*/index.ts
+  - src/writers/__tests__/*.test.ts
+  - src/writers/index.ts
 ---
 # Platform Writer Pattern
 

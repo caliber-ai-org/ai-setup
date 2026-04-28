@@ -1,6 +1,9 @@
 ---
 name: adding-a-command
 description: Creates a new CLI command following the Commander.js pattern in src/commands/. Handles command registration in src/cli.ts, telemetry tracking via tracked() wrapper, and option parsing. Use when user says add command, new CLI command, create subcommand, or adds files to src/commands/. Do NOT use for modifying existing commands or fixing bugs in existing commands.
+paths:
+  - src/commands/**/*.ts
+  - src/cli.ts
 ---
 # Adding a Command
 
