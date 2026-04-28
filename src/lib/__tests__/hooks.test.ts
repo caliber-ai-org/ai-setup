@@ -113,6 +113,243 @@ describe('pre-commit hook generation', () => {
     });
   });
 
+  describe('Windows global install context (cmd shim flash bypass)', () => {
+    // pandorum 2026-04-28: every commit triggered a brief cmd window flash
+    // because the bash hook resolved `caliber` to `caliber.cmd`, which goes
+    // through `cmd.exe /d /s /c` and allocates a console. Worse, npm's shim
+    // emits `title %COMSPEC%` so the flash *looks* identical to an elevated
+    // cmd window. The fix: when on Windows and the resolved binary ends in
+    // .cmd, derive the package's bin.js and call node directly instead.
+
+    const WIN_CALIBER_CMD = 'C:\\Users\\dev\\AppData\\Roaming\\npm\\caliber.cmd';
+    const WIN_NODE = 'C:\\Program Files\\nodejs\\node.exe';
+
+    async function withWin32<T>(fn: () => T | Promise<T>): Promise<T> {
+      const original = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32', configurable: true });
+      try {
+        // The await keeps process.platform pinned to 'win32' across the
+        // microtask the inner code awaits (e.g. dynamic imports). A sync
+        // try/finally would restore the value before the awaited body
+        // ever runs — same shape bug as withScope wrappers in test
+        // helpers everywhere.
+        return await fn();
+      } finally {
+        Object.defineProperty(process, 'platform', { value: original, configurable: true });
+      }
+    }
+
+    beforeEach(() => {
+      delete process.env.npm_execpath;
+      process.argv[1] = WIN_CALIBER_CMD;
+    });
+
+    it('emits direct node invocation when bin.js + node are present', async () => {
+      const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+      resetResolvedCaliber();
+
+      const tmpDir = makeTmpDir();
+      const gitDir = path.join(tmpDir, '.git');
+      const hooksDir = path.join(gitDir, 'hooks');
+      fs.mkdirSync(hooksDir, { recursive: true });
+
+      // Lay down a real bin.js so the existsSync probe finds it. The
+      // node path is mocked via where, so it doesn't need to exist.
+      const fakeBinJs = path.join(tmpDir, 'fake-bin.js');
+      fs.writeFileSync(fakeBinJs, '');
+      const fakeCmd = path.join(tmpDir, 'fake-caliber.cmd');
+      fs.writeFileSync(fakeCmd, '');
+      const fakeNpmDir = tmpDir;
+      const expectedBinJs = path.join(
+        fakeNpmDir,
+        'node_modules',
+        '@rely-ai',
+        'caliber',
+        'dist',
+        'bin.js',
+      );
+      fs.mkdirSync(path.dirname(expectedBinJs), { recursive: true });
+      fs.writeFileSync(expectedBinJs, '');
+
+      mockedExecSync.mockImplementation((cmd: string) => {
+        if (typeof cmd === 'string' && cmd.includes('where caliber')) {
+          return fakeCmd + '\n';
+        }
+        if (typeof cmd === 'string' && cmd.includes('where node')) {
+          return WIN_NODE + '\n';
+        }
+        if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+          return `${gitDir}\n`;
+        }
+        return '';
+      });
+
+      const origCwd = process.cwd();
+      process.chdir(tmpDir);
+      try {
+        await withWin32(async () => {
+          const { installPreCommitHook } = await import('../hooks.js');
+          installPreCommitHook();
+        });
+        const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
+
+        // The hook must call node directly with forward-slashed paths
+        // — not the .cmd shim — so no console window allocates per call.
+        expect(hookContent).toContain('"C:/Program Files/nodejs/node.exe"');
+        expect(hookContent).toContain('/node_modules/@rely-ai/caliber/dist/bin.js"');
+        expect(hookContent).not.toContain('caliber.cmd');
+        // Forward slashes on the resolved paths — no Windows-style
+        // ``C:\`` or ``\\`` segments leaked from the where output.
+        // (\\033 ANSI escapes inside echo are fine and expected.)
+        expect(hookContent).not.toMatch(/C:\\/);
+        expect(hookContent).not.toMatch(/\\nodejs\\/);
+        expect(hookContent).not.toMatch(/\\node_modules\\/);
+        // Guard checks node, not caliber.cmd.
+        expect(hookContent).toContain('[ -x "C:/Program Files/nodejs/node.exe" ]');
+      } finally {
+        process.chdir(origCwd);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('falls back to .cmd shim when bin.js is missing (pnpm / custom layout)', async () => {
+      const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+      resetResolvedCaliber();
+
+      const tmpDir = makeTmpDir();
+      const gitDir = path.join(tmpDir, '.git');
+      const hooksDir = path.join(gitDir, 'hooks');
+      fs.mkdirSync(hooksDir, { recursive: true });
+
+      // .cmd present but no node_modules tree alongside — simulates pnpm
+      // (which symlinks the bin) or a yarn-classic layout.
+      const fakeCmd = path.join(tmpDir, 'fake-caliber.cmd');
+      fs.writeFileSync(fakeCmd, '');
+
+      mockedExecSync.mockImplementation((cmd: string) => {
+        if (typeof cmd === 'string' && cmd.includes('where caliber')) {
+          return fakeCmd + '\n';
+        }
+        if (typeof cmd === 'string' && cmd.includes('where node')) {
+          return WIN_NODE + '\n';
+        }
+        if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+          return `${gitDir}\n`;
+        }
+        return '';
+      });
+
+      const origCwd = process.cwd();
+      process.chdir(tmpDir);
+      try {
+        await withWin32(async () => {
+          const { installPreCommitHook } = await import('../hooks.js');
+          installPreCommitHook();
+        });
+        const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
+
+        // Falls back to invoking the .cmd shim — keeps existing behaviour
+        // working rather than silently no-opping the hook.
+        expect(hookContent).toContain('caliber.cmd');
+        expect(hookContent).not.toContain('"C:/Program Files/nodejs/node.exe"');
+      } finally {
+        process.chdir(origCwd);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('falls back to .cmd shim when node is not on PATH', async () => {
+      const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+      resetResolvedCaliber();
+
+      const tmpDir = makeTmpDir();
+      const gitDir = path.join(tmpDir, '.git');
+      const hooksDir = path.join(gitDir, 'hooks');
+      fs.mkdirSync(hooksDir, { recursive: true });
+
+      // Lay down a valid bin.js — only node is missing.
+      const fakeCmd = path.join(tmpDir, 'fake-caliber.cmd');
+      fs.writeFileSync(fakeCmd, '');
+      const expectedBinJs = path.join(
+        tmpDir,
+        'node_modules',
+        '@rely-ai',
+        'caliber',
+        'dist',
+        'bin.js',
+      );
+      fs.mkdirSync(path.dirname(expectedBinJs), { recursive: true });
+      fs.writeFileSync(expectedBinJs, '');
+
+      mockedExecSync.mockImplementation((cmd: string) => {
+        if (typeof cmd === 'string' && cmd.includes('where caliber')) {
+          return fakeCmd + '\n';
+        }
+        if (typeof cmd === 'string' && cmd.includes('where node')) {
+          throw new Error('not found');
+        }
+        if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+          return `${gitDir}\n`;
+        }
+        return '';
+      });
+
+      const origCwd = process.cwd();
+      process.chdir(tmpDir);
+      try {
+        await withWin32(async () => {
+          const { installPreCommitHook } = await import('../hooks.js');
+          installPreCommitHook();
+        });
+        const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
+
+        expect(hookContent).toContain('caliber.cmd');
+        expect(hookContent).not.toContain('node.exe');
+      } finally {
+        process.chdir(origCwd);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('does not transform on POSIX even when path looks like .cmd', async () => {
+      // Belt-and-braces: a POSIX user with a file literally named foo.cmd
+      // on PATH should not trigger the Windows-only transformation.
+      const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+      resetResolvedCaliber();
+
+      const tmpDir = makeTmpDir();
+      const gitDir = path.join(tmpDir, '.git');
+      const hooksDir = path.join(gitDir, 'hooks');
+      fs.mkdirSync(hooksDir, { recursive: true });
+
+      mockedExecSync.mockImplementation((cmd: string) => {
+        if (typeof cmd === 'string' && cmd.includes('which caliber')) {
+          return '/usr/local/bin/caliber.cmd\n';
+        }
+        if (typeof cmd === 'string' && cmd.includes('rev-parse')) {
+          return `${gitDir}\n`;
+        }
+        return '';
+      });
+
+      const origCwd = process.cwd();
+      process.chdir(tmpDir);
+      try {
+        // No platform override — runs on the test host (POSIX in CI).
+        const { installPreCommitHook } = await import('../hooks.js');
+        installPreCommitHook();
+        const hookContent = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
+
+        // Plain absolute-path invocation, no node redirection.
+        expect(hookContent).toContain('"/usr/local/bin/caliber.cmd"');
+        expect(hookContent).not.toContain('node_modules/@rely-ai/caliber');
+      } finally {
+        process.chdir(origCwd);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
+
   describe('global install context', () => {
     beforeEach(() => {
       process.argv[1] = '/usr/local/bin/caliber';

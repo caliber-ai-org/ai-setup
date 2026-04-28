@@ -1,7 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
-import { resolveCaliber, isCaliberCommand, isNpxResolution } from './resolve-caliber.js';
+import {
+  resolveCaliber,
+  isCaliberCommand,
+  isNpxResolution,
+  pickExecutable,
+} from './resolve-caliber.js';
 import { bashPath } from '../utils/windows.js';
 
 const SETTINGS_PATH = path.join('.claude', 'settings.json');
@@ -264,6 +269,55 @@ export const removeNotificationHook = notificationHook.remove;
 const PRECOMMIT_START = '# caliber:pre-commit:start';
 const PRECOMMIT_END = '# caliber:pre-commit:end';
 
+/**
+ * On Windows, when caliber resolves to a `.cmd` shim (npm's default global
+ * install), every hook invocation goes through `cmd.exe /d /s /c` which
+ * allocates a new console window — a brief flash on every commit. Worse,
+ * npm's shim emits `title %COMSPEC%` so the flash is titled identically
+ * to an elevated cmd window, prompting users to suspect privilege
+ * escalation when there is none.
+ *
+ * The fix is to call node directly on the package's `bin.js`. The bash
+ * pre-commit hook runs `node "...bin.js" refresh` instead of invoking
+ * the shim, eliminating the cmd flash entirely. Forward-slashed paths
+ * are required for Git-for-Windows bash (same invariant as PR #195).
+ *
+ * Returns null when the transformation can't apply — non-Windows, the
+ * resolved path isn't a `.cmd`, the conventional npm layout doesn't
+ * hold (pnpm, yarn-classic, custom prefix), or `node` isn't on PATH.
+ * Callers fall back to the original `.cmd` invocation in that case.
+ */
+function tryWindowsDirectNodeInvocation(cmd: string): string | null {
+  if (process.platform !== 'win32') return null;
+  if (!/\.cmd$/i.test(cmd)) return null;
+
+  // The .cmd shim sits next to a node_modules/@rely-ai/caliber/dist/bin.js
+  // tree in the standard npm-global layout. If that file isn't where we
+  // expect (pnpm symlinks, custom prefix), bail out so the user keeps the
+  // working .cmd path.
+  const npmDir = path.dirname(cmd);
+  const binJs = path.join(npmDir, 'node_modules', '@rely-ai', 'caliber', 'dist', 'bin.js');
+  if (!fs.existsSync(binJs)) return null;
+
+  let nodePath: string;
+  try {
+    const out = execSync('where node', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    nodePath = pickExecutable(out);
+    if (!nodePath) return null;
+  } catch {
+    return null;
+  }
+
+  // Forward-slash both paths so Git-for-Windows bash treats them as
+  // literal path strings rather than escape sequences.
+  const fwdNode = nodePath.replace(/\\/g, '/');
+  const fwdBin = binJs.replace(/\\/g, '/');
+  return `"${fwdNode}" "${fwdBin}"`;
+}
+
 function getPrecommitBlock(): string {
   const cmd = resolveCaliber();
   const npx = isNpxResolution();
@@ -288,15 +342,31 @@ function getPrecommitBlock(): string {
       invoke = cmd;
     }
   } else {
-    // cmd is an absolute path (e.g. /opt/homebrew/bin/caliber, C:\Users\...\caliber.cmd)
-    // or bare 'caliber' as last resort. bashPath() normalizes backslashes for bash.
-    const cmdBash = bashPath(cmd);
-    if (path.isAbsolute(cmd)) {
-      guard = `[ -x "${cmdBash}" ]`;
+    // First: on Windows, try to bypass the cmd-shim console flash by
+    // invoking node directly. Returns null on POSIX or when the standard
+    // npm-global layout doesn't hold (pnpm symlinks, custom prefix, etc).
+    const directNode = tryWindowsDirectNodeInvocation(cmd);
+    if (directNode) {
+      // directNode is `"<node-fwd>" "<bin.js-fwd>"` (already forward-slashed).
+      // Guard on the node binary's existence — if node moves we silently
+      // no-op the hook rather than running a stale .cmd shim that no longer
+      // matches.
+      const nodeBin = directNode.match(/^"([^"]+)"/)?.[1] ?? '';
+      guard = `[ -x "${nodeBin}" ]`;
+      invoke = directNode;
     } else {
-      guard = `[ -x "${cmdBash}" ] || command -v "${cmdBash}" >/dev/null 2>&1`;
+      // Fallback: cmd is an absolute path (e.g. /opt/homebrew/bin/caliber,
+      // C:\Users\...\caliber.cmd from a pnpm/custom-prefix layout) or bare
+      // 'caliber' as last resort. bashPath() converts \\ → / so bash
+      // quote-removal doesn't eat the backslashes on Windows.
+      const cmdBash = bashPath(cmd);
+      if (path.isAbsolute(cmd)) {
+        guard = `[ -x "${cmdBash}" ]`;
+      } else {
+        guard = `[ -x "${cmdBash}" ] || command -v "${cmdBash}" >/dev/null 2>&1`;
+      }
+      invoke = `"${cmdBash}"`;
     }
-    invoke = `"${cmdBash}"`;
   }
 
   return `${PRECOMMIT_START}
