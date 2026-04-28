@@ -1,3 +1,9 @@
+## v1.48.1 (2026-04-28)
+
+### Bug Fixes
+
+- **windows**: hardening sweep — bash-path normalization, quote wrapping, exit hygiene, CI matrix (#200)
+
 ## v1.48.0 (2026-04-28)
 
 ### Features
