@@ -1,3 +1,17 @@
+## v1.49.0 (2026-04-29)
+
+### Bug Fixes (from install audit)
+
+- **claude-cli**: preserve `CLAUDE_CODE_USE_VERTEX` and `CLAUDE_CODE_USE_BEDROCK` in env strip — Vertex/Bedrock-backed Claude Code users can now use `caliber init` from inside an active Claude Code session. (Previous blanket strip of all `CLAUDE_CODE_*` env vars broke enterprise auth backends.)
+- **skills, writers, cli**: stop baking the user's machine-specific absolute caliber path (e.g. `/Users/jdoe/.nvm/.../caliber`) into committed content (CLAUDE.md, skills, cursor rules) and user-facing CLI output. New `displayCaliberName()` helper returns just `caliber` (or `npx @rely-ai/caliber` for npx users) for display purposes; `resolveCaliber()` is preserved for hook scripts where absolute paths are correct.
+
+### Features (from install audit)
+
+- **hooks**: pre-commit hook block is now versioned (`# caliber:pre-commit:v2:start`). Re-running `caliber hooks --install` (or `caliber init`) on a stale hook upgrades it cleanly so users on older caliber versions get the latest hook script. Non-caliber hook content (gitleaks, husky, etc.) is preserved.
+- **hooks**: refresh failures in the pre-commit hook now emit a visible yellow warning to stderr (`caliber: refresh skipped — see .caliber/refresh-hook.log`) instead of being silently swallowed by `|| true`. Commits still succeed (refresh isn't a commit gate), but the user has a signal that something is wrong.
+
+These fixes address P0 findings F-P0-1, F-P0-3, F-P0-4, and F-P0-5 from the install audit (`docs/superpowers/specs/2026-04-29-caliber-install-audit-findings.md`).
+
 ## v1.48.2 (2026-04-28)
 
 ### Bug Fixes
