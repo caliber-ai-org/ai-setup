@@ -71,8 +71,16 @@ If \`${bin}\` is not found, read the setup-caliber skill from .cursor/skills/set
 `;
 }
 
+// F-P0-10: detect both the marker form AND the unmarked inlined form.
+// Init inlines this section via the LLM prompt context; without this
+// detection, refresh's appendManagedBlocks() would add a marker-wrapped
+// duplicate, producing visible duplicate sections in CLAUDE.md.
+const PRECOMMIT_HEADING_RE = /^##\s+Before Committing\s*$/m;
+
 export function hasPreCommitBlock(content: string): boolean {
-  return content.includes(BLOCK_START);
+  if (content.includes(BLOCK_START)) return true;
+  if (PRECOMMIT_HEADING_RE.test(content) && /caliber/i.test(content)) return true;
+  return false;
 }
 
 export function appendPreCommitBlock(content: string, platform: ConfigPlatform = 'claude'): string {
@@ -107,8 +115,13 @@ Read \`CALIBER_LEARNINGS.md\` for patterns and anti-patterns learned from previo
 These are auto-extracted from real tool usage — treat them as project-specific rules.
 `;
 
+// F-P0-10: same heading-based fallback for the learnings block.
+const LEARNINGS_HEADING_RE = /^##\s+Session Learnings\s*$/m;
+
 export function hasLearningsBlock(content: string): boolean {
-  return content.includes(LEARNINGS_BLOCK_START);
+  if (content.includes(LEARNINGS_BLOCK_START)) return true;
+  if (LEARNINGS_HEADING_RE.test(content) && /CALIBER_LEARNINGS/.test(content)) return true;
+  return false;
 }
 
 export function appendLearningsBlock(content: string): string {
@@ -139,8 +152,13 @@ Pin your choice (\`/model\` in Claude Code, or \`CALIBER_MODEL\` when using Cali
 ${MODEL_BLOCK_END}`;
 }
 
+// F-P0-10: same heading-based fallback for the model-config block.
+const MODEL_HEADING_RE = /^##\s+Model Configuration\s*$/m;
+
 export function hasModelBlock(content: string): boolean {
-  return content.includes(MODEL_BLOCK_START);
+  if (content.includes(MODEL_BLOCK_START)) return true;
+  if (MODEL_HEADING_RE.test(content) && /CALIBER_MODEL/.test(content)) return true;
+  return false;
 }
 
 export function appendModelBlock(content: string): string {
@@ -181,8 +199,13 @@ ${getSyncSetupInstruction(platform)}
 ${SYNC_BLOCK_END}`;
 }
 
+// F-P0-10: same heading-based fallback for the sync block.
+const SYNC_HEADING_RE = /^##\s+Context Sync\s*$/m;
+
 export function hasSyncBlock(content: string): boolean {
-  return content.includes(SYNC_BLOCK_START);
+  if (content.includes(SYNC_BLOCK_START)) return true;
+  if (SYNC_HEADING_RE.test(content) && /caliber-ai-org\/ai-setup/.test(content)) return true;
+  return false;
 }
 
 export function appendSyncBlock(content: string, platform: ConfigPlatform = 'claude'): string {
