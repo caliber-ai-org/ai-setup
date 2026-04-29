@@ -758,8 +758,8 @@ describe('parseEnvTimeout', () => {
 
 // ─── DEFAULT_INACTIVITY_TIMEOUT_MS export test ──────────────────────────────
 
-describe('DEFAULT_INACTIVITY_TIMEOUT_MS', () => {
-  it('is 120 seconds', () => {
-    expect(DEFAULT_INACTIVITY_TIMEOUT_MS).toBe(120_000);
+describe('DEFAULT_INACTIVITY_TIMEOUT_MS (F-P0-2)', () => {
+  it('is 5 minutes (300_000 ms) — bumped from 120_000 for large-prompt support', () => {
+    expect(DEFAULT_INACTIVITY_TIMEOUT_MS).toBe(300_000);
   });
 });

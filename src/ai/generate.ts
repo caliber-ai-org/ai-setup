@@ -36,7 +36,15 @@ const GENERATION_MAX_TOKENS = 64000;
 const MODEL_MAX_OUTPUT_TOKENS = 128000;
 const MAX_RETRIES = 5;
 
-export const DEFAULT_INACTIVITY_TIMEOUT_MS = 120_000;
+// F-P0-2: bumped 120_000 → 300_000 because large-repo prompts (caliber-dogfood
+// 314 files) consistently exceeded the 2min first-token window on Vertex.
+// Most repos finish under 60s; the bump trades a worst-case slow failure
+// for a better default-success rate. CALIBER_STREAM_INACTIVITY_TIMEOUT_MS env
+// var still overrides when users need to push higher.
+export const DEFAULT_INACTIVITY_TIMEOUT_MS = 300_000;
+// Surface an env-var hint after this much silence — gives users on huge
+// prompts a pointer to the override before the hard timeout fires.
+const SOFT_INACTIVITY_WARN_MS = 60_000;
 const DEFAULT_TOTAL_TIMEOUT_MS = 600_000;
 
 export function parseEnvTimeout(envVar: string, defaultMs: number, minMs = 5000): number {
@@ -174,9 +182,10 @@ export async function generateSetup(
   const { succeeded, failed: failedCount, failedNames } = mergeSkillResults(skillResults, setup);
 
   if (failedCount > 0 && callbacks) {
-    const msg = succeeded === 0
-      ? `${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate — config saved without skills`
-      : `Warning: ${failedCount} of ${failedCount + succeeded} skill${failedCount === 1 ? '' : 's'} failed to generate`;
+    const msg =
+      succeeded === 0
+        ? `${failedCount} skill${failedCount === 1 ? '' : 's'} failed to generate — config saved without skills`
+        : `Warning: ${failedCount} of ${failedCount + succeeded} skill${failedCount === 1 ? '' : 's'} failed to generate`;
     callbacks.onStatus(msg);
     for (const name of failedNames) {
       callbacks.onStatus(`  → ${name}`);
@@ -413,16 +422,35 @@ async function streamGeneration(config: StreamGenerationConfig): Promise<Generat
       let settled = false;
 
       let inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+      let softWarnTimer: ReturnType<typeof setTimeout> | null = null;
+      let softWarnFired = false;
 
       function clearInactivityTimer() {
         if (inactivityTimer) {
           clearTimeout(inactivityTimer);
           inactivityTimer = null;
         }
+        if (softWarnTimer) {
+          clearTimeout(softWarnTimer);
+          softWarnTimer = null;
+        }
       }
 
       function resetInactivityTimer() {
         if (inactivityTimer) clearTimeout(inactivityTimer);
+        if (softWarnTimer) clearTimeout(softWarnTimer);
+        // F-P0-2: surface the env-var hint at SOFT_INACTIVITY_WARN_MS so users
+        // on truly large prompts see the override pointer mid-stream rather
+        // than waiting for the hard timeout. Fires at most once per attempt.
+        if (config.callbacks && !softWarnFired && SOFT_INACTIVITY_WARN_MS < inactivityTimeoutMs) {
+          softWarnTimer = setTimeout(() => {
+            if (settled) return;
+            softWarnFired = true;
+            config.callbacks?.onStatus(
+              'Model is taking longer than usual on this prompt — large repos may need more time. Set CALIBER_STREAM_INACTIVITY_TIMEOUT_MS to override.',
+            );
+          }, SOFT_INACTIVITY_WARN_MS);
+        }
         inactivityTimer = setTimeout(() => {
           if (settled) return;
           settled = true;
