@@ -76,21 +76,35 @@ export function resetClaudeCliBin(): void {
 }
 
 /**
- * Build a clean copy of process.env with all Claude Code env vars removed.
- * Claude Code sets CLAUDECODE, CLAUDE_CODE_ENTRYPOINT, CLAUDE_CODE_SESSION_ID,
- * CLAUDE_CODE_SIMPLE, and others that trigger its anti-recursion detection,
- * causing "Not logged in" errors when spawning `claude -p` from within a
- * Claude Code session.
+ * Anti-recursion env vars that Claude Code sets when spawning subprocesses.
+ * If passed through to a `claude -p` invocation, they trigger Claude Code's
+ * own anti-recursion detection — masquerading as "Not logged in" failures.
+ *
+ * Only these specific vars are stripped. Other CLAUDE_CODE_* vars (notably
+ * the auth-control ones like CLAUDE_CODE_USE_VERTEX / CLAUDE_CODE_USE_BEDROCK)
+ * are preserved so enterprise auth backends survive the strip.
+ *
+ * See audit finding F-P0-1 in
+ * docs/superpowers/specs/2026-04-29-caliber-install-audit-findings.md
  */
+const ANTI_RECURSION_ENV_VARS = new Set<string>([
+  'CLAUDECODE',
+  'CLAUDE_CODE_SIMPLE',
+  'CLAUDE_CODE_SESSION_ID',
+  'CLAUDE_CODE_ENTRYPOINT',
+  'CLAUDE_CODE_EXECPATH',
+]);
+
 function cleanClaudeEnv(): Record<string, string | undefined> {
   const env = { ...process.env };
-  for (const key of Object.keys(env)) {
-    if (key === 'CLAUDE_CODE_SIMPLE' || key === 'CLAUDECODE' || key.startsWith('CLAUDE_CODE_')) {
-      delete env[key];
-    }
+  for (const key of ANTI_RECURSION_ENV_VARS) {
+    delete env[key];
   }
   return env;
 }
+
+/** Test-only export of cleanClaudeEnv. Do not use in non-test code. */
+export const _cleanClaudeEnvForTesting = cleanClaudeEnv;
 
 function spawnClaude(args: string[]): ChildProcess {
   const bin = resolveClaudeBin();

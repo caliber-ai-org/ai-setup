@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   ClaudeCliProvider,
   isClaudeCliAvailable,
@@ -397,5 +397,82 @@ describe('isClaudeCliLoggedIn', () => {
     execFileSync.mockReset();
     expect(isClaudeCliLoggedIn()).toBe(true);
     expect(execFileSync).not.toHaveBeenCalled();
+  });
+});
+
+describe('cleanClaudeEnv allowlist behavior (F-P0-1)', () => {
+  let savedEnv: NodeJS.ProcessEnv;
+
+  beforeEach(async () => {
+    savedEnv = { ...process.env };
+    for (const k of Object.keys(process.env)) {
+      if (k === 'CLAUDECODE' || k.startsWith('CLAUDE_CODE_')) delete process.env[k];
+    }
+  });
+
+  afterEach(() => {
+    for (const k of Object.keys(process.env)) {
+      if (k === 'CLAUDECODE' || k.startsWith('CLAUDE_CODE_')) delete process.env[k];
+    }
+    Object.assign(process.env, savedEnv);
+  });
+
+  async function callClean() {
+    const mod = await import('../claude-cli.js');
+    return mod._cleanClaudeEnvForTesting();
+  }
+
+  it('strips CLAUDECODE (anti-recursion marker)', async () => {
+    process.env.CLAUDECODE = '1';
+    const env = await callClean();
+    expect(env.CLAUDECODE).toBeUndefined();
+  });
+
+  it('strips CLAUDE_CODE_SIMPLE (anti-recursion marker)', async () => {
+    process.env.CLAUDE_CODE_SIMPLE = '1';
+    const env = await callClean();
+    expect(env.CLAUDE_CODE_SIMPLE).toBeUndefined();
+  });
+
+  it('strips CLAUDE_CODE_SESSION_ID (anti-recursion marker)', async () => {
+    process.env.CLAUDE_CODE_SESSION_ID = 'abc-123';
+    const env = await callClean();
+    expect(env.CLAUDE_CODE_SESSION_ID).toBeUndefined();
+  });
+
+  it('strips CLAUDE_CODE_ENTRYPOINT (anti-recursion marker)', async () => {
+    process.env.CLAUDE_CODE_ENTRYPOINT = 'cli';
+    const env = await callClean();
+    expect(env.CLAUDE_CODE_ENTRYPOINT).toBeUndefined();
+  });
+
+  it('strips CLAUDE_CODE_EXECPATH (anti-recursion marker)', async () => {
+    process.env.CLAUDE_CODE_EXECPATH = '/some/path';
+    const env = await callClean();
+    expect(env.CLAUDE_CODE_EXECPATH).toBeUndefined();
+  });
+
+  it('PRESERVES CLAUDE_CODE_USE_VERTEX (auth-control var) — F-P0-1 fix', async () => {
+    process.env.CLAUDE_CODE_USE_VERTEX = '1';
+    const env = await callClean();
+    expect(env.CLAUDE_CODE_USE_VERTEX).toBe('1');
+  });
+
+  it('PRESERVES CLAUDE_CODE_USE_BEDROCK (auth-control var) — F-P0-1 fix', async () => {
+    process.env.CLAUDE_CODE_USE_BEDROCK = '1';
+    const env = await callClean();
+    expect(env.CLAUDE_CODE_USE_BEDROCK).toBe('1');
+  });
+
+  it('PRESERVES CLAUDE_CODE_MAX_OUTPUT_TOKENS (config var)', async () => {
+    process.env.CLAUDE_CODE_MAX_OUTPUT_TOKENS = '32768';
+    const env = await callClean();
+    expect(env.CLAUDE_CODE_MAX_OUTPUT_TOKENS).toBe('32768');
+  });
+
+  it('preserves unrelated env vars (HOME, PATH)', async () => {
+    const env = await callClean();
+    expect(env.HOME).toBe(process.env.HOME);
+    expect(env.PATH).toBe(process.env.PATH);
   });
 });
