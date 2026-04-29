@@ -5,14 +5,18 @@ import ora from 'ora';
 import { collectFingerprint } from '../fingerprint/index.js';
 import { loadConfig } from '../llm/config.js';
 import { readFileOrNull } from '../scoring/utils.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 
 export async function publishCommand() {
   const dir = process.cwd();
 
   const config = loadConfig();
   if (!config) {
-    console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')(`${resolveCaliber()} config`) + chalk.red(' first.'));
+    console.log(
+      chalk.red('No LLM provider configured. Run ') +
+        chalk.hex('#83D1EB')(`${displayCaliberName()} config`) +
+        chalk.red(' first.'),
+    );
     throw new Error('__exit__');
   }
 
@@ -54,7 +58,9 @@ export async function publishCommand() {
           if (Object.keys(commands).length > 0) summary.commands = commands;
         }
       }
-    } catch { /* skip */ }
+    } catch {
+      /* skip */
+    }
 
     const outputDir = path.join(dir, '.caliber');
     if (!fs.existsSync(outputDir)) {
@@ -67,7 +73,9 @@ export async function publishCommand() {
     spinner.succeed('Project summary published');
     console.log(`  ${chalk.green('✓')} ${path.relative(dir, outputPath)}`);
     console.log(chalk.dim('\n  Other projects can now reference this repo as a source.'));
-    console.log(chalk.dim('  When they run `caliber init`, they\'ll read this summary automatically.\n'));
+    console.log(
+      chalk.dim("  When they run `caliber init`, they'll read this summary automatically.\n"),
+    );
   } catch (err) {
     spinner.fail('Failed to generate summary');
     if (err instanceof Error && err.message === '__exit__') throw err;

@@ -9,7 +9,7 @@ import {
   POINTS_LEARNED_CONTENT,
   POINTS_MODEL_PINNED,
 } from '../constants.js';
-import { resolveCaliber } from '../../lib/resolve-caliber.js';
+import { displayCaliberName } from '../../lib/resolve-caliber.js';
 import { readFileOrNull } from '../utils.js';
 import { hasPreCommitBlock as checkPreCommitBlock } from '../../writers/pre-commit-block.js';
 import { configContentSuggestsPinnedModel } from '../model-pinning.js';
@@ -73,13 +73,13 @@ export function checkBonus(dir: string): Check[] {
     detail: hasHooks ? hookSources.join(', ') : 'No hooks configured',
     suggestion: hasHooks
       ? undefined
-      : `Hooks auto-sync your agent config on every commit so it stays fresh. Run \`${resolveCaliber()} init\` to set up`,
+      : `Hooks auto-sync your agent config on every commit so it stays fresh. Run \`${displayCaliberName()} init\` to set up`,
     fix: hasHooks
       ? undefined
       : {
           action: 'install_hooks',
           data: {},
-          instruction: `Run ${resolveCaliber()} init to add pre-commit refresh instructions to config files.`,
+          instruction: `Run ${displayCaliberName()} init to add pre-commit refresh instructions to config files.`,
         },
   });
 
@@ -93,7 +93,9 @@ export function checkBonus(dir: string): Check[] {
     earnedPoints: agentsMdExists ? POINTS_AGENTS_MD : 0,
     passed: agentsMdExists,
     detail: agentsMdExists ? 'Found at project root' : 'Not found',
-    suggestion: agentsMdExists ? undefined : 'AGENTS.md provides project context to Codex, Copilot, and other agents. Works alongside CLAUDE.md',
+    suggestion: agentsMdExists
+      ? undefined
+      : 'AGENTS.md provides project context to Codex, Copilot, and other agents. Works alongside CLAUDE.md',
     fix: agentsMdExists
       ? undefined
       : {
@@ -172,7 +174,7 @@ export function checkBonus(dir: string): Check[] {
     detail: hasLearned ? 'Session learnings found in CALIBER_LEARNINGS.md' : 'No learned content',
     suggestion: hasLearned
       ? undefined
-      : `Session learnings capture patterns from your coding sessions so the agent improves over time. Run \`${resolveCaliber()} learn install\``,
+      : `Session learnings capture patterns from your coding sessions so the agent improves over time. Run \`${displayCaliberName()} learn install\``,
   });
 
   // 5. Model and effort level pinned
@@ -188,7 +190,9 @@ export function checkBonus(dir: string): Check[] {
         const content = readFileOrNull(join(rulesDir, f));
         if (content) parts.push(content);
       }
-    } catch { /* dir missing */ }
+    } catch {
+      /* dir missing */
+    }
     return parts.join('\n').toLowerCase();
   })();
 

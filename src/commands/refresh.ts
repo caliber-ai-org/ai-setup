@@ -13,7 +13,7 @@ import { readLearnedSection } from '../learner/writer.js';
 import { loadConfig } from '../llm/config.js';
 import { validateModel, TRANSIENT_ERRORS } from '../llm/index.js';
 import { trackRefreshCompleted } from '../telemetry/events.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 import { isCaliberSubprocess } from '../lib/subprocess-sentinel.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
@@ -466,7 +466,7 @@ export async function refreshCommand(options: RefreshOptions) {
       if (quiet) return;
       console.log(
         chalk.red('No LLM provider configured. Run ') +
-          chalk.hex('#83D1EB')(`${resolveCaliber()} config`) +
+          chalk.hex('#83D1EB')(`${displayCaliberName()} config`) +
           chalk.red(' (e.g. choose Cursor) or set an API key.'),
       );
       throw new Error('__exit__');

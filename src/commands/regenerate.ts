@@ -16,19 +16,27 @@ import { SpinnerMessages, GENERATION_MESSAGES } from '../utils/spinner-messages.
 import { collectSetupFiles } from './setup-files.js';
 import { trackRegenerateCompleted } from '../telemetry/events.js';
 import { runScoreRefineWithSpinner } from '../ai/score-refine.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 
 export async function regenerateCommand(options: { dryRun?: boolean }) {
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   const config = loadConfig();
   if (!config) {
-    console.log(chalk.red('No LLM provider configured. Run ') + chalk.hex('#83D1EB')(`${bin} config`) + chalk.red(' first.'));
+    console.log(
+      chalk.red('No LLM provider configured. Run ') +
+        chalk.hex('#83D1EB')(`${bin} config`) +
+        chalk.red(' first.'),
+    );
     throw new Error('__exit__');
   }
 
   const manifest = readManifest();
   if (!manifest) {
-    console.log(chalk.yellow('No existing config found. Run ') + chalk.hex('#83D1EB')(`${bin} init`) + chalk.yellow(' first.'));
+    console.log(
+      chalk.yellow('No existing config found. Run ') +
+        chalk.hex('#83D1EB')(`${bin} init`) +
+        chalk.yellow(' first.'),
+    );
     throw new Error('__exit__');
   }
 
@@ -53,25 +61,26 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
 
   // 3. Generate
   const genSpinner = ora('Regenerating config...').start();
-  const genMessages = new SpinnerMessages(genSpinner, GENERATION_MESSAGES, { showElapsedTime: true });
+  const genMessages = new SpinnerMessages(genSpinner, GENERATION_MESSAGES, {
+    showElapsedTime: true,
+  });
   genMessages.start();
 
   let generatedSetup: Record<string, unknown> | null = null;
 
   try {
-    const result = await generateSetup(
-      fingerprint,
-      targetAgent,
-      undefined,
-      {
-        onStatus: (status) => { genMessages.handleServerStatus(status); },
-        onComplete: (setup) => { generatedSetup = setup; },
-        onError: (error) => {
-          genMessages.stop();
-          genSpinner.fail(`Generation error: ${error}`);
-        },
-      }
-    );
+    const result = await generateSetup(fingerprint, targetAgent, undefined, {
+      onStatus: (status) => {
+        genMessages.handleServerStatus(status);
+      },
+      onComplete: (setup) => {
+        generatedSetup = setup;
+      },
+      onError: (error) => {
+        genMessages.stop();
+        genSpinner.fail(`Generation error: ${error}`);
+      },
+    });
 
     if (!generatedSetup) generatedSetup = result.setup;
   } catch (err) {
@@ -98,7 +107,11 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
   const staged = stageFiles(setupFiles, process.cwd());
   const totalChanges = staged.newFiles + staged.modifiedFiles;
 
-  console.log(chalk.dim(`\n  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}\n`));
+  console.log(
+    chalk.dim(
+      `\n  ${chalk.green(`${staged.newFiles} new`)} / ${chalk.yellow(`${staged.modifiedFiles} modified`)} file${totalChanges !== 1 ? 's' : ''}\n`,
+    ),
+  );
 
   if (totalChanges === 0) {
     console.log(chalk.dim('  No changes needed — your configs are already up to date.\n'));
@@ -172,14 +185,28 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
 
   if (afterScore.score < baselineScore.score) {
     console.log('');
-    console.log(chalk.yellow(`  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`));
+    console.log(
+      chalk.yellow(
+        `  Score would drop from ${baselineScore.score} to ${afterScore.score} — reverting changes.`,
+      ),
+    );
     try {
       const { restored, removed } = undoSetup();
       if (restored.length > 0 || removed.length > 0) {
-        console.log(chalk.dim(`  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`));
+        console.log(
+          chalk.dim(
+            `  Reverted ${restored.length + removed.length} file${restored.length + removed.length === 1 ? '' : 's'} from backup.`,
+          ),
+        );
       }
-    } catch { /* best effort */ }
-    console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} init --force`) + chalk.dim(' to override.\n'));
+    } catch {
+      /* best effort */
+    }
+    console.log(
+      chalk.dim('  Run ') +
+        chalk.hex('#83D1EB')(`${bin} init --force`) +
+        chalk.dim(' to override.\n'),
+    );
     return;
   }
 
@@ -187,5 +214,7 @@ export async function regenerateCommand(options: { dryRun?: boolean }) {
 
   trackRegenerateCompleted(action, Date.now());
   console.log(chalk.bold.green('  Regeneration complete!'));
-  console.log(chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} undo`) + chalk.dim(' to revert changes.\n'));
+  console.log(
+    chalk.dim('  Run ') + chalk.hex('#83D1EB')(`${bin} undo`) + chalk.dim(' to revert changes.\n'),
+  );
 }

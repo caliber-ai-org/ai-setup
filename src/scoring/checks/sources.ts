@@ -3,7 +3,7 @@ import type { Check } from '../index.js';
 import { POINTS_SOURCES_CONFIGURED, POINTS_SOURCES_REFERENCED } from '../constants.js';
 import { readFileOrNull } from '../utils.js';
 import { loadSourcesConfig } from '../../fingerprint/sources.js';
-import { resolveCaliber } from '../../lib/resolve-caliber.js';
+import { displayCaliberName } from '../../lib/resolve-caliber.js';
 
 export function checkSources(dir: string): Check[] {
   const checks: Check[] = [];
@@ -25,7 +25,7 @@ export function checkSources(dir: string): Check[] {
       : 'No external sources configured',
     suggestion: hasSources
       ? undefined
-      : `Run \`${resolveCaliber()} sources add <path>\` to add related repos or docs`,
+      : `Run \`${displayCaliberName()} sources add <path>\` to add related repos or docs`,
   });
 
   // sources_referenced: when sources are configured, check they're mentioned in CLAUDE.md
@@ -51,7 +51,7 @@ export function checkSources(dir: string): Check[] {
         : 'No configured sources are mentioned in CLAUDE.md',
       suggestion: referenced
         ? undefined
-        : `Regenerate with \`${resolveCaliber()} init\` to include source context in your config`,
+        : `Regenerate with \`${displayCaliberName()} init\` to include source context in your config`,
     });
   }
 

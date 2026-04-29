@@ -8,7 +8,7 @@ import {
   detectSourceType,
   type SourceConfig,
 } from '../fingerprint/sources.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { promptInput } from '../utils/prompt.js';
 
@@ -19,7 +19,10 @@ export async function sourcesListCommand() {
 
   if (configSources.length === 0 && workspaces.length === 0) {
     console.log(chalk.dim('\n  No sources configured.\n'));
-    console.log(chalk.dim('  Add a source: ') + chalk.hex('#83D1EB')(`${resolveCaliber()} sources add <path>`));
+    console.log(
+      chalk.dim('  Add a source: ') +
+        chalk.hex('#83D1EB')(`${displayCaliberName()} sources add <path>`),
+    );
     console.log(chalk.dim('  Or add to .caliber/sources.json manually.\n'));
     return;
   }
@@ -31,10 +34,14 @@ export async function sourcesListCommand() {
       const sourcePath = source.path || source.url || '';
       const exists = source.path ? fs.existsSync(path.resolve(dir, source.path)) : false;
       const status = exists ? chalk.green('reachable') : chalk.red('not found');
-      const hasSummary = source.path && fs.existsSync(path.join(path.resolve(dir, source.path), '.caliber', 'summary.json'));
+      const hasSummary =
+        source.path &&
+        fs.existsSync(path.join(path.resolve(dir, source.path), '.caliber', 'summary.json'));
 
       console.log(`  ${chalk.bold(source.role || source.type)}  ${chalk.dim(sourcePath)}`);
-      console.log(`    Type: ${source.type}  Status: ${status}${hasSummary ? '  ' + chalk.cyan('has summary.json') : ''}`);
+      console.log(
+        `    Type: ${source.type}  Status: ${status}${hasSummary ? '  ' + chalk.cyan('has summary.json') : ''}`,
+      );
       if (source.description) console.log(`    ${chalk.dim(source.description)}`);
       console.log('');
     }
@@ -67,9 +74,7 @@ export async function sourcesAddCommand(sourcePath: string) {
   }
 
   const existing = loadSourcesConfig(dir);
-  const alreadyConfigured = existing.some(
-    (s) => s.path && path.resolve(dir, s.path) === absPath,
-  );
+  const alreadyConfigured = existing.some((s) => s.path && path.resolve(dir, s.path) === absPath);
   if (alreadyConfigured) {
     console.log(chalk.yellow(`\n  Already configured: ${sourcePath}\n`));
     return;
@@ -98,9 +103,7 @@ export async function sourcesRemoveCommand(name: string) {
   const dir = process.cwd();
   const existing = loadSourcesConfig(dir);
 
-  const idx = existing.findIndex(
-    (s) => s.path?.includes(name) || s.role === name,
-  );
+  const idx = existing.findIndex((s) => s.path?.includes(name) || s.role === name);
 
   if (idx === -1) {
     console.log(chalk.red(`\n  Source not found: ${name}\n`));
@@ -113,5 +116,7 @@ export async function sourcesRemoveCommand(name: string) {
 
   const removed = existing.splice(idx, 1)[0];
   writeSourcesConfig(dir, existing);
-  console.log(chalk.green(`\n  ✓ Removed ${removed.path || removed.url} (${removed.role || removed.type})\n`));
+  console.log(
+    chalk.green(`\n  ✓ Removed ${removed.path || removed.url} (${removed.role || removed.type})\n`),
+  );
 }

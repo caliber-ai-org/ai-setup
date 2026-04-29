@@ -8,7 +8,7 @@ import type { TargetAgent } from '../scoring/index.js';
 import { displayScore } from '../scoring/display.js';
 import { readState } from '../lib/state.js';
 import { trackScoreComputed } from '../telemetry/events.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 import { recordScore } from '../scoring/history.js';
 
 interface ScoreOptions {
@@ -143,7 +143,7 @@ export async function scoreCommand(options: ScoreOptions) {
   const separator = chalk.gray('  ' + '─'.repeat(53));
   console.log(separator);
 
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   const failing = result.checks
     .filter((c) => !c.passed && c.maxPoints > 0)
     .sort((a, b) => b.maxPoints - b.earnedPoints - (a.maxPoints - a.earnedPoints));

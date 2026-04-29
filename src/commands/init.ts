@@ -11,7 +11,7 @@ import { writeSetup, undoSetup } from '../writers/index.js';
 import { stageFiles, cleanupStaging } from '../writers/staging.js';
 import { collectSetupFiles } from './setup-files.js';
 import { installLearningHooks, installCursorLearningHooks } from '../lib/learning-hooks.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 import { writeState, getCurrentHeadSha } from '../lib/state.js';
 import { promptInput } from '../utils/prompt.js';
 import {
@@ -91,7 +91,7 @@ function log(verbose: boolean | undefined, ...args: unknown[]): void {
 export async function initCommand(options: InitOptions) {
   const brand = chalk.hex('#EB9D83');
   const title = chalk.hex('#83D1EB');
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   const firstRun = isFirstRun(process.cwd());
 
   if (firstRun) {

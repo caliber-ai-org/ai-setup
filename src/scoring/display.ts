@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import type { ScoreResult, Check, CheckCategory } from './index.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 
 const AGENT_DISPLAY_NAMES: Record<string, string> = {
   claude: 'Claude Code',
@@ -17,16 +17,29 @@ const CATEGORY_LABELS: Record<CheckCategory, { icon: string; label: string }> = 
   bonus: { icon: '⭐', label: 'BONUS' },
 };
 
-const CATEGORY_ORDER: CheckCategory[] = ['existence', 'quality', 'grounding', 'accuracy', 'freshness', 'bonus'];
+const CATEGORY_ORDER: CheckCategory[] = [
+  'existence',
+  'quality',
+  'grounding',
+  'accuracy',
+  'freshness',
+  'bonus',
+];
 
 function gradeColor(grade: string): (text: string) => string {
   switch (grade) {
-    case 'A': return chalk.green;
-    case 'B': return chalk.greenBright;
-    case 'C': return chalk.yellow;
-    case 'D': return chalk.hex('#f97316');
-    case 'F': return chalk.red;
-    default: return chalk.white;
+    case 'A':
+      return chalk.green;
+    case 'B':
+      return chalk.greenBright;
+    case 'C':
+      return chalk.yellow;
+    case 'D':
+      return chalk.hex('#f97316');
+    case 'F':
+      return chalk.red;
+    default:
+      return chalk.white;
   }
 }
 
@@ -102,13 +115,15 @@ function formatCheck(check: Check): string {
 export function displayScore(result: ScoreResult): void {
   const gc = gradeColor(result.grade);
 
-  const agentLabel = result.targetAgent.map(a => AGENT_DISPLAY_NAMES[a] || a).join(' + ');
+  const agentLabel = result.targetAgent.map((a) => AGENT_DISPLAY_NAMES[a] || a).join(' + ');
 
   // Header
   console.log('');
   console.log(chalk.gray('  ─────────────────────────────────────────────────'));
   console.log('');
-  console.log(`  ${chalk.bold('Agent Config Score')}    ${gc(chalk.bold(`${result.score} / ${result.maxScore}`))}    Grade ${gc(chalk.bold(result.grade))}`);
+  console.log(
+    `  ${chalk.bold('Agent Config Score')}    ${gc(chalk.bold(`${result.score} / ${result.maxScore}`))}    Grade ${gc(chalk.bold(result.grade))}`,
+  );
   console.log(`  ${progressBar(result.score, result.maxScore)}`);
   console.log(chalk.dim(`  Target: ${agentLabel}`));
   console.log('');
@@ -125,10 +140,10 @@ export function displayScore(result: ScoreResult): void {
 
     console.log(
       chalk.gray(`  ${icon} ${label}`) +
-      chalk.gray(' '.repeat(Math.max(1, 43 - label.length))) +
-      chalk.white(`${summary.earned}`) +
-      chalk.gray(` / ${summary.max}`) +
-      gapLabel
+        chalk.gray(' '.repeat(Math.max(1, 43 - label.length))) +
+        chalk.white(`${summary.earned}`) +
+        chalk.gray(` / ${summary.max}`) +
+        gapLabel,
     );
 
     for (const check of categoryChecks) {
@@ -143,8 +158,12 @@ export function displayScore(result: ScoreResult): void {
 
 function formatTopImprovements(checks: readonly Check[]): void {
   const improvable = checks
-    .filter(c => c.earnedPoints < c.maxPoints)
-    .map(c => ({ name: c.name, potential: c.maxPoints - c.earnedPoints, suggestion: c.suggestion }))
+    .filter((c) => c.earnedPoints < c.maxPoints)
+    .map((c) => ({
+      name: c.name,
+      potential: c.maxPoints - c.earnedPoints,
+      suggestion: c.suggestion,
+    }))
     .sort((a, b) => b.potential - a.potential)
     .slice(0, 5);
 
@@ -173,20 +192,20 @@ function formatTopImprovements(checks: readonly Check[]): void {
 export function displayScoreSummary(result: ScoreResult): void {
   const gc = gradeColor(result.grade);
 
-  const agentLabel = result.targetAgent.map(a => AGENT_DISPLAY_NAMES[a] || a).join(' + ');
+  const agentLabel = result.targetAgent.map((a) => AGENT_DISPLAY_NAMES[a] || a).join(' + ');
 
   // Compact header
   console.log('');
   console.log(
     chalk.gray('  ') +
-    gc(`${result.score}/${result.maxScore}`) +
-    chalk.gray(` (Grade ${result.grade})`) +
-    chalk.gray(`  ·  ${agentLabel}`) +
-    chalk.gray(`  ·  ${progressBar(result.score, result.maxScore, 20)}`)
+      gc(`${result.score}/${result.maxScore}`) +
+      chalk.gray(` (Grade ${result.grade})`) +
+      chalk.gray(`  ·  ${agentLabel}`) +
+      chalk.gray(`  ·  ${progressBar(result.score, result.maxScore, 20)}`),
   );
 
   // Show failing check names (max 5)
-  const failing = result.checks.filter(c => !c.passed);
+  const failing = result.checks.filter((c) => !c.passed);
   if (failing.length > 0) {
     const shown = failing.slice(0, 5);
     for (const check of shown) {
@@ -194,7 +213,11 @@ export function displayScoreSummary(result: ScoreResult): void {
     }
     const remaining = failing.length - shown.length;
     const moreText = remaining > 0 ? ` (+${remaining} more)` : '';
-    console.log(chalk.dim(`\n  Run ${chalk.hex('#83D1EB')(`${resolveCaliber()} score`)} for details.${moreText}`));
+    console.log(
+      chalk.dim(
+        `\n  Run ${chalk.hex('#83D1EB')(`${displayCaliberName()} score`)} for details.${moreText}`,
+      ),
+    );
   }
   console.log('');
 }
@@ -214,10 +237,12 @@ export function displayScoreDelta(before: ScoreResult, after: ScoreResult): void
   console.log('');
   console.log(
     `  Score: ${beforeGc(`${before.score}`)} ${chalk.gray('\u2192')} ${afterGc(`${after.score}`)}` +
-    `    ${deltaColor(deltaStr + ' pts')}` +
-    `    ${beforeGc(before.grade)} ${chalk.gray('\u2192')} ${afterGc(after.grade)}`
+      `    ${deltaColor(deltaStr + ' pts')}` +
+      `    ${beforeGc(before.grade)} ${chalk.gray('\u2192')} ${afterGc(after.grade)}`,
   );
-  console.log(`  ${progressBar(before.score, before.maxScore, 19)} ${chalk.gray('\u2192')} ${progressBar(after.score, after.maxScore, 19)}`);
+  console.log(
+    `  ${progressBar(before.score, before.maxScore, 19)} ${chalk.gray('\u2192')} ${progressBar(after.score, after.maxScore, 19)}`,
+  );
   console.log('');
   console.log(chalk.gray('  ─────────────────────────────────────────────────'));
   console.log('');
@@ -234,9 +259,7 @@ export function displayScoreDelta(before: ScoreResult, after: ScoreResult): void
       const bc = before.checks.find((b) => b.id === check.id)!;
       const gain = check.earnedPoints - bc.earnedPoints;
       console.log(
-        chalk.green('  +') +
-        chalk.white(` ${check.name.padEnd(50)}`) +
-        chalk.green(`+${gain}`)
+        chalk.green('  +') + chalk.white(` ${check.name.padEnd(50)}`) + chalk.green(`+${gain}`),
       );
     }
     console.log('');
@@ -248,13 +271,7 @@ export function displayScoreDelta(before: ScoreResult, after: ScoreResult): void
  */
 export function displayScoreOneLiner(result: ScoreResult, drift?: string): void {
   const gc = gradeColor(result.grade);
-  const driftMsg = drift
-    ? chalk.yellow(` — ${drift}`)
-    : chalk.green(' — no drift detected ✓');
+  const driftMsg = drift ? chalk.yellow(` — ${drift}`) : chalk.green(' — no drift detected ✓');
 
-  console.log(
-    chalk.gray('  caliber ▸ ') +
-    gc(`${result.score}/100 (${result.grade})`) +
-    driftMsg
-  );
+  console.log(chalk.gray('  caliber ▸ ') + gc(`${result.score}/100 (${result.grade})`) + driftMsg);
 }

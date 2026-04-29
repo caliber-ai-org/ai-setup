@@ -2,19 +2,25 @@ import chalk from 'chalk';
 import fs from 'fs';
 import { readManifest } from '../writers/manifest.js';
 import { loadConfig } from '../llm/config.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 
 export async function statusCommand(options: { json?: boolean }) {
   const config = loadConfig();
   const manifest = readManifest();
 
   if (options.json) {
-    console.log(JSON.stringify({
-      configured: !!config,
-      provider: config?.provider,
-      model: config?.model,
-      manifest: manifest,
-    }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          configured: !!config,
+          provider: config?.provider,
+          model: config?.model,
+          manifest: manifest,
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
@@ -23,13 +29,19 @@ export async function statusCommand(options: { json?: boolean }) {
   if (config) {
     console.log(`  LLM: ${chalk.green(config.provider)} (${config.model})`);
   } else {
-    const bin = resolveCaliber();
-    console.log(`  LLM: ${chalk.yellow('Not configured')} — run ${chalk.hex('#83D1EB')(`${bin} config`)}`);
+    const bin = displayCaliberName();
+    console.log(
+      `  LLM: ${chalk.yellow('Not configured')} — run ${chalk.hex('#83D1EB')(`${bin} config`)}`,
+    );
   }
 
   if (!manifest) {
     console.log(`  Config: ${chalk.dim('No config applied')}`);
-    console.log(chalk.dim('\n  Run ') + chalk.hex('#83D1EB')(`${resolveCaliber()} init`) + chalk.dim(' to get started.\n'));
+    console.log(
+      chalk.dim('\n  Run ') +
+        chalk.hex('#83D1EB')(`${displayCaliberName()} init`) +
+        chalk.dim(' to get started.\n'),
+    );
     return;
   }
 

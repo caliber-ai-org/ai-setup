@@ -2,7 +2,7 @@ import { existsSync, statSync } from 'fs';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import type { Check } from '../index.js';
-import { resolveCaliber } from '../../lib/resolve-caliber.js';
+import { displayCaliberName } from '../../lib/resolve-caliber.js';
 import {
   POINTS_FRESHNESS,
   POINTS_NO_SECRETS,
@@ -24,10 +24,11 @@ function getCommitsSinceConfigUpdate(dir: string): number | null {
   // Check if any config file has been modified more recently than HEAD
   // (indicates caliber init just wrote it but hasn't committed yet)
   try {
-    const headTimestamp = execSync(
-      'git log -1 --format=%ct HEAD',
-      { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-    ).trim();
+    const headTimestamp = execSync('git log -1 --format=%ct HEAD', {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
     const headTime = parseInt(headTimestamp, 10) * 1000;
 
     for (const file of configFiles) {
@@ -38,25 +39,33 @@ function getCommitsSinceConfigUpdate(dir: string): number | null {
         if (mtime > headTime) {
           return 0; // file is newer than HEAD — just written, treat as fresh
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
-  } catch { /* not in git */ }
+  } catch {
+    /* not in git */
+  }
 
   for (const file of configFiles) {
     try {
-      const hash = execSync(
-        `git log -1 --format=%H -- "${file}"`,
-        { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-      ).trim();
+      const hash = execSync(`git log -1 --format=%H -- "${file}"`, {
+        cwd: dir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
 
       if (hash) {
-        const countStr = execSync(
-          `git rev-list --count ${hash}..HEAD`,
-          { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-        ).trim();
+        const countStr = execSync(`git rev-list --count ${hash}..HEAD`, {
+          cwd: dir,
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }).trim();
         return parseInt(countStr, 10) || 0;
       }
-    } catch { /* not tracked or not in git */ }
+    } catch {
+      /* not tracked or not in git */
+    }
   }
 
   return null;
@@ -74,11 +83,12 @@ export function checkFreshness(dir: string): Check[] {
     freshnessDetail = 'Config files not tracked in git';
     freshnessPoints = 0;
   } else {
-    const threshold = FRESHNESS_COMMIT_THRESHOLDS.find(t => commitsSince <= t.maxCommits);
+    const threshold = FRESHNESS_COMMIT_THRESHOLDS.find((t) => commitsSince <= t.maxCommits);
     freshnessPoints = threshold ? threshold.points : 0;
-    freshnessDetail = commitsSince === 0
-      ? 'Config updated in the latest commit'
-      : `${commitsSince} commit${commitsSince === 1 ? '' : 's'} since last config update`;
+    freshnessDetail =
+      commitsSince === 0
+        ? 'Config updated in the latest commit'
+        : `${commitsSince} commit${commitsSince === 1 ? '' : 's'} since last config update`;
   }
 
   checks.push({
@@ -89,23 +99,29 @@ export function checkFreshness(dir: string): Check[] {
     earnedPoints: freshnessPoints,
     passed: freshnessPoints >= 3,
     detail: freshnessDetail,
-    suggestion: commitsSince !== null && freshnessPoints < 3
-      ? `Config is ${commitsSince} commits behind — run \`${resolveCaliber()} refresh\` to update it`
-      : undefined,
-    fix: commitsSince !== null && freshnessPoints < 3
-      ? {
-          action: 'refresh_config',
-          data: { commitsSince },
-          instruction: `Config is ${commitsSince} commits behind. Update it to reflect recent changes.`,
-        }
-      : undefined,
+    suggestion:
+      commitsSince !== null && freshnessPoints < 3
+        ? `Config is ${commitsSince} commits behind — run \`${displayCaliberName()} refresh\` to update it`
+        : undefined,
+    fix:
+      commitsSince !== null && freshnessPoints < 3
+        ? {
+            action: 'refresh_config',
+            data: { commitsSince },
+            instruction: `Config is ${commitsSince} commits behind. Update it to reflect recent changes.`,
+          }
+        : undefined,
   });
 
   // 2. No secrets in config files
   const filesToScan = [
-    'CLAUDE.md', 'AGENTS.md', '.cursorrules',
-    '.claude/settings.json', '.claude/settings.local.json',
-    '.mcp.json', '.cursor/mcp.json',
+    'CLAUDE.md',
+    'AGENTS.md',
+    '.cursorrules',
+    '.claude/settings.json',
+    '.claude/settings.local.json',
+    '.mcp.json',
+    '.cursor/mcp.json',
   ];
 
   const secretFindings: Array<{ file: string; line: number }> = [];
@@ -119,7 +135,7 @@ export function checkFreshness(dir: string): Check[] {
       for (const pattern of SECRET_PATTERNS) {
         if (pattern.test(lines[i])) {
           // Check if this looks like a placeholder, not a real secret
-          const isPlaceholder = SECRET_PLACEHOLDER_PATTERNS.some(p => p.test(lines[i]));
+          const isPlaceholder = SECRET_PLACEHOLDER_PATTERNS.some((p) => p.test(lines[i]));
           if (!isPlaceholder) {
             secretFindings.push({ file: rel, line: i + 1 });
           }
@@ -190,7 +206,8 @@ export function checkFreshness(dir: string): Check[] {
       : {
           action: 'add_permissions',
           data: {},
-          instruction: 'Add a permissions.allow list to .claude/settings.json with commonly used commands.',
+          instruction:
+            'Add a permissions.allow list to .claude/settings.json with commonly used commands.',
         },
   });
 

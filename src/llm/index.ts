@@ -10,7 +10,7 @@ import { OpenCodeProvider, isOpenCodeAvailable, isOpenCodeLoggedIn } from './ope
 import { parseJsonResponse, extractJson, estimateTokens } from './utils.js';
 import { isModelNotAvailableError, handleModelNotAvailable } from './model-recovery.js';
 import { isRateLimitError } from './seat-based-errors.js';
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 
 export type { LLMProvider, LLMConfig, LLMCallOptions };
 export type { LLMStreamOptions, LLMStreamCallbacks, ProviderType } from './types.js';
@@ -85,7 +85,7 @@ export function getProvider(): LLMProvider {
   const config = loadConfig();
   if (!config) {
     throw new Error(
-      `No LLM provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, MINIMAX_API_KEY, or VERTEX_PROJECT_ID; or run \`${resolveCaliber()} config\` and choose Cursor, Claude Code, or OpenCode; or set CALIBER_USE_CURSOR_SEAT=1 / CALIBER_USE_CLAUDE_CLI=1 / CALIBER_USE_OPENCODE=1.`,
+      `No LLM provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, MINIMAX_API_KEY, or VERTEX_PROJECT_ID; or run \`${displayCaliberName()} config\` and choose Cursor, Claude Code, or OpenCode; or set CALIBER_USE_CURSOR_SEAT=1 / CALIBER_USE_CLAUDE_CLI=1 / CALIBER_USE_OPENCODE=1.`,
     );
   }
 
@@ -100,7 +100,7 @@ export function getConfig(): LLMConfig {
   const config = loadConfig();
   if (!config) {
     throw new Error(
-      `No LLM provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, MINIMAX_API_KEY, or VERTEX_PROJECT_ID; or run \`${resolveCaliber()} config\` and choose Cursor, Claude Code, or OpenCode; or set CALIBER_USE_CURSOR_SEAT=1 / CALIBER_USE_CLAUDE_CLI=1 / CALIBER_USE_OPENCODE=1.`,
+      `No LLM provider configured. Set ANTHROPIC_API_KEY, OPENAI_API_KEY, MINIMAX_API_KEY, or VERTEX_PROJECT_ID; or run \`${displayCaliberName()} config\` and choose Cursor, Claude Code, or OpenCode; or set CALIBER_USE_CURSOR_SEAT=1 / CALIBER_USE_CLAUDE_CLI=1 / CALIBER_USE_OPENCODE=1.`,
     );
   }
 

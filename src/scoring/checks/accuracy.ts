@@ -2,15 +2,9 @@ import { existsSync, statSync } from 'fs';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import type { Check } from '../index.js';
-import {
-  POINTS_REFERENCES_VALID,
-  POINTS_CONFIG_DRIFT,
-} from '../constants.js';
-import { resolveCaliber } from '../../lib/resolve-caliber.js';
-import {
-  collectPrimaryConfigContent,
-  validateFileReferences,
-} from '../utils.js';
+import { POINTS_REFERENCES_VALID, POINTS_CONFIG_DRIFT } from '../constants.js';
+import { displayCaliberName } from '../../lib/resolve-caliber.js';
+import { collectPrimaryConfigContent, validateFileReferences } from '../utils.js';
 
 function validateReferences(dir: string): { valid: string[]; invalid: string[]; total: number } {
   const configContent = collectPrimaryConfigContent(dir);
@@ -39,10 +33,11 @@ function detectGitDrift(dir: string): {
   // Check if any config file has been modified more recently than HEAD
   // (e.g., just written by caliber init but not yet committed)
   try {
-    const headTimestamp = execSync(
-      'git log -1 --format=%ct HEAD',
-      { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-    ).trim();
+    const headTimestamp = execSync('git log -1 --format=%ct HEAD', {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
     const headTime = parseInt(headTimestamp, 10) * 1000;
 
     for (const file of configFiles) {
@@ -51,20 +46,29 @@ function detectGitDrift(dir: string): {
       try {
         const mtime = statSync(filePath).mtime.getTime();
         if (mtime > headTime) {
-          return { commitsSinceConfigUpdate: 0, lastConfigCommit: 'uncommitted (recently modified)', isGitRepo: true };
+          return {
+            commitsSinceConfigUpdate: 0,
+            lastConfigCommit: 'uncommitted (recently modified)',
+            isGitRepo: true,
+          };
         }
-      } catch { /* skip */ }
+      } catch {
+        /* skip */
+      }
     }
-  } catch { /* skip */ }
+  } catch {
+    /* skip */
+  }
 
   // Find the most recent commit that touched any config file
   let latestConfigCommitHash: string | null = null;
   for (const file of configFiles) {
     try {
-      const hash = execSync(
-        `git log -1 --format=%H -- "${file}"`,
-        { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-      ).trim();
+      const hash = execSync(`git log -1 --format=%H -- "${file}"`, {
+        cwd: dir,
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      }).trim();
       if (!hash) continue;
 
       if (!latestConfigCommitHash) {
@@ -72,10 +76,10 @@ function detectGitDrift(dir: string): {
       } else {
         try {
           // Exit code 0 means latestConfigCommitHash IS an ancestor of hash → hash is newer
-          execSync(
-            `git merge-base --is-ancestor ${latestConfigCommitHash} ${hash}`,
-            { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] },
-          );
+          execSync(`git merge-base --is-ancestor ${latestConfigCommitHash} ${hash}`, {
+            cwd: dir,
+            stdio: ['pipe', 'pipe', 'pipe'],
+          });
           latestConfigCommitHash = hash;
         } catch {
           // Not an ancestor — keep the existing latestConfigCommitHash
@@ -92,16 +96,18 @@ function detectGitDrift(dir: string): {
 
   // Count commits since the last config update
   try {
-    const countStr = execSync(
-      `git rev-list --count ${latestConfigCommitHash}..HEAD`,
-      { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-    ).trim();
+    const countStr = execSync(`git rev-list --count ${latestConfigCommitHash}..HEAD`, {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
     const commitsSince = parseInt(countStr, 10) || 0;
 
-    const lastDate = execSync(
-      `git log -1 --format=%ci ${latestConfigCommitHash}`,
-      { cwd: dir, encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-    ).trim();
+    const lastDate = execSync(`git log -1 --format=%ci ${latestConfigCommitHash}`, {
+      cwd: dir,
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
 
     return {
       commitsSinceConfigUpdate: commitsSince,
@@ -109,7 +115,11 @@ function detectGitDrift(dir: string): {
       isGitRepo: true,
     };
   } catch {
-    return { commitsSinceConfigUpdate: 0, lastConfigCommit: latestConfigCommitHash, isGitRepo: true };
+    return {
+      commitsSinceConfigUpdate: 0,
+      lastConfigCommit: latestConfigCommitHash,
+      isGitRepo: true,
+    };
   }
 }
 
@@ -119,9 +129,7 @@ export function checkAccuracy(dir: string): Check[] {
   // 1. References valid — do paths referenced in config exist on disk?
   const refs = validateReferences(dir);
   const refRatio = refs.total > 0 ? refs.valid.length / refs.total : 0;
-  const refPoints = refs.total === 0
-    ? 0
-    : Math.round(refRatio * POINTS_REFERENCES_VALID);
+  const refPoints = refs.total === 0 ? 0 : Math.round(refRatio * POINTS_REFERENCES_VALID);
 
   checks.push({
     id: 'references_valid',
@@ -130,27 +138,31 @@ export function checkAccuracy(dir: string): Check[] {
     maxPoints: POINTS_REFERENCES_VALID,
     earnedPoints: refPoints,
     passed: refs.total === 0 ? false : refRatio >= 0.8,
-    detail: refs.total === 0
-      ? 'No file references found in config'
-      : `${refs.valid.length}/${refs.total} references verified`,
-    suggestion: refs.invalid.length > 0
-      ? `These references don't exist: ${refs.invalid.slice(0, 3).join(', ')}${refs.invalid.length > 3 ? ` (+${refs.invalid.length - 3} more)` : ''}`
-      : refs.total === 0
-        ? 'Add file path references to make your config grounded in the project'
-        : undefined,
-    fix: refs.invalid.length > 0
-      ? {
-          action: 'fix_references',
-          data: { invalid: refs.invalid.slice(0, 10), valid: refs.valid.slice(0, 10) },
-          instruction: `Remove or update these non-existent paths: ${refs.invalid.slice(0, 5).join(', ')}`,
-        }
-      : refs.total === 0
+    detail:
+      refs.total === 0
+        ? 'No file references found in config'
+        : `${refs.valid.length}/${refs.total} references verified`,
+    suggestion:
+      refs.invalid.length > 0
+        ? `These references don't exist: ${refs.invalid.slice(0, 3).join(', ')}${refs.invalid.length > 3 ? ` (+${refs.invalid.length - 3} more)` : ''}`
+        : refs.total === 0
+          ? 'Add file path references to make your config grounded in the project'
+          : undefined,
+    fix:
+      refs.invalid.length > 0
         ? {
-            action: 'add_references',
-            data: { currentRefs: 0 },
-            instruction: 'Add file path references (e.g., `src/index.ts`) to ground the config in the project.',
+            action: 'fix_references',
+            data: { invalid: refs.invalid.slice(0, 10), valid: refs.valid.slice(0, 10) },
+            instruction: `Remove or update these non-existent paths: ${refs.invalid.slice(0, 5).join(', ')}`,
           }
-        : undefined,
+        : refs.total === 0
+          ? {
+              action: 'add_references',
+              data: { currentRefs: 0 },
+              instruction:
+                'Add file path references (e.g., `src/index.ts`) to ground the config in the project.',
+            }
+          : undefined,
   });
 
   // 2. Config drift — has code changed since last config update? (git-based)
@@ -185,16 +197,21 @@ export function checkAccuracy(dir: string): Check[] {
         : drift.commitsSinceConfigUpdate === 0
           ? 'Config is up to date with latest commits'
           : `${drift.commitsSinceConfigUpdate} commit${drift.commitsSinceConfigUpdate === 1 ? '' : 's'} since last config update`,
-    suggestion: drift.commitsSinceConfigUpdate > 15
-      ? `Code has had ${drift.commitsSinceConfigUpdate} commits since last config update — run \`${resolveCaliber()} refresh\` to sync`
-      : undefined,
-    fix: drift.commitsSinceConfigUpdate > 15
-      ? {
-          action: 'refresh_config',
-          data: { commitsSince: drift.commitsSinceConfigUpdate, lastConfigCommit: drift.lastConfigCommit },
-          instruction: `Config is ${drift.commitsSinceConfigUpdate} commits behind. Review recent changes and update config accordingly.`,
-        }
-      : undefined,
+    suggestion:
+      drift.commitsSinceConfigUpdate > 15
+        ? `Code has had ${drift.commitsSinceConfigUpdate} commits since last config update — run \`${displayCaliberName()} refresh\` to sync`
+        : undefined,
+    fix:
+      drift.commitsSinceConfigUpdate > 15
+        ? {
+            action: 'refresh_config',
+            data: {
+              commitsSince: drift.commitsSinceConfigUpdate,
+              lastConfigCommit: drift.lastConfigCommit,
+            },
+            instruction: `Config is ${drift.commitsSinceConfigUpdate} commits behind. Review recent changes and update config accordingly.`,
+          }
+        : undefined,
   });
 
   return checks;
