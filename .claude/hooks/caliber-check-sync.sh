@@ -3,6 +3,11 @@
 if [ "$CALIBER_SUBPROCESS" = "1" ] || [ -n "$CALIBER_SPAWNED" ]; then
   exit 0
 fi
+# Caliber only applies to git repos. Skip the nudge when there's no git context
+# (e.g. .claude/ shipped into a non-git directory, scratch dirs, model archives).
+if ! git rev-parse --git-dir >/dev/null 2>&1; then
+  exit 0
+fi
 if grep -q "caliber" .git/hooks/pre-commit 2>/dev/null; then
   exit 0
 fi

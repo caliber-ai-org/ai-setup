@@ -8,6 +8,10 @@ const SCRIPT = path.resolve(process.cwd(), '.claude/hooks/caliber-check-sync.sh'
 
 function makeTmpDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-hooks-test-'));
+  // `git init -q` makes it a real repo so `git rev-parse --git-dir` succeeds.
+  // The hook now early-exits when not in a git repo, so a bare `.git/hooks/`
+  // skeleton is no longer enough — we need an actual repository.
+  spawnSync('git', ['init', '-q'], { cwd: dir });
   fs.mkdirSync(path.join(dir, '.git', 'hooks'), { recursive: true });
   return dir;
 }
@@ -39,6 +43,20 @@ describe('caliber-check-sync.sh', () => {
       for (const f of files) fs.unlinkSync(path.join(os.tmpdir(), f));
     } catch {
       // best-effort
+    }
+  });
+
+  it('exits 0 silently when the directory is not a git repo', () => {
+    // Common case: a `.claude/` directory was generated in a non-git directory
+    // (scratch dir, model archive, etc.). Caliber refresh won't run there
+    // anyway, so the nudge is just noise — must not fire.
+    const nonGitDir = fs.mkdtempSync(path.join(os.tmpdir(), 'caliber-nogit-'));
+    try {
+      const { status, stdout } = runScript(nonGitDir);
+      expect(status).toBe(0);
+      expect(stdout).not.toContain('"decision":"block"');
+    } finally {
+      fs.rmSync(nonGitDir, { recursive: true, force: true });
     }
   });
 
