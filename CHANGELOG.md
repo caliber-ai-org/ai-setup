@@ -1,3 +1,13 @@
+## v1.49.2 (2026-04-30)
+
+### Bug Fixes (install audit batch 2)
+
+- **refresh, learn**: skip silently when `--quiet` / `--auto` and inside a user-initiated Claude Code session (`CLAUDECODE=1` && `!CALIBER_SUBPROCESS`). Eliminates the "Hook cancelled" stderr noise + ~15s latency on every interactive `claude -p` in a Caliber-equipped repo. (F-P0-9)
+- **writers**: managed-block injection (CLAUDE.md, AGENTS.md, copilot-instructions.md, cursor rules) now detects unmarked inlined sections and skips re-adding them. Eliminates ~50 lines of duplicate content per CLAUDE.md after init. (F-P0-10)
+- **generate**: bump default `CALIBER_STREAM_INACTIVITY_TIMEOUT_MS` from 120000 → 300000. Surface env-var hint at 60s of silence instead of waiting for the hard timeout. Fixes "Model produced no output" failures on large-prompt repos (caliber-dogfood scale, ~300 files). (F-P0-2)
+
+These complete fixes #2, #9, and #10 from the install audit P0 list. Combined with v1.49.0, six of the eight verified P0s are now resolved (F-P0-6 was indirectly fixed by v1.49.0's hook auto-upgrade). See `docs/superpowers/specs/2026-04-29-caliber-install-audit-findings.md` for the full findings list and the v1.49.0 correction note for F-P0-7/8/11.
+
 ## v1.49.1 (2026-04-29)
 
 ### Other
