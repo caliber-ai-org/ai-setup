@@ -601,3 +601,173 @@ describe('SessionEnd hook command', () => {
     }
   });
 });
+
+describe('pre-commit hook version marker (F-P0-4)', () => {
+  let originalArgv: string[];
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(async () => {
+    originalArgv = [...process.argv];
+    originalEnv = { ...process.env };
+    process.argv[1] = '/usr/local/bin/caliber';
+    delete process.env.npm_execpath;
+    const { resetResolvedCaliber } = await import('../resolve-caliber.js');
+    resetResolvedCaliber();
+  });
+
+  afterEach(() => {
+    process.argv = originalArgv;
+    process.env = originalEnv;
+    vi.restoreAllMocks();
+    vi.resetModules();
+  });
+
+  function setupTmpRepo(): { tmpDir: string; hooksDir: string; gitDir: string } {
+    const tmpDir = makeTmpDir();
+    const gitDir = path.join(tmpDir, '.git');
+    const hooksDir = path.join(gitDir, 'hooks');
+    fs.mkdirSync(hooksDir, { recursive: true });
+    mockedExecSync.mockImplementation((cmd: string) => {
+      if (typeof cmd === 'string' && (cmd.includes('which') || cmd.includes('where'))) {
+        return '/usr/local/bin/caliber\n';
+      }
+      return `${gitDir}\n`;
+    });
+    return { tmpDir, hooksDir, gitDir };
+  }
+
+  it('installs current-version hook when none present', async () => {
+    const { installPreCommitHook, isPreCommitHookCurrent } = await import('../hooks.js');
+    const { tmpDir, hooksDir } = setupTmpRepo();
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      const result = installPreCommitHook();
+      expect(result.installed).toBe(true);
+      expect(result.upgraded).toBe(false);
+      expect(isPreCommitHookCurrent()).toBe(true);
+      const content = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
+      expect(content).toContain('# caliber:pre-commit:v2:start');
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('reports alreadyInstalled when current-version hook present', async () => {
+    const { installPreCommitHook } = await import('../hooks.js');
+    const { tmpDir } = setupTmpRepo();
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      installPreCommitHook();
+      const result = installPreCommitHook();
+      expect(result.alreadyInstalled).toBe(true);
+      expect(result.upgraded).toBe(false);
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('detects legacy unversioned hook as installed-but-stale', async () => {
+    const { isPreCommitHookInstalled, isPreCommitHookCurrent } = await import('../hooks.js');
+    const { tmpDir, hooksDir } = setupTmpRepo();
+    const hookPath = path.join(hooksDir, 'pre-commit');
+    fs.writeFileSync(
+      hookPath,
+      '#!/bin/sh\n\n# caliber:pre-commit:start\nold body\n# caliber:pre-commit:end\n',
+    );
+    fs.chmodSync(hookPath, 0o755);
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      expect(isPreCommitHookInstalled()).toBe(true);
+      expect(isPreCommitHookCurrent()).toBe(false);
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('upgrades a legacy unversioned hook to current version', async () => {
+    const { installPreCommitHook } = await import('../hooks.js');
+    const { tmpDir, hooksDir } = setupTmpRepo();
+    const hookPath = path.join(hooksDir, 'pre-commit');
+    fs.writeFileSync(
+      hookPath,
+      '#!/bin/sh\n\n# caliber:pre-commit:start\nold body that uses old refresh flags\n# caliber:pre-commit:end\n',
+    );
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      const result = installPreCommitHook();
+      expect(result.upgraded).toBe(true);
+      expect(result.installed).toBe(false);
+      expect(result.alreadyInstalled).toBe(false);
+
+      const newContent = fs.readFileSync(hookPath, 'utf-8');
+      expect(newContent).toContain('# caliber:pre-commit:v2:start');
+      expect(newContent).not.toContain('old body that uses old refresh flags');
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves non-caliber hook content during upgrade', async () => {
+    const { installPreCommitHook } = await import('../hooks.js');
+    const { tmpDir, hooksDir } = setupTmpRepo();
+    const hookPath = path.join(hooksDir, 'pre-commit');
+    fs.writeFileSync(
+      hookPath,
+      '#!/bin/sh\n\n# caliber:pre-commit:start\nold body\n# caliber:pre-commit:end\n\n# someone-else gitleaks\ngitleaks detect --no-banner\n',
+    );
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      installPreCommitHook();
+      const newContent = fs.readFileSync(hookPath, 'utf-8');
+      expect(newContent).toContain('gitleaks detect --no-banner');
+      expect(newContent).toContain('# caliber:pre-commit:v2:start');
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('removePreCommitHook removes legacy unversioned blocks', async () => {
+    const { removePreCommitHook } = await import('../hooks.js');
+    const { tmpDir, hooksDir } = setupTmpRepo();
+    const hookPath = path.join(hooksDir, 'pre-commit');
+    fs.writeFileSync(
+      hookPath,
+      '#!/bin/sh\n\n# caliber:pre-commit:start\nold body\n# caliber:pre-commit:end\n',
+    );
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      const result = removePreCommitHook();
+      expect(result.removed).toBe(true);
+      expect(fs.existsSync(hookPath)).toBe(false);
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('removePreCommitHook removes versioned blocks', async () => {
+    const { installPreCommitHook, removePreCommitHook } = await import('../hooks.js');
+    const { tmpDir } = setupTmpRepo();
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      installPreCommitHook();
+      const result = removePreCommitHook();
+      expect(result.removed).toBe(true);
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});

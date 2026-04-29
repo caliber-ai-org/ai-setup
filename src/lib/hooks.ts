@@ -266,8 +266,20 @@ export const removeNotificationHook = notificationHook.remove;
 
 // ── Pre-commit hook ──────────────────────────────────────────────────
 
-const PRECOMMIT_START = '# caliber:pre-commit:start';
-const PRECOMMIT_END = '# caliber:pre-commit:end';
+// Hook block version marker. Bumped when the hook script content changes
+// in a way that benefits existing users (new managed-doc paths, stderr
+// logging, refresh-failure visibility, etc.). installPreCommitHook()
+// detects mismatched versions and re-installs so users on stale caliber
+// versions get hook upgrades.
+//
+// Audit finding: F-P0-4 in
+// docs/superpowers/specs/2026-04-29-caliber-install-audit-findings.md
+const HOOK_BLOCK_VERSION = 'v2';
+const PRECOMMIT_START = `# caliber:pre-commit:${HOOK_BLOCK_VERSION}:start`;
+const PRECOMMIT_END = `# caliber:pre-commit:${HOOK_BLOCK_VERSION}:end`;
+const PRECOMMIT_ANY_VERSION_START_RE = /^#\s*caliber:pre-commit:(?:[a-zA-Z0-9_.-]+:)?start\s*$/m;
+const PRECOMMIT_ANY_VERSION_BLOCK_RE =
+  /\n?#\s*caliber:pre-commit:(?:[a-zA-Z0-9_.-]+:)?start[\s\S]*?#\s*caliber:pre-commit:(?:[a-zA-Z0-9_.-]+:)?end\n?/g;
 
 /**
  * On Windows, when caliber resolves to a `.cmd` shim (npm's default global
@@ -397,36 +409,61 @@ function getPreCommitPath(): string | null {
   return hooksDir ? path.join(hooksDir, 'pre-commit') : null;
 }
 
+/** True when ANY caliber pre-commit block is present (any version, including legacy unversioned). */
 export function isPreCommitHookInstalled(): boolean {
+  const hookPath = getPreCommitPath();
+  if (!hookPath || !fs.existsSync(hookPath)) return false;
+  const content = fs.readFileSync(hookPath, 'utf-8');
+  return PRECOMMIT_ANY_VERSION_START_RE.test(content);
+}
+
+/** True only when the installed block matches the current HOOK_BLOCK_VERSION. */
+export function isPreCommitHookCurrent(): boolean {
   const hookPath = getPreCommitPath();
   if (!hookPath || !fs.existsSync(hookPath)) return false;
   const content = fs.readFileSync(hookPath, 'utf-8');
   return content.includes(PRECOMMIT_START);
 }
 
-export function installPreCommitHook(): { installed: boolean; alreadyInstalled: boolean } {
-  if (isPreCommitHookInstalled()) {
-    return { installed: false, alreadyInstalled: true };
-  }
-
+export function installPreCommitHook(): {
+  installed: boolean;
+  alreadyInstalled: boolean;
+  upgraded: boolean;
+} {
   const hookPath = getPreCommitPath();
-  if (!hookPath) return { installed: false, alreadyInstalled: false };
+  if (!hookPath) {
+    return { installed: false, alreadyInstalled: false, upgraded: false };
+  }
 
   const hooksDir = path.dirname(hookPath);
   if (!fs.existsSync(hooksDir)) fs.mkdirSync(hooksDir, { recursive: true });
 
-  let content = '';
-  if (fs.existsSync(hookPath)) {
-    content = fs.readFileSync(hookPath, 'utf-8');
+  const exists = fs.existsSync(hookPath);
+  let content = exists ? fs.readFileSync(hookPath, 'utf-8') : '';
+
+  if (PRECOMMIT_ANY_VERSION_START_RE.test(content)) {
+    if (content.includes(PRECOMMIT_START)) {
+      return { installed: false, alreadyInstalled: true, upgraded: false };
+    }
+    // Stale version (legacy unversioned or older vN) — strip and re-install at current version.
+    content = content.replace(PRECOMMIT_ANY_VERSION_BLOCK_RE, '\n').replace(/\n{3,}/g, '\n\n');
+    if (!content.endsWith('\n')) content += '\n';
+    content += '\n' + getPrecommitBlock() + '\n';
+    fs.writeFileSync(hookPath, content);
+    fs.chmodSync(hookPath, 0o755);
+    return { installed: false, alreadyInstalled: false, upgraded: true };
+  }
+
+  // Fresh install
+  if (exists) {
     if (!content.endsWith('\n')) content += '\n';
     content += '\n' + getPrecommitBlock() + '\n';
   } else {
     content = '#!/bin/sh\n\n' + getPrecommitBlock() + '\n';
   }
-
   fs.writeFileSync(hookPath, content);
   fs.chmodSync(hookPath, 0o755);
-  return { installed: true, alreadyInstalled: false };
+  return { installed: true, alreadyInstalled: false, upgraded: false };
 }
 
 export function removePreCommitHook(): { removed: boolean; notFound: boolean } {
@@ -436,12 +473,11 @@ export function removePreCommitHook(): { removed: boolean; notFound: boolean } {
   }
 
   let content = fs.readFileSync(hookPath, 'utf-8');
-  if (!content.includes(PRECOMMIT_START)) {
+  if (!PRECOMMIT_ANY_VERSION_START_RE.test(content)) {
     return { removed: false, notFound: true };
   }
 
-  const regex = new RegExp(`\\n?${PRECOMMIT_START}[\\s\\S]*?${PRECOMMIT_END}\\n?`);
-  content = content.replace(regex, '\n');
+  content = content.replace(PRECOMMIT_ANY_VERSION_BLOCK_RE, '\n').replace(/\n{3,}/g, '\n\n');
 
   // If only the shebang remains, remove the file entirely
   if (content.trim() === '#!/bin/sh' || content.trim() === '') {

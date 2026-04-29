@@ -257,6 +257,8 @@ export async function initCommand(options: InitOptions) {
   const hookResult = installPreCommitHook();
   if (hookResult.installed) {
     console.log(`  ${chalk.green('✓')} Pre-commit hook installed — configs sync on every commit`);
+  } else if (hookResult.upgraded) {
+    console.log(`  ${chalk.green('✓')} Pre-commit hook — upgraded to latest version`);
   } else if (hookResult.alreadyInstalled) {
     console.log(`  ${chalk.green('✓')} Pre-commit hook — active`);
   }

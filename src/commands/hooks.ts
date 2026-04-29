@@ -21,7 +21,7 @@ interface HookDef {
   label: string;
   description: string;
   isInstalled: () => boolean;
-  install: () => { installed: boolean; alreadyInstalled: boolean };
+  install: () => { installed: boolean; alreadyInstalled: boolean; upgraded?: boolean };
   remove: () => { removed: boolean; notFound: boolean };
 }
 
@@ -87,7 +87,9 @@ export async function hooksCommand(options: { install?: boolean; remove?: boolea
   if (options.install) {
     for (const hook of HOOKS) {
       const result = hook.install();
-      if (result.alreadyInstalled) {
+      if (result.upgraded) {
+        console.log(chalk.green('  ✓') + ` ${hook.label} upgraded to latest version`);
+      } else if (result.alreadyInstalled) {
         console.log(chalk.dim(`  ${hook.label} already enabled.`));
       } else {
         console.log(chalk.green('  ✓') + ` ${hook.label} enabled`);
