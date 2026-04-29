@@ -51,3 +51,27 @@ export function withCaliberSubprocessEnv<T extends NodeJS.ProcessEnv>(env: T): T
     [CALIBER_SUBPROCESS_LEGACY_ENV]: '1',
   };
 }
+
+/**
+ * True when this caliber invocation is firing as a SessionEnd / hook
+ * cascade from inside an unrelated (user-initiated) Claude Code session.
+ *
+ * Specifically: we're inside a Claude Code session (CLAUDECODE=1) that
+ * caliber did NOT spawn (CALIBER_SUBPROCESS != 1). In that situation
+ * the user's `claude -p` triggered our SessionEnd hook, which invoked
+ * `caliber refresh --quiet` (or `caliber learn finalize --auto`).
+ * Doing real LLM work here would spawn ANOTHER claude session, which
+ * Claude Code's hook timeout cancels mid-cascade, producing visible
+ * "Hook cancelled" stderr noise on every interactive `claude -p`
+ * the user runs in a Caliber-equipped repo.
+ *
+ * Hook entry points should call this first and exit 0 if true.
+ *
+ * Audit finding: F-P0-9 in
+ * docs/superpowers/specs/2026-04-29-caliber-install-audit-findings.md
+ */
+export function isHookCascadeFromUserClaudeSession(): boolean {
+  const inClaudeSession = process.env.CLAUDECODE === '1';
+  const isCaliberSpawned = process.env[CALIBER_SUBPROCESS_ENV] === '1';
+  return inClaudeSession && !isCaliberSpawned;
+}

@@ -3,6 +3,7 @@ import {
   CALIBER_SUBPROCESS_ENV,
   CALIBER_SUBPROCESS_LEGACY_ENV,
   isCaliberSubprocess,
+  isHookCascadeFromUserClaudeSession,
   withCaliberSubprocessEnv,
 } from '../subprocess-sentinel.js';
 
@@ -91,6 +92,34 @@ describe('subprocess-sentinel', () => {
       expect(env.FOO).toBeUndefined();
       expect(env.BAR).toBe('set');
       expect(env[CALIBER_SUBPROCESS_ENV]).toBe('1');
+    });
+  });
+
+  describe('isHookCascadeFromUserClaudeSession (F-P0-9)', () => {
+    beforeEach(() => {
+      delete process.env.CLAUDECODE;
+      delete process.env[CALIBER_SUBPROCESS_ENV];
+      delete process.env[CALIBER_SUBPROCESS_LEGACY_ENV];
+    });
+
+    it('returns false when not in any claude session', () => {
+      expect(isHookCascadeFromUserClaudeSession()).toBe(false);
+    });
+
+    it('returns true when in a user-initiated claude session (CLAUDECODE=1, no CALIBER_SUBPROCESS)', () => {
+      process.env.CLAUDECODE = '1';
+      expect(isHookCascadeFromUserClaudeSession()).toBe(true);
+    });
+
+    it('returns false when in a caliber-spawned claude session (CLAUDECODE=1 + CALIBER_SUBPROCESS=1)', () => {
+      process.env.CLAUDECODE = '1';
+      process.env[CALIBER_SUBPROCESS_ENV] = '1';
+      expect(isHookCascadeFromUserClaudeSession()).toBe(false);
+    });
+
+    it('returns false when CALIBER_SUBPROCESS=1 even without CLAUDECODE', () => {
+      process.env[CALIBER_SUBPROCESS_ENV] = '1';
+      expect(isHookCascadeFromUserClaudeSession()).toBe(false);
     });
   });
 });
