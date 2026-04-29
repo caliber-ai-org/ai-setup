@@ -1,0 +1,3019 @@
+
+   ██████╗ █████╗ ██╗     ██╗██████╗ ███████╗██████╗
+  ██╔════╝██╔══██╗██║     ██║██╔══██╗██╔════╝██╔══██╗
+  ██║     ███████║██║     ██║██████╔╝█████╗  ██████╔╝
+  ██║     ██╔══██║██║     ██║██╔══██╗██╔══╝  ██╔══██╗
+  ╚██████╗██║  ██║███████╗██║██████╔╝███████╗██║  ██║
+   ╚═════╝╚═╝  ╚═╝╚══════╝╚═╝╚═════╝ ╚══════╝╚═╝  ╚═╝
+  
+  Keep your AI agent configs in sync — automatically.
+  Works across Claude Code, Cursor, Codex, and GitHub Copilot.
+
+  How it works:
+
+  1. Connect    Link your LLM provider and select your agents
+  2. Setup      Detect stack, install sync hooks & skills
+  3. Generate   Audit existing config or generate from scratch
+  4. Finalize   Review changes and score your setup
+
+  Step 1/3 — Connect
+
+  Provider: claude-cli | Model: claude-opus-4-7[1m] | Scan: claude-haiku-4-5@20251001
+
+  Target: claude, cursor, github-copilot
+
+  Step 2/4 — Setup
+
+  Installing sync infrastructure...
+
+  ✓ Pre-commit hook — active
+  ✓ Onboarding hook — nudges new team members to set up
+  ✓ Freshness hook — warns when configs are stale
+  ✓ Agent skills installed — /setup-caliber, /find-skills, /save-learning
+  ✓ Session learning enabled
+
+  New team members can run /setup-caliber inside their coding agent
+  (Claude Code or Cursor) to get set up automatically.
+
+  Current config score:
+
+  88/100 (Grade A)  ·  Claude Code + Cursor + github-copilot  ·  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░
+  ✗ Copilot instructions exist
+  ✗ MCP servers configured
+  ✗ Learned content present
+  ✗ Model & effort pinned
+  ✗ External sources configured
+
+  Run /Users/alonpe/.nvm/versions/node/v24.14.0/bin/caliber score for details.
+
+
+  Step 3/4 — Generate
+
+  Using claude-opus-4-7[1m] for docs, claude-haiku-4-5@20251001 for skills
+
+[0J    [○ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ○ Detecting project stack       
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        0s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        1s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        2s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        3s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        4s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        5s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        6s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        7s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠹ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠹ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠸ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠸ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠼ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠼ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠴ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠴ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠦ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠦ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠧ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠧ Detecting project stack        8s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠇ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠇ Detecting project stack        9s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠏ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠏ Detecting project stack        9s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠋ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠋ Detecting project stack        9s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+[8A[0J    [⠙ Scan] → [○ Generate] → [○ Skills] → [○ Validate]
+               ↘ [○ Search] ↗
+    ───────────────────────────────────────────────────────
+    ⠙ Detecting project stack        9s
+    ├─ ○ Generating configs         
+    │  └─ ○ Generating skills       
+    └─ ○ Searching community skills 
+    ○ Validating & refining config  
+
+⚠  1 large file may bloat your AI context window
+   • /private/tmp/caliber-audit/caliber-dogfood/assets/demo-header.gif  (4.41 MB)
+   Add them to .gitignore or .caliberignore to keep context lean.
+
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 0s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Searching skill registries... 0s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 1s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Searching skill registries... 1s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Searching skill registries... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 2s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 2s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 3s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 3s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 4s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 4s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 5s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 5s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 6s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 6s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 7s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 7s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 8s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 8s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 9s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 9s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 10s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 10s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 11s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Scoring 11 candidates... 11s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Scoring 11 candidates... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Scoring 11 candidates... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Scoring 11 candidates... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Scoring 11 candidates... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Scoring 11 candidates... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Scoring 11 candidates... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Scoring 11 candidates... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Fetching skill content... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Fetching skill content... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Fetching skill content... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Fetching skill content... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 12s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Fetching skill content... 12s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠇ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠇ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠏ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠏ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠋ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠋ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠙ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠙ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠹ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠹ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠸ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠸ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠼ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 13s
+    │  └─ ○ Generating skills       
+    └─ ⠼ Searching community skills Fetching skill content... 13s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠴ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ⠴ Searching community skills Fetching skill content... 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠦ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ⠦ Searching community skills Fetching skill content... 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [⠧ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ⠧ Searching community skills Fetching skill content... 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 14s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 15s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 16s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 17s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 18s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠇ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠇ Generating configs         Evaluating baseline checks... 19s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠏ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠏ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠋ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠋ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠙ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠙ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠹ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠹ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠸ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠸ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠼ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠼ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠴ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠴ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠦ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠦ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [⠧ Generate] → [○ Skills] → [○ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ⠧ Generating configs         Evaluating baseline checks... 20s
+    │  └─ ○ Generating skills       
+    └─ ✓ Searching community skills No matches 14s
+    ○ Validating & refining config  
+[8A[0J    [✓ Scan] → [✗ Generate] → [✗ Skills] → [✗ Validate]
+               ↘ [✓ Search] ↗
+    ───────────────────────────────────────────────────────
+    ✓ Detecting project stack       no languages 9s
+    ├─ ✗ Generating configs         Model responded but output was… 20s
+    │  └─ ✗ Generating skills       Skipped
+    └─ ✓ Searching community skills No matches 14s
+    ✗ Validating & refining config  No config to validate
+
+  Done in 30s
+
+  Failed to generate config.
+
+  Error log written to .caliber/error-log.md
+
+Raw LLM output (JSON parse failed):
+Claude CLI exited with code 1. Not logged in. Run the login command for your provider to re-authenticate.
