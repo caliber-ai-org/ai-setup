@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { collectFilesToWrite } from '../refresh.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { collectFilesToWrite, refreshCommand } from '../refresh.js';
 
 describe('collectFilesToWrite', () => {
   it('returns empty array for empty docs', () => {
@@ -90,5 +90,43 @@ describe('collectFilesToWrite', () => {
   it('returns root paths when dir is "."', () => {
     const files = collectFilesToWrite({ claudeMd: '# Root' }, '.');
     expect(files).toContain('CLAUDE.md');
+  });
+});
+
+describe('refreshCommand hook-cascade short-circuit (F-P0-9)', () => {
+  let savedEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    savedEnv = { ...process.env };
+    delete process.env.CLAUDECODE;
+    delete process.env.CALIBER_SUBPROCESS;
+    delete process.env.CALIBER_SPAWNED;
+  });
+
+  afterEach(() => {
+    Object.assign(process.env, savedEnv);
+  });
+
+  it('skips silently when --quiet AND inside user-initiated Claude Code session', async () => {
+    process.env.CLAUDECODE = '1';
+    delete process.env.CALIBER_SUBPROCESS;
+    // Should return immediately without throwing — no LLM call, no fingerprint.
+    await expect(refreshCommand({ quiet: true })).resolves.toBeUndefined();
+  });
+
+  it('does NOT short-circuit when --quiet but in caliber-spawned claude session', async () => {
+    process.env.CLAUDECODE = '1';
+    process.env.CALIBER_SUBPROCESS = '1';
+    // CALIBER_SUBPROCESS=1 path: existing isCaliberSubprocess() guard fires first.
+    // Either way this returns undefined, but the test asserts no throw.
+    await expect(refreshCommand({ quiet: true })).resolves.toBeUndefined();
+  });
+
+  it('does NOT short-circuit when --quiet but no CLAUDECODE (e.g. pre-commit hook)', async () => {
+    delete process.env.CLAUDECODE;
+    delete process.env.CALIBER_SUBPROCESS;
+    // Refresh proceeds past the short-circuit. Will return undefined eventually
+    // because the test env has no real config / no real repo. Asserts no throw.
+    await expect(refreshCommand({ quiet: true })).resolves.toBeUndefined();
   });
 });

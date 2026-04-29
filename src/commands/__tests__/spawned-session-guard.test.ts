@@ -18,6 +18,12 @@ describe('spawned-session guard (CALIBER_SUBPROCESS=1)', () => {
   beforeEach(() => {
     originalEnv = { ...process.env };
     vi.resetModules();
+    // F-P0-9 (added in v1.49.1): refresh/finalize also short-circuit when
+    // CLAUDECODE=1 + !CALIBER_SUBPROCESS (user-initiated claude -p session).
+    // These tests pre-date that check and exercise the CALIBER_SUBPROCESS guard
+    // in isolation. Clear CLAUDECODE so the new guard doesn't fire and mask
+    // what we're trying to test here.
+    delete process.env.CLAUDECODE;
   });
 
   afterEach(() => {

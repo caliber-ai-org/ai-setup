@@ -14,7 +14,10 @@ import { loadConfig } from '../llm/config.js';
 import { validateModel, TRANSIENT_ERRORS } from '../llm/index.js';
 import { trackRefreshCompleted } from '../telemetry/events.js';
 import { displayCaliberName } from '../lib/resolve-caliber.js';
-import { isCaliberSubprocess } from '../lib/subprocess-sentinel.js';
+import {
+  isCaliberSubprocess,
+  isHookCascadeFromUserClaudeSession,
+} from '../lib/subprocess-sentinel.js';
 import { resolveAllSources } from '../fingerprint/sources.js';
 import { getDetectedWorkspaces } from '../fingerprint/cache.js';
 import { ensureBuiltinSkills } from '../lib/builtin-skills.js';
@@ -438,6 +441,14 @@ export async function refreshCommand(options: RefreshOptions) {
   // this guard the SessionEnd hooks cascade: each spawns another claude -p which
   // fires the same hooks again until Claude Code times one out → "Hook cancelled".
   if (quiet && isCaliberSubprocess()) return;
+
+  // F-P0-9: when --quiet, also skip if we detect we're firing as a SessionEnd
+  // hook inside a user-initiated `claude -p`. The hook would otherwise spawn
+  // ANOTHER claude session for the LLM call, which Claude Code's hook timeout
+  // cancels mid-cascade — producing visible "Hook cancelled" stderr noise on
+  // every interactive claude -p the user runs in a caliber-equipped repo.
+  // The user can still run `caliber refresh` (no --quiet) for an explicit refresh.
+  if (quiet && isHookCascadeFromUserClaudeSession()) return;
 
   // Skip if another caliber process is already running (e.g. hook fired mid-session)
   if (quiet) {
