@@ -111,6 +111,24 @@ export function isNpxResolution(): boolean {
   return NPX_RESOLUTION_RE.test(r);
 }
 
+/**
+ * Returns a display-friendly caliber binary name for embedding in
+ * user-facing text and committed files (CLAUDE.md, skills, cursor rules).
+ *
+ * Unlike resolveCaliber() — which returns an absolute path so hook
+ * subprocesses with stripped PATH can still find the binary — this
+ * function returns just `caliber` (or `npx @rely-ai/caliber` for npx
+ * users) on the assumption that the user's interactive shell has caliber
+ * on PATH and that committed content will be read by teammates whose
+ * absolute install paths differ.
+ *
+ * See audit finding F-P0-3 in
+ * docs/superpowers/specs/2026-04-29-caliber-install-audit-findings.md
+ */
+export function displayCaliberName(): string {
+  return isNpxResolution() ? 'npx @rely-ai/caliber' : 'caliber';
+}
+
 /** Reset cached resolution — only for tests. */
 export function resetResolvedCaliber(): void {
   _resolved = null;

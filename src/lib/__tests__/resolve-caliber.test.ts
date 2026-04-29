@@ -5,6 +5,7 @@ import {
   resetResolvedCaliber,
   isCaliberCommand,
   pickExecutable,
+  displayCaliberName,
 } from '../resolve-caliber.js';
 import { execSync } from 'child_process';
 
@@ -267,5 +268,48 @@ describe('isCaliberCommand', () => {
 
   it('does not match unrelated commands', () => {
     expect(isCaliberCommand('npm run refresh --quiet', 'refresh --quiet')).toBe(false);
+  });
+});
+
+describe('displayCaliberName (F-P0-3)', () => {
+  let originalArgv: string[];
+  let originalEnv: NodeJS.ProcessEnv;
+
+  beforeEach(() => {
+    resetResolvedCaliber();
+    originalArgv = [...process.argv];
+    originalEnv = { ...process.env };
+  });
+
+  afterEach(() => {
+    process.argv = originalArgv;
+    process.env = originalEnv;
+    resetResolvedCaliber();
+    vi.restoreAllMocks();
+  });
+
+  it('returns "caliber" for global install (no npx)', () => {
+    process.argv[1] = '/usr/local/bin/caliber';
+    delete process.env.npm_execpath;
+    mockedExecSync.mockReturnValue('/Users/someone/.nvm/versions/node/v20/bin/caliber\n');
+    expect(displayCaliberName()).toBe('caliber');
+  });
+
+  it('returns "npx @rely-ai/caliber" when npx resolution is used', () => {
+    process.argv[1] = '/home/user/.npm/_npx/abc/node_modules/.bin/caliber';
+    mockedExecSync.mockImplementation(() => {
+      throw new Error('not found');
+    });
+    expect(displayCaliberName()).toBe('npx @rely-ai/caliber');
+  });
+
+  it('does NOT return an absolute path even when caliber resolves to one', () => {
+    process.argv[1] = '/usr/local/bin/caliber';
+    delete process.env.npm_execpath;
+    mockedExecSync.mockReturnValue('/Users/someone/.nvm/versions/node/v20/bin/caliber\n');
+    const display = displayCaliberName();
+    expect(display).not.toMatch(/^\//);
+    expect(display).not.toContain('.nvm');
+    expect(display).not.toContain('Users');
   });
 });
