@@ -32,6 +32,14 @@ The user's instinct was right. The README rewrite would have polished a flow tha
 
 ## Findings
 
+> **2026-04-29 correction (after closer source review):** Findings F-P0-7, F-P0-8, and F-P0-11 below were based on the explore agent's structural map of `src/ai/generate.ts`, which mischaracterized two failure paths.
+>
+> - **F-P0-7** claimed Phase 1 returns `{}` silently on JSON parse failure. Actual source returns `null` (`src/ai/generate.ts` — see the `try { setup = JSON.parse... } catch {}` block followed by `if (setup) { resolve(...) } else { resolve({ setup: null, ... }) }`). The caller (`init.ts:643`) properly handles `null` and writes the error log.
+> - **F-P0-8** claimed Phase 2 skill failures are swallowed by `Promise.allSettled`. Actual source surfaces failures at both call sites via `callbacks.onStatus` with messages like `"Warning: 2 of 5 skills failed to generate"` (lines 174–186 and 644–655 in `src/ai/generate.ts`).
+> - **F-P0-11** was a derived finding from F-P0-7 + F-P0-8. Since both are non-issues in current source, this is also moot.
+>
+> The corrected findings count: **8 P0** (was 11), 22 P1, 22 P2. The next batch of fixes (PR for `alonp98/install-audit-fixes-2`) addresses F-P0-9 (SessionEnd cascade), F-P0-10 (duplicated CLAUDE.md sections), and F-P0-2 (large-prompt timeout). F-P0-6 was already addressed in v1.49.0 via the hook auto-upgrade (F-P0-4).
+
 ### P0 — Blocks install or causes data-loss-like outcomes
 
 #### F-P0-1: `cleanClaudeEnv()` strips `CLAUDE_CODE_USE_VERTEX`, breaking Vertex-backed auth
