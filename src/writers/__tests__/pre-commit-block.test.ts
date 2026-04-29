@@ -35,8 +35,10 @@ describe('pre-commit-block', () => {
       const { appendPreCommitBlock } = await import('../pre-commit-block.js');
       const result = appendPreCommitBlock('# My Project');
 
-      expect(result).toContain('npx --yes @rely-ai/caliber refresh');
-      expect(result).toContain('npx --yes @rely-ai/caliber refresh && git add');
+      // displayCaliberName uses cleaner 'npx @rely-ai/caliber' (no --yes) for display.
+      // The --yes form is preserved for actual subprocess invocation via resolveCaliber().
+      expect(result).toContain('npx @rely-ai/caliber refresh');
+      expect(result).toContain('npx @rely-ai/caliber refresh && git add');
     });
 
     it('uses bare caliber in doc block when globally installed', async () => {
@@ -147,7 +149,7 @@ describe('pre-commit-block', () => {
       const { getCursorPreCommitRule } = await import('../pre-commit-block.js');
       const rule = getCursorPreCommitRule();
 
-      expect(rule.content).toContain('npx --yes @rely-ai/caliber refresh');
+      expect(rule.content).toContain('npx @rely-ai/caliber refresh');
     });
 
     it('uses bare caliber in Cursor rule when globally installed', async () => {
