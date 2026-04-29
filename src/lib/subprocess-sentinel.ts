@@ -56,14 +56,23 @@ export function withCaliberSubprocessEnv<T extends NodeJS.ProcessEnv>(env: T): T
  * True when this caliber invocation is firing as a SessionEnd / hook
  * cascade from inside an unrelated (user-initiated) Claude Code session.
  *
- * Specifically: we're inside a Claude Code session (CLAUDECODE=1) that
- * caliber did NOT spawn (CALIBER_SUBPROCESS != 1). In that situation
- * the user's `claude -p` triggered our SessionEnd hook, which invoked
- * `caliber refresh --quiet` (or `caliber learn finalize --auto`).
- * Doing real LLM work here would spawn ANOTHER claude session, which
- * Claude Code's hook timeout cancels mid-cascade, producing visible
- * "Hook cancelled" stderr noise on every interactive `claude -p`
- * the user runs in a Caliber-equipped repo.
+ * Three signals must all hold:
+ *   1. We're inside a Claude Code session (`CLAUDECODE=1`).
+ *   2. Caliber did NOT spawn this process (`CALIBER_SUBPROCESS != 1`).
+ *   3. Stdin is NOT a TTY — meaning we were invoked by Claude Code's
+ *      hook runner (which pipes hook context to stdin), not by the user
+ *      typing into a terminal that happens to be inside a Claude Code session.
+ *
+ * #3 disambiguates a manual `caliber refresh --quiet` typed by a power user
+ * in an interactive Claude Code terminal (TTY → run normally) from the
+ * SessionEnd-hook-fired version (no TTY → would cascade → skip silently).
+ *
+ * Without this skip, the user's `claude -p` triggers our SessionEnd hook,
+ * which invokes `caliber refresh --quiet` (or `caliber learn finalize --auto`).
+ * Doing real LLM work here would spawn ANOTHER claude session, which Claude
+ * Code's hook timeout cancels mid-cascade, producing visible "Hook cancelled"
+ * stderr noise on every interactive `claude -p` the user runs in a
+ * Caliber-equipped repo.
  *
  * Hook entry points should call this first and exit 0 if true.
  *
@@ -73,5 +82,6 @@ export function withCaliberSubprocessEnv<T extends NodeJS.ProcessEnv>(env: T): T
 export function isHookCascadeFromUserClaudeSession(): boolean {
   const inClaudeSession = process.env.CLAUDECODE === '1';
   const isCaliberSpawned = process.env[CALIBER_SUBPROCESS_ENV] === '1';
-  return inClaudeSession && !isCaliberSpawned;
+  const isInteractiveTty = process.stdin.isTTY === true;
+  return inClaudeSession && !isCaliberSpawned && !isInteractiveTty;
 }

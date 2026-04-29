@@ -96,17 +96,30 @@ describe('subprocess-sentinel', () => {
   });
 
   describe('isHookCascadeFromUserClaudeSession (F-P0-9)', () => {
+    let originalIsTTY: boolean | undefined;
+
     beforeEach(() => {
       delete process.env.CLAUDECODE;
       delete process.env[CALIBER_SUBPROCESS_ENV];
       delete process.env[CALIBER_SUBPROCESS_LEGACY_ENV];
+      // Default to non-TTY (the hook-runner case). Tests that need to assert
+      // the TTY override flip it explicitly.
+      originalIsTTY = process.stdin.isTTY;
+      Object.defineProperty(process.stdin, 'isTTY', { value: false, configurable: true });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalIsTTY,
+        configurable: true,
+      });
     });
 
     it('returns false when not in any claude session', () => {
       expect(isHookCascadeFromUserClaudeSession()).toBe(false);
     });
 
-    it('returns true when in a user-initiated claude session (CLAUDECODE=1, no CALIBER_SUBPROCESS)', () => {
+    it('returns true when CLAUDECODE=1, no CALIBER_SUBPROCESS, stdin not a TTY (the cascade case)', () => {
       process.env.CLAUDECODE = '1';
       expect(isHookCascadeFromUserClaudeSession()).toBe(true);
     });
@@ -119,6 +132,14 @@ describe('subprocess-sentinel', () => {
 
     it('returns false when CALIBER_SUBPROCESS=1 even without CLAUDECODE', () => {
       process.env[CALIBER_SUBPROCESS_ENV] = '1';
+      expect(isHookCascadeFromUserClaudeSession()).toBe(false);
+    });
+
+    it('returns false when stdin IS a TTY (user manually invoked from terminal inside Claude Code)', () => {
+      // CLAUDECODE=1 + !CALIBER_SUBPROCESS but stdin is TTY → user typed the
+      // command interactively. They want it to run, not silently no-op.
+      process.env.CLAUDECODE = '1';
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
       expect(isHookCascadeFromUserClaudeSession()).toBe(false);
     });
   });

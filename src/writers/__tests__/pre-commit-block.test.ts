@@ -266,6 +266,70 @@ describe('pre-commit-block', () => {
       expect(hasSyncBlock(inlined)).toBe(true);
     });
 
+    it('hasPreCommitBlock returns FALSE when "caliber" is in another section, not under "Before Committing"', async () => {
+      // Reviewer nit on PR #203: scope marker check to text between heading and next `## `.
+      // Here the user has a "## Before Committing" heading documenting their own
+      // pre-commit checks (no caliber), and "caliber" appears in an unrelated
+      // "## Tools We Use" section. Caliber-managed dedup must NOT fire.
+      const { hasPreCommitBlock } = await import('../pre-commit-block.js');
+      const content = `# proj
+
+## Before Committing
+
+Run npm test and lint.
+
+## Tools We Use
+
+We use \`caliber\` for some other purpose, and prettier, eslint, etc.
+`;
+      expect(hasPreCommitBlock(content)).toBe(false);
+    });
+
+    it('hasLearningsBlock returns FALSE when CALIBER_LEARNINGS is mentioned outside the "Session Learnings" section', async () => {
+      const { hasLearningsBlock } = await import('../pre-commit-block.js');
+      const content = `# proj
+
+## Session Learnings
+
+We track lessons in our own format here.
+
+## Tools
+
+The \`CALIBER_LEARNINGS\` env var configures something else.
+`;
+      expect(hasLearningsBlock(content)).toBe(false);
+    });
+
+    it('hasModelBlock returns FALSE when CALIBER_MODEL is mentioned outside "Model Configuration"', async () => {
+      const { hasModelBlock } = await import('../pre-commit-block.js');
+      const content = `# proj
+
+## Model Configuration
+
+We use claude-sonnet-4-6.
+
+## Env Vars
+
+\`CALIBER_MODEL\` is documented here for our internal tools.
+`;
+      expect(hasModelBlock(content)).toBe(false);
+    });
+
+    it('hasSyncBlock returns FALSE when caliber-ai-org link is outside "Context Sync"', async () => {
+      const { hasSyncBlock } = await import('../pre-commit-block.js');
+      const content = `# proj
+
+## Context Sync
+
+We sync via our own internal tooling.
+
+## See Also
+
+[Caliber](https://github.com/caliber-ai-org/ai-setup) is a related project.
+`;
+      expect(hasSyncBlock(content)).toBe(false);
+    });
+
     it('appendManagedBlocks on already-inlined CLAUDE.md is a no-op', async () => {
       const { appendManagedBlocks } = await import('../pre-commit-block.js');
       const inlined = `# proj
