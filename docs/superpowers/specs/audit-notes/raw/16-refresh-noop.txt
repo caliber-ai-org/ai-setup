@@ -1,0 +1,22 @@
+
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+[90m3:29PM[0m [32mINF[0m [1m0 commits scanned.[0m
+[90m3:29PM[0m [32mINF[0m [1mscanned ~1 bytes (1 bytes) in 28.3ms[0m
+[90m3:29PM[0m [32mINF[0m [1mno leaks found[0m
+[2mcaliber: refreshing docs...[0m
+
+Update available: 1.40.4 -> 1.48.2
+Run npm install -g @rely-ai/caliber to upgrade.
+
+
+Update available: 1.40.4 -> 1.48.2
+Run npm install -g @rely-ai/caliber to upgrade.
+
+caliber: skipping finalize — another caliber process is running
+[main 9d0edbb] chore: trailing newline
+ 1 file changed, 1 insertion(+)

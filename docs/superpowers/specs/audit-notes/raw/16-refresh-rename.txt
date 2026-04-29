@@ -1,0 +1,23 @@
+
+    ○
+    │╲
+    │ ○
+    ○ ░
+    ░    gitleaks
+
+[90m3:28PM[0m [32mINF[0m [1m0 commits scanned.[0m
+[90m3:28PM[0m [32mINF[0m [1mscanned ~50 bytes (50 bytes) in 29.1ms[0m
+[90m3:28PM[0m [32mINF[0m [1mno leaks found[0m
+[2mcaliber: refreshing docs...[0m
+
+Update available: 1.40.4 -> 1.48.2
+Run npm install -g @rely-ai/caliber to upgrade.
+
+
+Update available: 1.40.4 -> 1.48.2
+Run npm install -g @rely-ai/caliber to upgrade.
+
+caliber: skipping finalize — another caliber process is running
+[main 2e7cf85] refactor: rename auth -> identity
+ 2 files changed, 1 insertion(+), 1 deletion(-)
+ rename src/{auth.ts => identity.ts} (100%)
