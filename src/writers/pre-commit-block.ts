@@ -1,4 +1,4 @@
-import { resolveCaliber } from '../lib/resolve-caliber.js';
+import { displayCaliberName } from '../lib/resolve-caliber.js';
 import { DEFAULT_MODELS } from '../llm/config.js';
 
 export type ConfigPlatform = 'claude' | 'copilot' | 'codex';
@@ -25,7 +25,7 @@ npx @rely-ai/caliber refresh
 }
 
 function getPreCommitBlock(platform: ConfigPlatform = 'claude'): string {
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   return `${BLOCK_START}
 ## Before Committing
 
@@ -53,7 +53,7 @@ ${BLOCK_END}`;
 const CURSOR_RULE_FILENAME = 'caliber-pre-commit.mdc';
 
 function getCursorRuleContent(): string {
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   return `---
 description: Run Caliber sync before git commits to keep agent configs up to date
 alwaysApply: true
@@ -171,7 +171,7 @@ git add ${MANAGED_DOC_PATHS} 2>/dev/null
 }
 
 function getSyncBlock(platform: ConfigPlatform = 'claude'): string {
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   return `${SYNC_BLOCK_START}
 ## Context Sync
 
@@ -203,7 +203,7 @@ export function appendManagedBlocks(content: string, platform: ConfigPlatform = 
 const CURSOR_SYNC_FILENAME = 'caliber-sync.mdc';
 
 function getCursorSyncContent(): string {
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   return `---
 description: This project uses Caliber for automatic AI agent context sync
 alwaysApply: true

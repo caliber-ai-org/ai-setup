@@ -1,14 +1,18 @@
 import fs from 'fs';
 import path from 'path';
-import { resolveCaliber } from './resolve-caliber.js';
+import { displayCaliberName } from './resolve-caliber.js';
 
-export function buildSkillContent(skill: { name: string; description: string; content: string }): string {
+export function buildSkillContent(skill: {
+  name: string;
+  description: string;
+  content: string;
+}): string {
   const frontmatter = `---\nname: ${skill.name}\ndescription: ${skill.description}\n---\n\n`;
   return frontmatter + skill.content;
 }
 
 function getFindSkillsContent(): string {
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   return `# Find Skills
 
 Search the public skill registry for community-contributed skills
@@ -62,7 +66,7 @@ User: "I need to write tests for this Python ML pipeline"
 }
 
 function getSaveLearningContent(): string {
-  const bin = resolveCaliber();
+  const bin = displayCaliberName();
   return `# Save Learning
 
 Save a user's instruction or preference as a persistent learning that
@@ -124,21 +128,25 @@ User: "never use any in TypeScript, use unknown instead"
 export const FIND_SKILLS_SKILL = {
   name: 'find-skills',
   description:
-    "Discovers and installs community skills from the public registry. " +
-    "Use when the user mentions a technology, framework, or task that could benefit from specialized skills not yet installed, " +
+    'Discovers and installs community skills from the public registry. ' +
+    'Use when the user mentions a technology, framework, or task that could benefit from specialized skills not yet installed, ' +
     "asks 'how do I do X', 'find a skill for X', or starts work in a new technology area. " +
     "Proactively suggest when the user's task involves tools or frameworks without existing skills.",
-  get content() { return getFindSkillsContent(); },
+  get content() {
+    return getFindSkillsContent();
+  },
 };
 
 export const SAVE_LEARNING_SKILL = {
   name: 'save-learning',
   description:
-    "Saves user instructions as persistent learnings for future sessions. " +
+    'Saves user instructions as persistent learnings for future sessions. ' +
     "Use when the user says 'remember this', 'always do X', 'from now on', 'never do Y', " +
-    "or gives any instruction they want persisted across sessions. " +
-    "Proactively suggest when the user states a preference, convention, or rule they clearly want followed in the future.",
-  get content() { return getSaveLearningContent(); },
+    'or gives any instruction they want persisted across sessions. ' +
+    'Proactively suggest when the user states a preference, convention, or rule they clearly want followed in the future.',
+  get content() {
+    return getSaveLearningContent();
+  },
 };
 
 function getSetupCaliberContent(): string {
@@ -353,11 +361,13 @@ From now on, every commit keeps all your agent configs in sync automatically.
 export const SETUP_CALIBER_SKILL = {
   name: 'setup-caliber',
   description:
-    "Sets up Caliber for automatic AI agent context sync. " +
-    "Installs pre-commit hooks so CLAUDE.md, Cursor rules, and Copilot instructions " +
-    "update automatically on every commit. Use when Caliber hooks are not yet installed " +
-    "or when the user asks about keeping agent configs in sync.",
-  get content() { return getSetupCaliberContent(); },
+    'Sets up Caliber for automatic AI agent context sync. ' +
+    'Installs pre-commit hooks so CLAUDE.md, Cursor rules, and Copilot instructions ' +
+    'update automatically on every commit. Use when Caliber hooks are not yet installed ' +
+    'or when the user asks about keeping agent configs in sync.',
+  get content() {
+    return getSetupCaliberContent();
+  },
 };
 
 export const BUILTIN_SKILLS = [FIND_SKILLS_SKILL, SAVE_LEARNING_SKILL, SETUP_CALIBER_SKILL];
@@ -369,7 +379,7 @@ export const PLATFORM_CONFIGS: Array<{ platformDir: string; skillsDir: string }>
   { platformDir: '.opencode', skillsDir: path.join('.opencode', 'skills') },
 ];
 
-export const BUILTIN_SKILL_NAMES = new Set(BUILTIN_SKILLS.map(s => s.name));
+export const BUILTIN_SKILL_NAMES = new Set(BUILTIN_SKILLS.map((s) => s.name));
 
 export function ensureBuiltinSkills(): string[] {
   const written: string[] = [];
