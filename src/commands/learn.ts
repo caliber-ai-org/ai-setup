@@ -52,7 +52,10 @@ import {
   LEARNING_LAST_ERROR_FILE,
 } from '../constants.js';
 import { displayCaliberName } from '../lib/resolve-caliber.js';
-import { isCaliberSubprocess } from '../lib/subprocess-sentinel.js';
+import {
+  isCaliberSubprocess,
+  isHookCascadeFromUserClaudeSession,
+} from '../lib/subprocess-sentinel.js';
 import {
   trackLearnSessionAnalyzed,
   trackLearnROISnapshot,
@@ -216,6 +219,14 @@ export async function learnFinalizeCommand(options?: {
 
   // Skip in caliber-spawned headless sessions to prevent recursive hook execution.
   if (isAuto && isCaliberSubprocess()) return;
+
+  // F-P0-9: when --auto, also skip if we detect we're firing as a SessionEnd
+  // hook inside a user-initiated `claude -p`. Doing real LLM work here would
+  // spawn ANOTHER claude session, which Claude Code's hook timeout cancels —
+  // producing visible "Hook cancelled" stderr noise on every interactive
+  // claude -p the user runs in a caliber-equipped repo. Manual
+  // 'caliber learn finalize' (no --auto) still works.
+  if (isAuto && isHookCascadeFromUserClaudeSession()) return;
 
   if (!options?.force && !isAuto) {
     const { isCaliberRunning } = await import('../lib/lock.js');
