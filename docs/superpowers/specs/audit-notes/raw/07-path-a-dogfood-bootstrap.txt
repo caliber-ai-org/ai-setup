@@ -1,0 +1,16 @@
+
+  Caliber skills installed!
+
+  ✓ .claude/skills/find-skills/SKILL.md
+  ✓ .claude/skills/save-learning/SKILL.md
+  ✓ .claude/skills/setup-caliber/SKILL.md
+  ✓ .cursor/skills/find-skills/SKILL.md
+  ✓ .cursor/skills/save-learning/SKILL.md
+  ✓ .cursor/skills/setup-caliber/SKILL.md
+  ✓ .agents/skills/find-skills/SKILL.md
+  ✓ .agents/skills/save-learning/SKILL.md
+  ✓ .agents/skills/setup-caliber/SKILL.md
+
+  Your agent can now run /setup-caliber to complete the setup.
+  Just tell your agent: "Run /setup-caliber"
+

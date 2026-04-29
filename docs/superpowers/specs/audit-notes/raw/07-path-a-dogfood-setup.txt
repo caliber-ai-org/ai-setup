@@ -1,0 +1,14 @@
+Caliber Setup Complete (solo):
+
+✓ **Caliber installed** (v1.40.4 globally — note: upgrade to 1.48.2 available)
+✓ **Pre-commit hook active** — `caliber refresh` runs on every commit
+✓ **Agent configs present** — CLAUDE.md, AGENTS.md, 5 Cursor rules (`.cursor/rules/*.mdc`), `.claude/`, `.agents/`
+✓ **Config score: 95/100 (A)** — no refresh needed
+✓ **Session learning enabled** — Claude + Cursor hooks installed, 31 events recorded (threshold 25)
+
+Detected agents: claude, cursor, codex (no GitHub Copilot).
+
+From now on, every commit syncs your agent configs automatically. The Stop / SessionEnd / SessionStart / Notification hooks in `.claude/settings.json` keep things observed and refreshed during sessions too.
+
+One thing worth doing soon: `npm install -g @rely-ai/caliber` to upgrade the global binary from 1.40.4 → 1.48.2.
+SessionEnd hook [caliber learn finalize --auto] failed: Hook cancelled
