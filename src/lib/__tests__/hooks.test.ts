@@ -770,4 +770,23 @@ describe('pre-commit hook version marker (F-P0-4)', () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('hook block emits a visible warning when refresh fails (F-P0-5)', async () => {
+    const { installPreCommitHook } = await import('../hooks.js');
+    const { tmpDir, hooksDir } = setupTmpRepo();
+    const origCwd = process.cwd();
+    process.chdir(tmpDir);
+    try {
+      installPreCommitHook();
+      const content = fs.readFileSync(path.join(hooksDir, 'pre-commit'), 'utf-8');
+      expect(content).toMatch(/refresh skipped/i);
+      expect(content).toMatch(/refresh-hook\.log/);
+      // Must redirect to stderr so it survives normal stdout suppression in
+      // git output. The previous '|| true' silenced everything.
+      expect(content).toMatch(/>&2/);
+    } finally {
+      process.chdir(origCwd);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

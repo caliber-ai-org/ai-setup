@@ -385,7 +385,7 @@ function getPrecommitBlock(): string {
 if ${guard}; then
   mkdir -p .caliber
   echo "\\033[2mcaliber: refreshing docs...\\033[0m"
-  ${invoke} refresh --quiet 2>.caliber/refresh-hook.log || true
+  ${invoke} refresh --quiet 2>.caliber/refresh-hook.log || echo "\\033[33mcaliber: refresh skipped — see .caliber/refresh-hook.log\\033[0m" >&2
   ${invoke} learn finalize 2>>.caliber/refresh-hook.log || true
   git diff --name-only -- CLAUDE.md .claude/ .cursor/ AGENTS.md CALIBER_LEARNINGS.md .github/ .agents/ .opencode/ 2>/dev/null | xargs git add 2>/dev/null || true
 fi
