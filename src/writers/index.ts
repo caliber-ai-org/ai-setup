@@ -33,26 +33,27 @@ export function writeSetup(setup: AgentSetup): {
   const backupDir = existingFiles.length > 0 ? createBackup(existingFiles) : undefined;
 
   const written: string[] = [];
+  const activeTargets = setup.targetAgent;
 
   if (setup.targetAgent.includes('claude') && setup.claude) {
-    written.push(...writeClaudeConfig(setup.claude));
+    written.push(...writeClaudeConfig(setup.claude, activeTargets));
   }
 
   if (setup.targetAgent.includes('cursor') && setup.cursor) {
-    written.push(...writeCursorConfig(setup.cursor));
+    written.push(...writeCursorConfig(setup.cursor, activeTargets));
   }
 
   if (setup.targetAgent.includes('codex') && setup.codex) {
-    written.push(...writeCodexConfig(setup.codex));
+    written.push(...writeCodexConfig(setup.codex, activeTargets));
   }
 
   if (setup.targetAgent.includes('opencode') && setup.opencode) {
     const agentsMdAlreadyWritten = written.includes('AGENTS.md');
-    written.push(...writeOpencodeConfig(setup.opencode, agentsMdAlreadyWritten));
+    written.push(...writeOpencodeConfig(setup.opencode, agentsMdAlreadyWritten, activeTargets));
   }
 
   if (setup.targetAgent.includes('github-copilot') && setup.copilot) {
-    written.push(...writeGithubCopilotConfig(setup.copilot));
+    written.push(...writeGithubCopilotConfig(setup.copilot, activeTargets));
   }
 
   const deleted: string[] = [];

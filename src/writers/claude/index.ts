@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { appendManagedBlocks } from '../pre-commit-block.js';
+import { appendManagedBlocks, type WriteTarget } from '../pre-commit-block.js';
 
 interface ClaudeConfig {
   claudeMd: string;
@@ -9,13 +9,13 @@ interface ClaudeConfig {
   mcpServers?: Record<string, { command: string; args?: string[]; env?: Record<string, string> }>;
 }
 
-export function writeClaudeConfig(config: ClaudeConfig): string[] {
+export function writeClaudeConfig(
+  config: ClaudeConfig,
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string[] {
   const written: string[] = [];
 
-  fs.writeFileSync(
-    'CLAUDE.md',
-    appendManagedBlocks(config.claudeMd),
-  );
+  fs.writeFileSync('CLAUDE.md', appendManagedBlocks(config.claudeMd, 'claude', activeTargets));
   written.push('CLAUDE.md');
 
   if (config.rules?.length) {

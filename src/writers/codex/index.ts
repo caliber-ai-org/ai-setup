@@ -1,19 +1,19 @@
 import fs from 'fs';
 import path from 'path';
-import { appendManagedBlocks } from '../pre-commit-block.js';
+import { appendManagedBlocks, type WriteTarget } from '../pre-commit-block.js';
 
 interface CodexConfig {
   agentsMd: string;
   skills?: Array<{ name: string; description: string; content: string }>;
 }
 
-export function writeCodexConfig(config: CodexConfig): string[] {
+export function writeCodexConfig(
+  config: CodexConfig,
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string[] {
   const written: string[] = [];
 
-  fs.writeFileSync(
-    'AGENTS.md',
-    appendManagedBlocks(config.agentsMd, 'codex'),
-  );
+  fs.writeFileSync('AGENTS.md', appendManagedBlocks(config.agentsMd, 'codex', activeTargets));
   written.push('AGENTS.md');
 
   if (config.skills?.length) {

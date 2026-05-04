@@ -99,6 +99,76 @@ describe('pre-commit-block', () => {
       expect(result).toContain('npx @rely-ai/caliber');
       expect(result).toContain('/setup-caliber');
     });
+
+    it('uses only Claude managed paths for Claude-only active targets', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# My Project', 'claude', ['claude']);
+
+      expect(result).toContain(
+        'caliber refresh && git add CLAUDE.md .claude/ CALIBER_LEARNINGS.md 2>/dev/null',
+      );
+      expect(result).not.toContain('.cursor/');
+      expect(result).not.toContain('.cursorrules');
+      expect(result).not.toContain('.github/copilot-instructions.md');
+      expect(result).not.toContain('.github/instructions/');
+      expect(result).not.toContain('AGENTS.md');
+      expect(result).not.toContain('.agents/');
+      expect(result).not.toContain('.opencode/');
+    });
+
+    it('adds Cursor paths when Claude and Cursor are active', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# My Project', 'claude', ['claude', 'cursor']);
+
+      expect(result).toContain(
+        'caliber refresh && git add CLAUDE.md .claude/ CALIBER_LEARNINGS.md .cursor/ .cursorrules 2>/dev/null',
+      );
+      expect(result).not.toContain('.github/copilot-instructions.md');
+      expect(result).not.toContain('.github/instructions/');
+      expect(result).not.toContain('AGENTS.md');
+      expect(result).not.toContain('.agents/');
+      expect(result).not.toContain('.opencode/');
+    });
+
+    it('preserves all managed paths when active targets are not passed', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# My Project', 'claude');
+
+      expect(result).toContain(
+        'caliber refresh && git add CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md .agents/ .opencode/ 2>/dev/null',
+      );
+    });
+
+    it('includes all managed paths when every target is active', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# My Project', 'claude', [
+        'claude',
+        'cursor',
+        'github-copilot',
+        'codex',
+        'opencode',
+      ]);
+
+      expect(result).toContain(
+        'caliber refresh && git add CLAUDE.md .claude/ CALIBER_LEARNINGS.md .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md .agents/ .opencode/ 2>/dev/null',
+      );
+    });
   });
 
   describe('appendSyncBlock', () => {
@@ -162,6 +232,26 @@ describe('pre-commit-block', () => {
 
       expect(rule.content).toContain('caliber refresh');
       expect(rule.content).not.toContain('npx');
+    });
+
+    it('uses only Cursor managed paths for Cursor-only active targets', async () => {
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+
+      const { getCursorPreCommitRule } = await import('../pre-commit-block.js');
+      const rule = getCursorPreCommitRule(['cursor']);
+
+      expect(rule.content).toContain(
+        'caliber refresh && git add .cursor/ .cursorrules 2>/dev/null',
+      );
+      expect(rule.content).not.toContain('CLAUDE.md');
+      expect(rule.content).not.toContain('CALIBER_LEARNINGS.md');
+      expect(rule.content).not.toContain('.github/copilot-instructions.md');
+      expect(rule.content).not.toContain('.github/instructions/');
+      expect(rule.content).not.toContain('AGENTS.md');
+      expect(rule.content).not.toContain('.agents/');
+      expect(rule.content).not.toContain('.opencode/');
     });
   });
 

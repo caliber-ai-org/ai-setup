@@ -2,12 +2,28 @@ import { displayCaliberName } from '../lib/resolve-caliber.js';
 import { DEFAULT_MODELS } from '../llm/config.js';
 
 export type ConfigPlatform = 'claude' | 'copilot' | 'codex';
+export type WriteTarget = 'claude' | 'cursor' | 'codex' | 'opencode' | 'github-copilot';
 
 const BLOCK_START = '<!-- caliber:managed:pre-commit -->';
 const BLOCK_END = '<!-- /caliber:managed:pre-commit -->';
 
-const MANAGED_DOC_PATHS =
+const ALL_MANAGED_DOC_PATHS =
   'CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md .agents/ .opencode/';
+
+const MANAGED_DOC_PATHS_BY_TARGET: Record<WriteTarget, string[]> = {
+  claude: ['CLAUDE.md', '.claude/', 'CALIBER_LEARNINGS.md'],
+  cursor: ['.cursor/', '.cursorrules'],
+  codex: ['AGENTS.md', '.agents/'],
+  opencode: ['.opencode/'],
+  'github-copilot': ['.github/copilot-instructions.md', '.github/instructions/'],
+};
+
+export function buildManagedDocPaths(activeTargets?: ReadonlyArray<WriteTarget>): string {
+  if (!activeTargets?.length) return ALL_MANAGED_DOC_PATHS;
+
+  const paths = activeTargets.flatMap((target) => MANAGED_DOC_PATHS_BY_TARGET[target]);
+  return [...new Set(paths)].join(' ');
+}
 
 function getCaliberNotFoundFallback(platform: ConfigPlatform, bin: string): string {
   switch (platform) {
@@ -24,8 +40,12 @@ npx @rely-ai/caliber refresh
   }
 }
 
-function getPreCommitBlock(platform: ConfigPlatform = 'claude'): string {
+function getPreCommitBlock(
+  platform: ConfigPlatform = 'claude',
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string {
   const bin = displayCaliberName();
+  const managedDocPaths = buildManagedDocPaths(activeTargets);
   return `${BLOCK_START}
 ## Before Committing
 
@@ -39,7 +59,7 @@ grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || ech
 - If **hook-active**: the hook handles sync automatically — just commit normally. Tell the user: "Caliber will sync your agent configs automatically via the pre-commit hook."
 - If **no-hook**: run Caliber manually before committing:
   1. Tell the user: "Caliber: Syncing agent configs with your latest changes..."
-  2. Run: \`${bin} refresh && git add ${MANAGED_DOC_PATHS} 2>/dev/null\`
+  2. Run: \`${bin} refresh && git add ${managedDocPaths} 2>/dev/null\`
   3. After it completes, briefly tell the user what Caliber updated. Then proceed with the commit.
 
 **Valid \`${bin} refresh\` options:** \`--quiet\` (suppress output) and \`--dry-run\` (preview without writing). Do not pass any other flags — options like \`--auto-approve\`, \`--debug\`, or \`--force\` do not exist and will cause errors.
@@ -52,8 +72,9 @@ ${BLOCK_END}`;
 
 const CURSOR_RULE_FILENAME = 'caliber-pre-commit.mdc';
 
-function getCursorRuleContent(): string {
+function getCursorRuleContent(activeTargets?: ReadonlyArray<WriteTarget>): string {
   const bin = displayCaliberName();
+  const managedDocPaths = buildManagedDocPaths(activeTargets);
   return `---
 description: Run Caliber sync before git commits to keep agent configs up to date
 alwaysApply: true
@@ -62,7 +83,7 @@ Before every git commit, check if the Caliber pre-commit hook is installed:
 Run: \`grep -q "caliber" .git/hooks/pre-commit 2>/dev/null && echo "hook-active" || echo "no-hook"\`
 
 If hook-active: just commit normally — Caliber syncs automatically via the hook. Tell the user: "Caliber will sync your agent configs automatically."
-If no-hook: run \`${bin} refresh && git add ${MANAGED_DOC_PATHS} 2>/dev/null\` before committing, and tell the user what was updated.
+If no-hook: run \`${bin} refresh && git add ${managedDocPaths} 2>/dev/null\` before committing, and tell the user what was updated.
 
 Valid \`${bin} refresh\` options: \`--quiet\` and \`--dry-run\` only. Do not pass \`--auto-approve\`, \`--debug\`, \`--force\`, or any other flags.
 \`${bin} config\` takes no flags — it is interactive. Do not pass \`--provider\`, \`--api-key\`, or \`--endpoint\`.
@@ -105,14 +126,21 @@ export function hasPreCommitBlock(content: string): boolean {
   return false;
 }
 
-export function appendPreCommitBlock(content: string, platform: ConfigPlatform = 'claude'): string {
+export function appendPreCommitBlock(
+  content: string,
+  platform: ConfigPlatform = 'claude',
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string {
   if (hasPreCommitBlock(content)) return content;
   const trimmed = content.trimEnd();
-  return trimmed + '\n\n' + getPreCommitBlock(platform) + '\n';
+  return trimmed + '\n\n' + getPreCommitBlock(platform, activeTargets) + '\n';
 }
 
-export function getCursorPreCommitRule(): { filename: string; content: string } {
-  return { filename: CURSOR_RULE_FILENAME, content: getCursorRuleContent() };
+export function getCursorPreCommitRule(activeTargets?: ReadonlyArray<WriteTarget>): {
+  filename: string;
+  content: string;
+} {
+  return { filename: CURSOR_RULE_FILENAME, content: getCursorRuleContent(activeTargets) };
 }
 
 // ── Learnings reference block ────────────────────────────────────────
@@ -196,7 +224,11 @@ export function appendModelBlock(content: string): string {
 const SYNC_BLOCK_START = '<!-- caliber:managed:sync -->';
 const SYNC_BLOCK_END = '<!-- /caliber:managed:sync -->';
 
-function getSyncSetupInstruction(platform: ConfigPlatform): string {
+function getSyncSetupInstruction(
+  platform: ConfigPlatform,
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string {
+  const managedDocPaths = buildManagedDocPaths(activeTargets);
   switch (platform) {
     case 'claude':
       return `If the pre-commit hook is not set up, run \`/setup-caliber\` to configure everything automatically.`;
@@ -207,19 +239,22 @@ function getSyncSetupInstruction(platform: ConfigPlatform): string {
 \`\`\`bash
 npx @rely-ai/caliber hooks --install
 npx @rely-ai/caliber refresh
-git add ${MANAGED_DOC_PATHS} 2>/dev/null
+git add ${managedDocPaths} 2>/dev/null
 \`\`\``;
   }
 }
 
-function getSyncBlock(platform: ConfigPlatform = 'claude'): string {
+function getSyncBlock(
+  platform: ConfigPlatform = 'claude',
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string {
   const bin = displayCaliberName();
   return `${SYNC_BLOCK_START}
 ## Context Sync
 
 This project uses [Caliber](https://github.com/caliber-ai-org/ai-setup) to keep AI agent configs in sync across Claude Code, Cursor, Copilot, and Codex.
 Configs update automatically before each commit via \`${bin} refresh\`.
-${getSyncSetupInstruction(platform)}
+${getSyncSetupInstruction(platform, activeTargets)}
 ${SYNC_BLOCK_END}`;
 }
 
@@ -233,16 +268,25 @@ export function hasSyncBlock(content: string): boolean {
   return false;
 }
 
-export function appendSyncBlock(content: string, platform: ConfigPlatform = 'claude'): string {
+export function appendSyncBlock(
+  content: string,
+  platform: ConfigPlatform = 'claude',
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string {
   if (hasSyncBlock(content)) return content;
   const trimmed = content.trimEnd();
-  return trimmed + '\n\n' + getSyncBlock(platform) + '\n';
+  return trimmed + '\n\n' + getSyncBlock(platform, activeTargets) + '\n';
 }
 
-export function appendManagedBlocks(content: string, platform: ConfigPlatform = 'claude'): string {
+export function appendManagedBlocks(
+  content: string,
+  platform: ConfigPlatform = 'claude',
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string {
   return appendSyncBlock(
-    appendModelBlock(appendLearningsBlock(appendPreCommitBlock(content, platform))),
+    appendModelBlock(appendLearningsBlock(appendPreCommitBlock(content, platform, activeTargets))),
     platform,
+    activeTargets,
   );
 }
 

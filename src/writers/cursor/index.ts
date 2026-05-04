@@ -4,6 +4,7 @@ import {
   getCursorPreCommitRule,
   getCursorLearningsRule,
   getCursorSyncRule,
+  type WriteTarget,
 } from '../pre-commit-block.js';
 
 interface CursorConfig {
@@ -13,7 +14,10 @@ interface CursorConfig {
   mcpServers?: Record<string, { command: string; args?: string[]; env?: Record<string, string> }>;
 }
 
-export function writeCursorConfig(config: CursorConfig): string[] {
+export function writeCursorConfig(
+  config: CursorConfig,
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string[] {
   const written: string[] = [];
 
   if (config.cursorrules) {
@@ -21,7 +25,7 @@ export function writeCursorConfig(config: CursorConfig): string[] {
     written.push('.cursorrules');
   }
 
-  const preCommitRule = getCursorPreCommitRule();
+  const preCommitRule = getCursorPreCommitRule(activeTargets);
   const learningsRule = getCursorLearningsRule();
   const syncRule = getCursorSyncRule();
   const allRules = [...(config.rules || []), preCommitRule, learningsRule, syncRule];

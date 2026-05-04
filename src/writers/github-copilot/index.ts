@@ -1,20 +1,23 @@
 import fs from 'fs';
 import path from 'path';
-import { appendManagedBlocks } from '../pre-commit-block.js';
+import { appendManagedBlocks, type WriteTarget } from '../pre-commit-block.js';
 
 interface CopilotConfig {
   instructions: string;
   instructionFiles?: Array<{ filename: string; content: string }>;
 }
 
-export function writeGithubCopilotConfig(config: CopilotConfig): string[] {
+export function writeGithubCopilotConfig(
+  config: CopilotConfig,
+  activeTargets?: ReadonlyArray<WriteTarget>,
+): string[] {
   const written: string[] = [];
 
   if (config.instructions) {
     fs.mkdirSync('.github', { recursive: true });
     fs.writeFileSync(
       path.join('.github', 'copilot-instructions.md'),
-      appendManagedBlocks(config.instructions, 'copilot'),
+      appendManagedBlocks(config.instructions, 'copilot', activeTargets),
     );
     written.push('.github/copilot-instructions.md');
   }

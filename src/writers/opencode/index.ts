@@ -1,6 +1,10 @@
 import fs from 'fs';
 import path from 'path';
-import { appendPreCommitBlock, appendLearningsBlock } from '../pre-commit-block.js';
+import {
+  appendPreCommitBlock,
+  appendLearningsBlock,
+  type WriteTarget,
+} from '../pre-commit-block.js';
 import { buildSkillContent } from '../../lib/builtin-skills.js';
 
 interface OpencodeConfig {
@@ -11,13 +15,14 @@ interface OpencodeConfig {
 export function writeOpencodeConfig(
   config: OpencodeConfig,
   agentsMdAlreadyWritten = false,
+  activeTargets?: ReadonlyArray<WriteTarget>,
 ): string[] {
   const written: string[] = [];
 
   if (!agentsMdAlreadyWritten) {
     fs.writeFileSync(
       'AGENTS.md',
-      appendLearningsBlock(appendPreCommitBlock(config.agentsMd, 'codex')),
+      appendLearningsBlock(appendPreCommitBlock(config.agentsMd, 'codex', activeTargets)),
     );
     written.push('AGENTS.md');
   }
