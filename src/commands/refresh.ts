@@ -215,6 +215,15 @@ async function refreshDir(
     }
   }
 
+  // parseJsonResponse returns whatever JSON.parse yields, including `null`,
+  // which the RefreshResponse type cast hides at compile time. Treat a null
+  // response as a no-op refresh instead of crashing with "Cannot read
+  // properties of null (reading 'docsUpdated')". Refs #209.
+  if (!response) {
+    spinner?.succeed(`${prefix}No doc updates needed (empty response)`);
+    return { written: [], fileChanges: [], syncedAgents: [], changesSummary: null };
+  }
+
   if (!response.docsUpdated || response.docsUpdated.length === 0) {
     spinner?.succeed(`${prefix}No doc updates needed`);
     return { written: [], fileChanges: [], syncedAgents: [], changesSummary: null };
