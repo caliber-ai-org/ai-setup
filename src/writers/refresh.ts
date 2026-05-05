@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { appendManagedBlocks } from './pre-commit-block.js';
+import { appendManagedBlocks, type TargetAgent } from './pre-commit-block.js';
 
 interface RefreshDocs {
   agentsMd?: string | null;
@@ -11,6 +11,14 @@ interface RefreshDocs {
   cursorRules?: Array<{ filename: string; content: string }> | null;
   copilotInstructions?: string | null;
   copilotInstructionFiles?: Array<{ filename: string; content: string }> | null;
+}
+
+function inferActiveTargets(docs: RefreshDocs): TargetAgent[] {
+  const targets: TargetAgent[] = ['claude'];
+  if (docs.cursorrules || docs.cursorRules) targets.push('cursor');
+  if (docs.copilotInstructions || docs.copilotInstructionFiles) targets.push('github-copilot');
+  if (docs.agentsMd) targets.push('codex');
+  return targets;
 }
 
 function writeFileGroup(
@@ -27,6 +35,7 @@ function writeFileGroup(
 
 export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[] {
   const written: string[] = [];
+  const targets = inferActiveTargets(docs);
   const p = (relPath: string): string =>
     (dir === '.' ? relPath : path.join(dir, relPath)).replace(/\\/g, '/');
   const ensureParent = (filePath: string): void => {
@@ -37,14 +46,14 @@ export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[]
   if (docs.agentsMd) {
     const filePath = p('AGENTS.md');
     ensureParent(filePath);
-    fs.writeFileSync(filePath, appendManagedBlocks(docs.agentsMd, 'codex'));
+    fs.writeFileSync(filePath, appendManagedBlocks(docs.agentsMd, 'codex', targets));
     written.push(filePath);
   }
 
   if (docs.claudeMd) {
     const filePath = p('CLAUDE.md');
     ensureParent(filePath);
-    fs.writeFileSync(filePath, appendManagedBlocks(docs.claudeMd));
+    fs.writeFileSync(filePath, appendManagedBlocks(docs.claudeMd, 'claude', targets));
     written.push(filePath);
   }
 
@@ -73,7 +82,7 @@ export function writeRefreshDocs(docs: RefreshDocs, dir: string = '.'): string[]
   if (docs.copilotInstructions) {
     const filePath = p(path.join('.github', 'copilot-instructions.md'));
     ensureParent(filePath);
-    fs.writeFileSync(filePath, appendManagedBlocks(docs.copilotInstructions, 'copilot'));
+    fs.writeFileSync(filePath, appendManagedBlocks(docs.copilotInstructions, 'copilot', targets));
     written.push(filePath);
   }
 

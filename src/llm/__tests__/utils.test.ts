@@ -99,11 +99,19 @@ describe('parseJsonResponse', () => {
   });
 
   it('throws when no JSON found', () => {
-    expect(() => parseJsonResponse('no json here')).toThrow('No JSON found');
+    expect(() => parseJsonResponse('no json here')).toThrow('No valid JSON object');
   });
 
   it('throws on invalid JSON even after extraction', () => {
     expect(() => parseJsonResponse('{invalid: json}')).toThrow();
+  });
+
+  it('throws when LLM returns literal null', () => {
+    expect(() => parseJsonResponse('null')).toThrow('No valid JSON object');
+  });
+
+  it('throws when LLM returns a primitive string', () => {
+    expect(() => parseJsonResponse('"just a string"')).toThrow('No valid JSON object');
   });
 });
 

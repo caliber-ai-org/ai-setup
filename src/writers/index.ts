@@ -35,6 +35,7 @@ export function writeSetup(setup: AgentSetup): {
   const written: string[] = [];
 
   if (setup.targetAgent.includes('claude') && setup.claude) {
+    setup.claude.activeTargets = setup.targetAgent;
     written.push(...writeClaudeConfig(setup.claude));
   }
 

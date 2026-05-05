@@ -42,16 +42,28 @@ export function parseJsonResponse<T>(raw: string): T {
   const cleaned = stripMarkdownFences(raw);
 
   try {
-    return JSON.parse(cleaned);
-  } catch {
-    // Fall through to bracket extraction
+    const parsed = JSON.parse(cleaned);
+    if (parsed === null || typeof parsed !== 'object') {
+      throw new Error('Parsed JSON is not an object');
+    }
+    return parsed;
+  } catch (e) {
+    if (e instanceof Error && e.message === 'Parsed JSON is not an object') {
+      // Fall through — but don't silently accept null/primitive results
+    } else {
+      // JSON.parse syntax error — fall through to bracket extraction
+    }
   }
 
   const json = extractJson(cleaned);
   if (!json) {
-    throw new Error(`No JSON found in LLM response: ${raw.slice(0, 200)}`);
+    throw new Error(`No valid JSON object in LLM response: ${raw.slice(0, 200)}`);
   }
-  return JSON.parse(json);
+  const extracted = JSON.parse(json);
+  if (extracted === null || typeof extracted !== 'object') {
+    throw new Error(`No valid JSON object in LLM response: ${raw.slice(0, 200)}`);
+  }
+  return extracted;
 }
 
 export function estimateTokens(text: string): number {

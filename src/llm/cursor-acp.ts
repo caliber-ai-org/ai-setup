@@ -429,8 +429,9 @@ export function isCursorLoggedIn(): boolean {
       input: '',
       stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 5000,
+      env: withCaliberSubprocessEnv({ ...process.env }),
     });
-    return !result.toString().includes('not logged in');
+    return !result.toString().toLowerCase().includes('not logged in');
   } catch {
     return false;
   }

@@ -404,7 +404,7 @@ export async function initCommand(options: InitOptions) {
     if (!claudeContent) {
       claudeContent = `# ${path.basename(process.cwd())}\n`;
     }
-    const updatedClaude = appendManagedBlocks(claudeContent, 'claude');
+    const updatedClaude = appendManagedBlocks(claudeContent, 'claude', targetAgent);
     if (updatedClaude !== claudeContent || !fs.existsSync(claudeMdPath)) {
       fs.writeFileSync(claudeMdPath, updatedClaude);
       console.log(`  ${chalk.green('✓')} CLAUDE.md — added Caliber sync instructions`);
@@ -415,7 +415,7 @@ export async function initCommand(options: InitOptions) {
       const rulesDir = path.join('.cursor', 'rules');
       if (!fs.existsSync(rulesDir)) fs.mkdirSync(rulesDir, { recursive: true });
       for (const rule of [
-        getCursorPreCommitRule(),
+        getCursorPreCommitRule(targetAgent),
         getCursorLearningsRule(),
         getCursorSyncRule(),
         getCursorSetupRule(),
@@ -438,7 +438,7 @@ export async function initCommand(options: InitOptions) {
         fs.mkdirSync('.github', { recursive: true });
         copilotContent = `# ${path.basename(process.cwd())}\n`;
       }
-      const updatedCopilot = appendManagedBlocks(copilotContent, 'copilot');
+      const updatedCopilot = appendManagedBlocks(copilotContent, 'copilot', targetAgent);
       if (updatedCopilot !== copilotContent) {
         fs.writeFileSync(copilotPath, updatedCopilot);
         console.log(`  ${chalk.green('✓')} Copilot instructions — added Caliber sync instructions`);
