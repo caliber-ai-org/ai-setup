@@ -1,3 +1,9 @@
+## v1.49.6 (2026-05-06)
+
+### Bug Fixes
+
+- **windows**: resolve Cursor agent CLI from well-known path and fix login check (#207)
+
 ## v1.49.5 (2026-05-06)
 
 ### Bug Fixes
