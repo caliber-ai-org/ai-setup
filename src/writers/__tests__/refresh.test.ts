@@ -50,9 +50,9 @@ describe('writeRefreshDocs', () => {
 
     expect(written).toContain('.github/copilot-instructions.md');
     expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith('.github', { recursive: true });
-    const copilotContent = vi.mocked(fs.writeFileSync).mock.calls.find(
-      (c) => String(c[0]).endsWith('copilot-instructions.md')
-    )?.[1] as string;
+    const copilotContent = vi
+      .mocked(fs.writeFileSync)
+      .mock.calls.find((c) => String(c[0]).endsWith('copilot-instructions.md'))?.[1] as string;
     expect(copilotContent).toContain('caliber:managed:model-config');
   });
 
@@ -130,6 +130,48 @@ describe('writeRefreshDocs', () => {
     expect(rulePath).toBeDefined();
     expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith(expect.stringContaining('.claude/rules'), {
       recursive: true,
+    });
+  });
+
+  describe('inferActiveTargets via managed block paths', () => {
+    it('includes cursor paths when cursorRules are present', () => {
+      writeRefreshDocs({
+        claudeMd: '# Test',
+        cursorRules: [{ filename: 'r.mdc', content: 'rule' }],
+      });
+      const claudeContent = vi
+        .mocked(fs.writeFileSync)
+        .mock.calls.find((c) => String(c[0]) === 'CLAUDE.md')?.[1] as string;
+      expect(claudeContent).toContain('.cursor/');
+      expect(claudeContent).not.toContain('AGENTS.md');
+    });
+
+    it('omits cursor paths when no cursor docs provided', () => {
+      writeRefreshDocs({ claudeMd: '# Test' });
+      const claudeContent = vi
+        .mocked(fs.writeFileSync)
+        .mock.calls.find((c) => String(c[0]) === 'CLAUDE.md')?.[1] as string;
+      expect(claudeContent).not.toContain('.cursor/');
+    });
+
+    it('includes copilot paths when copilot docs provided', () => {
+      writeRefreshDocs({
+        claudeMd: '# Test',
+        copilotInstructions: '# Copilot',
+      });
+      const claudeContent = vi
+        .mocked(fs.writeFileSync)
+        .mock.calls.find((c) => String(c[0]) === 'CLAUDE.md')?.[1] as string;
+      expect(claudeContent).toContain('.github/copilot-instructions.md');
+    });
+
+    it('omits claude paths from AGENTS.md when only codex docs provided', () => {
+      writeRefreshDocs({ agentsMd: '# Agents' });
+      const agentsContent = vi
+        .mocked(fs.writeFileSync)
+        .mock.calls.find((c) => String(c[0]) === 'AGENTS.md')?.[1] as string;
+      expect(agentsContent).toContain('AGENTS.md');
+      expect(agentsContent).not.toContain('CLAUDE.md');
     });
   });
 

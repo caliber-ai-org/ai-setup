@@ -8,24 +8,16 @@ const BLOCK_START = '<!-- caliber:managed:pre-commit -->';
 const BLOCK_END = '<!-- /caliber:managed:pre-commit -->';
 
 function getManagedDocPaths(activeTargets?: TargetAgent[]): string {
-  const paths = ['CLAUDE.md', '.claude/', 'CALIBER_LEARNINGS.md'];
   if (!activeTargets) {
-    paths.push(
-      '.cursor/',
-      '.cursorrules',
-      '.github/copilot-instructions.md',
-      '.github/instructions/',
-      'AGENTS.md',
-      '.agents/',
-      '.opencode/',
-    );
-  } else {
-    if (activeTargets.includes('cursor')) paths.push('.cursor/', '.cursorrules');
-    if (activeTargets.includes('github-copilot'))
-      paths.push('.github/copilot-instructions.md', '.github/instructions/');
-    if (activeTargets.includes('codex')) paths.push('AGENTS.md', '.agents/');
-    if (activeTargets.includes('opencode')) paths.push('.opencode/');
+    return 'CLAUDE.md .claude/ .cursor/ .cursorrules .github/copilot-instructions.md .github/instructions/ AGENTS.md CALIBER_LEARNINGS.md .agents/ .opencode/';
   }
+  const paths = ['CALIBER_LEARNINGS.md'];
+  if (activeTargets.includes('claude')) paths.push('CLAUDE.md', '.claude/');
+  if (activeTargets.includes('cursor')) paths.push('.cursor/', '.cursorrules');
+  if (activeTargets.includes('github-copilot'))
+    paths.push('.github/copilot-instructions.md', '.github/instructions/');
+  if (activeTargets.includes('codex')) paths.push('AGENTS.md', '.agents/');
+  if (activeTargets.includes('opencode')) paths.push('.opencode/');
   return paths.join(' ');
 }
 
@@ -229,19 +221,20 @@ const SYNC_BLOCK_START = '<!-- caliber:managed:sync -->';
 const SYNC_BLOCK_END = '<!-- /caliber:managed:sync -->';
 
 function getSyncSetupInstruction(platform: ConfigPlatform, activeTargets?: TargetAgent[]): string {
-  const docPaths = getManagedDocPaths(activeTargets);
   switch (platform) {
     case 'claude':
       return `If the pre-commit hook is not set up, run \`/setup-caliber\` to configure everything automatically.`;
     case 'codex':
       return `If the pre-commit hook is not set up, read \`.agents/skills/setup-caliber/SKILL.md\` and follow the setup instructions.`;
-    case 'copilot':
+    case 'copilot': {
+      const docPaths = getManagedDocPaths(activeTargets);
       return `If the pre-commit hook is not set up, the developer should run \`/setup-caliber\` in Claude Code or Cursor for automated setup. Alternatively, run in terminal:
 \`\`\`bash
 npx @rely-ai/caliber hooks --install
 npx @rely-ai/caliber refresh
 git add ${docPaths} 2>/dev/null
 \`\`\``;
+    }
   }
 }
 

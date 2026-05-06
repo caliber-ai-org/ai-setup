@@ -14,7 +14,8 @@ interface RefreshDocs {
 }
 
 function inferActiveTargets(docs: RefreshDocs): TargetAgent[] {
-  const targets: TargetAgent[] = ['claude'];
+  const targets: TargetAgent[] = [];
+  if (docs.claudeMd) targets.push('claude');
   if (docs.cursorrules || docs.cursorRules) targets.push('cursor');
   if (docs.copilotInstructions || docs.copilotInstructionFiles) targets.push('github-copilot');
   if (docs.agentsMd) targets.push('codex');

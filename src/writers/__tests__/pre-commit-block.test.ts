@@ -218,6 +218,66 @@ describe('pre-commit-block', () => {
     });
   });
 
+  describe('activeTargets path filtering', () => {
+    beforeEach(async () => {
+      const { resetResolvedCaliber } = await import('../../lib/resolve-caliber.js');
+      resetResolvedCaliber();
+      process.argv[1] = '/usr/local/bin/caliber';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue('/usr/local/bin/caliber\n');
+    });
+
+    it('includes only claude paths when activeTargets is [claude]', async () => {
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# Test', 'claude', ['claude']);
+      expect(result).toContain('CLAUDE.md');
+      expect(result).toContain('.claude/');
+      expect(result).not.toContain('.cursor/');
+      expect(result).not.toContain('AGENTS.md');
+      expect(result).not.toContain('.opencode/');
+    });
+
+    it('includes cursor paths when cursor is an active target', async () => {
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# Test', 'claude', ['claude', 'cursor']);
+      expect(result).toContain('.cursor/');
+      expect(result).toContain('.cursorrules');
+      expect(result).not.toContain('AGENTS.md');
+    });
+
+    it('includes all paths when activeTargets is undefined (backward compat)', async () => {
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# Test', 'claude');
+      expect(result).toContain('.cursor/');
+      expect(result).toContain('AGENTS.md');
+      expect(result).toContain('.opencode/');
+    });
+
+    it('omits claude paths for copilot-only target', async () => {
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# Test', 'copilot', ['github-copilot']);
+      expect(result).toContain('.github/copilot-instructions.md');
+      expect(result).not.toContain('CLAUDE.md');
+      expect(result).not.toContain('.claude/');
+    });
+
+    it('getCursorPreCommitRule respects activeTargets', async () => {
+      const { getCursorPreCommitRule } = await import('../pre-commit-block.js');
+      const rule = getCursorPreCommitRule(['claude', 'cursor']);
+      expect(rule.content).toContain('.cursor/');
+      expect(rule.content).not.toContain('AGENTS.md');
+      expect(rule.content).not.toContain('.opencode/');
+    });
+
+    it('empty activeTargets array produces only CALIBER_LEARNINGS.md', async () => {
+      const { appendPreCommitBlock } = await import('../pre-commit-block.js');
+      const result = appendPreCommitBlock('# Test', 'claude', []);
+      expect(result).toContain('CALIBER_LEARNINGS.md');
+      expect(result).not.toContain('CLAUDE.md');
+      expect(result).not.toContain('.cursor/');
+    });
+  });
+
   describe('appendManagedBlocks de-duplication (F-P0-10)', () => {
     beforeEach(async () => {
       const { resetResolvedCaliber } = await import('../../lib/resolve-caliber.js');
