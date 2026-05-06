@@ -1,3 +1,9 @@
+## v1.49.5 (2026-05-06)
+
+### Bug Fixes
+
+- **hooks**: skip Stop nudge when not in a git repo (#201)
+
 ## v1.49.4 (2026-05-06)
 
 ### Bug Fixes
