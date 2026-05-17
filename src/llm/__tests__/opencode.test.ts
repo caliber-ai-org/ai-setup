@@ -635,35 +635,34 @@ describe('isOpenCodeLoggedIn', () => {
     resetOpenCodeLoginCache();
   });
 
-  it('returns true when auth status reports loggedIn true', () => {
-    execSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: true })));
+  it('returns true when auth list returns non-empty output', () => {
+    execSync.mockReturnValue(Buffer.from('user@example.com\n'));
     expect(isOpenCodeLoggedIn()).toBe(true);
+    expect(execSync).toHaveBeenCalledWith('opencode auth list', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
   });
 
-  it('returns false when auth status reports loggedIn false', () => {
-    execSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: false })));
+  it('returns false when auth list returns empty output', () => {
+    execSync.mockReturnValue(Buffer.from(''));
     expect(isOpenCodeLoggedIn()).toBe(false);
   });
 
-  it('returns false when auth status command fails', () => {
+  it('returns false when auth list command fails', () => {
     execSync.mockImplementation(() => {
       throw new Error('exit code 1');
     });
     expect(isOpenCodeLoggedIn()).toBe(false);
   });
 
-  it('returns true for non-JSON output without not logged in', () => {
-    execSync.mockReturnValue(Buffer.from('some unexpected output'));
+  it('returns true for multi-line output indicating credentials', () => {
+    execSync.mockReturnValue(Buffer.from('• iFlow api\n  \n  1 credentials\n'));
     expect(isOpenCodeLoggedIn()).toBe(true);
   });
 
-  it('returns false for non-JSON output containing not logged in', () => {
-    execSync.mockReturnValue(Buffer.from('not logged in'));
-    expect(isOpenCodeLoggedIn()).toBe(false);
-  });
-
   it('caches the result across calls', () => {
-    execSync.mockReturnValue(Buffer.from(JSON.stringify({ loggedIn: true })));
+    execSync.mockReturnValue(Buffer.from('user@example.com\n'));
     expect(isOpenCodeLoggedIn()).toBe(true);
     execSync.mockReset(); // clear mock but cache should still have value
     expect(isOpenCodeLoggedIn()).toBe(true);

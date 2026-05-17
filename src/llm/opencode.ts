@@ -37,22 +37,18 @@ export function isOpenCodeAvailable(): boolean {
   }
 }
 
-/** Whether the user is logged in to OpenCode CLI. Uses `opencode auth status` for a zero-cost check. Result is cached for the process lifetime. */
+/** Whether the user is logged in to OpenCode CLI. Uses `opencode auth list` for a zero-cost check. Result is cached for the process lifetime. */
 export function isOpenCodeLoggedIn(): boolean {
   if (cachedLoggedIn !== null) return cachedLoggedIn;
   try {
-    const result = execSync('opencode auth status', {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      timeout: 5000,
+    const result = execSync('opencode auth list', {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
-    const output = result.toString().trim();
-    try {
-      const status = JSON.parse(output) as { loggedIn?: boolean };
-      cachedLoggedIn = status.loggedIn === true;
-    } catch {
-      cachedLoggedIn = !output.toLowerCase().includes('not logged in');
-    }
+    // If command succeeds and returns non-empty output, user is logged in
+    cachedLoggedIn = result.toString().trim().length > 0;
   } catch {
+    // Command failed or not found - treat as not logged in
     cachedLoggedIn = false;
   }
   return cachedLoggedIn;
