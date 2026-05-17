@@ -10,7 +10,7 @@ import {
   ensureBashShim,
 } from '../llm/cursor-acp.js';
 import { isClaudeCliAvailable, isClaudeCliLoggedIn } from '../llm/claude-cli.js';
-import { isOpenCodeAvailable } from '../llm/opencode.js';
+import { isOpenCodeAvailable, isOpenCodeLoggedIn } from '../llm/opencode.js';
 import { promptInput } from '../utils/prompt.js';
 
 const IS_WINDOWS = process.platform === 'win32';
@@ -79,6 +79,15 @@ export async function runInteractiveProviderSetup(options?: {
         console.log(chalk.dim('  Install it from: ') + chalk.hex('#83D1EB')('https://opencode.ai'));
         console.log(
           chalk.dim('  Then run ') +
+            chalk.hex('#83D1EB')('opencode auth login') +
+            chalk.dim(' to authenticate.\n'),
+        );
+        const proceed = await confirm({ message: 'Continue anyway?' });
+        if (!proceed) throw new Error('__exit__');
+      } else if (!isOpenCodeLoggedIn()) {
+        console.log(chalk.yellow('\n  OpenCode CLI found but not logged in.'));
+        console.log(
+          chalk.dim('  Run ') +
             chalk.hex('#83D1EB')('opencode auth login') +
             chalk.dim(' to authenticate.\n'),
         );
