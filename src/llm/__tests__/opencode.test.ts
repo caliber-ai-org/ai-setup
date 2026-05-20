@@ -640,6 +640,7 @@ describe('isOpenCodeLoggedIn', () => {
     expect(isOpenCodeLoggedIn()).toBe(true);
     expect(execSync).toHaveBeenCalledWith('opencode auth list', {
       encoding: 'utf-8',
+      timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
   });

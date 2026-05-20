@@ -43,6 +43,7 @@ export function isOpenCodeLoggedIn(): boolean {
   try {
     const result = execSync('opencode auth list', {
       encoding: 'utf-8',
+      timeout: 5000,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     // If command succeeds and returns non-empty output, user is logged in
