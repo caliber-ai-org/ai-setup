@@ -18,6 +18,6 @@ export class MiniMaxProvider extends OpenAICompatProvider {
 
   // MiniMax API doesn't support model listing; return known models statically.
   override async listModels(): Promise<string[]> {
-    return ['MiniMax-M2.7', 'MiniMax-M2.7-highspeed'];
+    return ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.7-highspeed'];
   }
 }

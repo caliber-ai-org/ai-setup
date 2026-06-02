@@ -97,6 +97,6 @@ describe('MiniMaxProvider', () => {
   it('listModels() returns hardcoded MiniMax models', async () => {
     const provider = new MiniMaxProvider(BASE_CONFIG);
     const models = await provider.listModels();
-    expect(models).toEqual(['MiniMax-M2.7', 'MiniMax-M2.7-highspeed']);
+    expect(models).toEqual(['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.7-highspeed']);
   });
 });

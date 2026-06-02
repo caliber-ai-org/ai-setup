@@ -10,7 +10,7 @@ export const DEFAULT_MODELS: Record<ProviderType, string> = {
   anthropic: 'claude-sonnet-4-6',
   vertex: 'claude-sonnet-4-6',
   openai: 'gpt-5.4-mini',
-  minimax: 'MiniMax-M2.7',
+  minimax: 'MiniMax-M3',
   cursor: 'auto',
   'claude-cli': 'default',
   opencode: 'default',
@@ -25,6 +25,7 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'gpt-4o': 128_000,
   'gpt-4o-mini': 128_000,
   auto: 200_000,
+  'MiniMax-M3': 524_288,
   'MiniMax-M2.7': 1_000_000,
   'MiniMax-M2.7-highspeed': 1_000_000,
 };
