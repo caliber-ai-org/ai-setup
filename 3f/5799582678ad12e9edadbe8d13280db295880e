@@ -1,0 +1,25 @@
+src/commands/learn.ts
+  s_cced9b43e99a99::t_7dbc6942d0eee0 71-86
+  s_cced9b43e99a99::t_b91b712cdde876 365-366
+src/learner/__tests__/writer.test.ts
+  s_cced9b43e99a99::t_bef2b4fc5950cb 113-124,131,138-139
+  s_cced9b43e99a99::t_1e6e95f968f712 125-130,132-137
+src/commands/__tests__/learn-eviction-notice.test.ts
+  s_cced9b43e99a99::t_d6cd4ea010b8e4 1-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "3f5799582678ad12e9edadbe8d13280db295880e",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "Alon Peslin <alonp2098@gmail.com>"
+    }
+  }
+}
