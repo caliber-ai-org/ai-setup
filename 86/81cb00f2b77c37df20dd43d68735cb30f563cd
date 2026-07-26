@@ -1,0 +1,22 @@
+src/commands/__tests__/skill-install.test.ts
+  s_cced9b43e99a99::t_0ae1d2c880babe 322
+  s_cced9b43e99a99::t_936942d2b9e7ef 19-23,30-34
+  s_cced9b43e99a99::t_d8c466e56dbb5f 255,257-320
+  s_cced9b43e99a99::t_80f586f0b695cf 40,87-88,254,256,321
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "8681cb00f2b77c37df20dd43d68735cb30f563cd",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "Alon Peslin <alonp2098@gmail.com>"
+    }
+  }
+}
