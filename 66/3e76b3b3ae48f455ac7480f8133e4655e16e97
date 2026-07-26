@@ -1,0 +1,43 @@
+src/ai/score-refine.ts
+  s_1827e9625678ba::t_7ad155f1b0721a 212-215,217-221,233
+  s_1827e9625678ba::t_c0d85d670d066d 216,227-228,230,234-240
+  s_1827e9625678ba::t_dd6cb825c297de 92-95
+  s_1827e9625678ba::t_c1a921b9af4058 14-15
+  s_1827e9625678ba::t_0c4a2af312a126 98
+  s_1827e9625678ba::t_cad377c3636fcc 89-91
+  s_1827e9625678ba::t_71bbe9f5d6e415 96
+  s_1827e9625678ba::t_ba1317db86436c 225-226
+  s_1827e9625678ba::t_c75c65dfa69261 87-88
+src/scoring/utils.ts
+  s_1827e9625678ba::t_910e3619b27b5f 3-4
+  s_1827e9625678ba::t_ad404c1ef4b21d 529,542-550,554
+  s_1827e9625678ba::t_0bb08b29852f67 481-528,530-541,551-553,555-556
+src/scoring/constants.ts
+  s_1827e9625678ba::t_b4cf82f3acab68 44
+src/scoring/__tests__/grounding.test.ts
+  s_1827e9625678ba::t_44da51bee9ad2f 151-157,160-166,168-173
+  s_1827e9625678ba::t_1ae1fc4bd7a050 7-43,120-150
+  s_1827e9625678ba::t_f0280589164827 158-159,167
+src/ai/prompts.ts
+  s_1827e9625678ba::t_cabbb64e895191 97
+  s_1827e9625678ba::t_89dece2dc5d84b 88
+src/scoring/checks/grounding.ts
+  s_1827e9625678ba::t_1c05e8566bdb41 24-30,33-34,36-39,48-68,76-79,81-82,91-111
+  s_1827e9625678ba::t_c95b78a5270537 13,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "663e76b3b3ae48f455ac7480f8133e4655e16e97",
+  "prompts": {},
+  "sessions": {
+    "s_1827e9625678ba": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "75ab48db-7e46-471a-91fd-53450ce6849d",
+        "model": "default"
+      },
+      "human_author": "test <alon@caliber-ai.dev>"
+    }
+  }
+}
