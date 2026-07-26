@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { execFileSync } from 'child_process';
-import { join, relative } from 'path';
+import { basename, join, relative } from 'path';
+import { GROUNDING_THRESHOLDS } from './constants.js';
 
 export function readFileOrNull(filePath: string): string | null {
   try {
@@ -475,6 +476,82 @@ export function isEntryMentioned(entry: string, contentLower: string): boolean {
       contentLower,
     );
   });
+}
+
+/**
+ * Entry-point basenames that match fingerprint filePriority ≥ 40.
+ * Keep in sync with `filePriority` in src/fingerprint/code-analysis.ts.
+ */
+const GROUNDING_ENTRY_POINTS = new Set([
+  'index.ts',
+  'index.js',
+  'index.tsx',
+  'index.jsx',
+  'main.ts',
+  'main.py',
+  'main.go',
+  'main.rs',
+  'app.ts',
+  'app.js',
+  'app.py',
+  'server.ts',
+  'server.js',
+  'mod.rs',
+  'lib.rs',
+]);
+
+/** Config/manifest paths that match fingerprint filePriority ≥ 35. */
+const GROUNDING_CONFIG_OR_MANIFEST_RE =
+  /\.(json|ya?ml|toml|ini|cfg)$|config\.|Makefile|Dockerfile/i;
+
+/**
+ * Whether a surveyed file is notable enough to count toward project grounding.
+ * Mirrors fingerprint `filePriority ≥ 35` (entry points + config/manifests).
+ */
+export function isNotableGroundingFile(relPath: string): boolean {
+  const base = basename(relPath);
+  return GROUNDING_ENTRY_POINTS.has(base) || GROUNDING_CONFIG_OR_MANIFEST_RE.test(relPath);
+}
+
+/**
+ * Grounding denominator: all directories plus notable files only (not every leaf file).
+ */
+export function selectGroundingEntries(structure: ProjectStructure): string[] {
+  return [
+    ...structure.dirs.filter((e) => e.length > 2),
+    ...structure.files.filter((e) => e.length > 2 && isNotableGroundingFile(e)),
+  ];
+}
+
+export interface GroundingCoverage {
+  entries: string[];
+  mentioned: string[];
+  notMentioned: string[];
+  ratio: number;
+  points: number;
+}
+
+/**
+ * Compute project-grounding coverage of config content against notable structure entries.
+ */
+export function computeGroundingCoverage(
+  contentLower: string,
+  structure: ProjectStructure,
+): GroundingCoverage {
+  const entries = selectGroundingEntries(structure);
+  const mentioned: string[] = [];
+  const notMentioned: string[] = [];
+  for (const entry of entries) {
+    if (isEntryMentioned(entry, contentLower)) {
+      mentioned.push(entry);
+    } else {
+      notMentioned.push(entry);
+    }
+  }
+  const ratio = entries.length > 0 ? mentioned.length / entries.length : 0;
+  const threshold = GROUNDING_THRESHOLDS.find((t) => ratio >= t.minRatio);
+  const points = entries.length === 0 ? 0 : (threshold?.points ?? 0);
+  return { entries, mentioned, notMentioned, ratio, points };
 }
 
 /**

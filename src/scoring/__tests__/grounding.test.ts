@@ -4,7 +4,43 @@ import { execSync } from 'child_process';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { checkGrounding } from '../checks/grounding.js';
-import { collectProjectStructure } from '../utils.js';
+import {
+  collectProjectStructure,
+  isNotableGroundingFile,
+  selectGroundingEntries,
+} from '../utils.js';
+import { POINTS_PROJECT_GROUNDING } from '../constants.js';
+
+describe('isNotableGroundingFile', () => {
+  it('includes entry points and config/manifests', () => {
+    expect(isNotableGroundingFile('package.json')).toBe(true);
+    expect(isNotableGroundingFile('src/index.ts')).toBe(true);
+    expect(isNotableGroundingFile('tsconfig.json')).toBe(true);
+    expect(isNotableGroundingFile('Dockerfile')).toBe(true);
+    expect(isNotableGroundingFile('config/app.yaml')).toBe(true);
+  });
+
+  it('excludes ordinary leaf source files', () => {
+    expect(isNotableGroundingFile('src/util/foo.ts')).toBe(false);
+    expect(isNotableGroundingFile('src/commands/init.ts')).toBe(false);
+    expect(isNotableGroundingFile('README.md')).toBe(false);
+  });
+});
+
+describe('selectGroundingEntries', () => {
+  it('keeps dirs and notable files only', () => {
+    const entries = selectGroundingEntries({
+      dirs: ['src', 'src/util'],
+      files: ['package.json', 'src/index.ts', 'src/util/foo.ts', 'README.md'],
+    });
+    expect(entries).toContain('src');
+    expect(entries).toContain('src/util');
+    expect(entries).toContain('package.json');
+    expect(entries).toContain('src/index.ts');
+    expect(entries).not.toContain('src/util/foo.ts');
+    expect(entries).not.toContain('README.md');
+  });
+});
 
 describe('checkGrounding', () => {
   let dir: string;
@@ -80,6 +116,60 @@ describe('checkGrounding', () => {
     const groundingCheck = checks.find((c) => c.id === 'project_grounding');
     expect(groundingCheck).toBeDefined();
     expect(groundingCheck?.earnedPoints).toBe(0);
+  });
+
+  it('ignores non-notable leaf files in the grounding denominator', () => {
+    mkdirSync(join(dir, 'src'));
+    mkdirSync(join(dir, 'scripts'));
+    mkdirSync(join(dir, 'tests'));
+    writeFileSync(join(dir, 'package.json'), '{}');
+    writeFileSync(join(dir, 'src', 'index.ts'), 'export {}');
+    // Many ordinary leaves that must NOT force tree-style enumeration
+    for (let i = 0; i < 40; i++) {
+      writeFileSync(join(dir, 'src', `leaf-${i}.ts`), `export const x${i} = ${i};`);
+    }
+
+    writeFileSync(
+      join(dir, 'CLAUDE.md'),
+      [
+        '# Project',
+        '',
+        'Code in `src/` · scripts in `scripts/` · tests in `tests/`.',
+        'Entry: `src/index.ts`. Manifest: `package.json`.',
+      ].join('\n'),
+    );
+
+    const structure = collectProjectStructure(dir);
+    expect(structure.files.length).toBeGreaterThan(30);
+    const groundingEntries = selectGroundingEntries(structure);
+    expect(groundingEntries.every((e) => !e.includes('leaf-'))).toBe(true);
+
+    const checks = checkGrounding(dir);
+    const groundingCheck = checks.find((c) => c.id === 'project_grounding');
+    expect(groundingCheck?.earnedPoints).toBe(POINTS_PROJECT_GROUNDING);
+    expect(groundingCheck?.detail).toMatch(/notable project entries/);
+  });
+
+  it('suggests unmentioned notable files when top-level dirs are already covered', () => {
+    mkdirSync(join(dir, 'src'));
+    mkdirSync(join(dir, 'tests'));
+    writeFileSync(join(dir, 'package.json'), '{}');
+    writeFileSync(join(dir, 'tsconfig.json'), '{}');
+    writeFileSync(join(dir, 'Dockerfile'), 'FROM node');
+    writeFileSync(join(dir, 'src', 'index.ts'), 'export {}');
+    writeFileSync(
+      join(dir, 'CLAUDE.md'),
+      '# Project\n\nCode in `src/`. Tests in `tests/`.',
+    );
+
+    const checks = checkGrounding(dir);
+    const groundingCheck = checks.find((c) => c.id === 'project_grounding');
+    // 2 dirs mentioned of 6 notable entries (~33%) — below full marks
+    expect(groundingCheck?.earnedPoints).toBeLessThan(POINTS_PROJECT_GROUNDING);
+    expect(groundingCheck?.fix?.data.missing).toEqual(
+      expect.arrayContaining(['package.json', 'tsconfig.json']),
+    );
+    expect(groundingCheck?.suggestion).toMatch(/package\.json|tsconfig\.json/);
   });
 });
 
