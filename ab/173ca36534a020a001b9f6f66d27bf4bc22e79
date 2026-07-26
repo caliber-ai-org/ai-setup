@@ -1,0 +1,25 @@
+src/lib/hooks.ts
+  s_cced9b43e99a99::t_bfd49cafd06793 315-318
+  s_cced9b43e99a99::t_f3789fe0e91a99 431-438
+README.md
+  s_cced9b43e99a99::t_79394e960443cf 229-234
+src/lib/__tests__/hooks.test.ts
+  s_cced9b43e99a99::t_7e2d2543fdab05 650,710,732
+  s_cced9b43e99a99::t_e739e4305bfa2d 792-834
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "ab173ca36534a020a001b9f6f66d27bf4bc22e79",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "Alon Peslin <alonp2098@gmail.com>"
+    }
+  }
+}
