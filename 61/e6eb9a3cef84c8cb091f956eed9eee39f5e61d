@@ -1,0 +1,29 @@
+src/commands/recommend.ts
+  s_cced9b43e99a99::t_8f0a331a116e16 962-966,972-985,994-1003
+  s_cced9b43e99a99::t_3324af5bdfe643 671
+  s_cced9b43e99a99::t_76e86a6146df12 5,13
+  s_cced9b43e99a99::t_5c8be1954406f7 440
+  s_cced9b43e99a99::t_679f37983febbb 498
+  s_cced9b43e99a99::t_90331902f83f36 854-861,864-866,886,891-892,896-898,900,908,910,913-925
+  s_cced9b43e99a99::t_f8e0a2439fb076 59-60
+  s_cced9b43e99a99::t_2073c70b35b3ff 553
+src/commands/__tests__/skill-install.test.ts
+  s_cced9b43e99a99::t_d108b86d35e0f2 6,19,25-32,35-38,45-49,83-84,117-128,131,134,137,165-166,184-185,216-252,258-259
+  s_cced9b43e99a99::t_8c6d0398210f56 262-263
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "61e6eb9a3cef84c8cb091f956eed9eee39f5e61d",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "Alon Peslin <alonp2098@gmail.com>"
+    }
+  }
+}
