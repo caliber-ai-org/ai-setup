@@ -1,0 +1,32 @@
+src/llm/__tests__/index.test.ts
+  s_cced9b43e99a99::t_5a3127f870c0fe 387-419
+src/llm/opencode.ts
+  s_cced9b43e99a99::t_ffded3c703869a 260
+  s_cced9b43e99a99::t_5767da2420fed2 246
+src/llm/index.ts
+  s_cced9b43e99a99::t_9a408048ddd186 204,208-215,226-233
+  s_cced9b43e99a99::t_3f588209dc4b73 1-7
+  s_cced9b43e99a99::t_91ba85ae3f70a5 135-144,154-160
+  s_cced9b43e99a99::t_2a3c676c6995d2 161-162
+src/llm/__tests__/opencode.test.ts
+  s_cced9b43e99a99::t_64641f395cd894 692,721-723,726-729,733,759-760,763,766
+  s_cced9b43e99a99::t_061a201c7a9ca8 67,86-95
+src/commands/recommend.ts
+  s_cced9b43e99a99::t_39ae448ae45929 428-449
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "4b40660315265ac9f36ce3406aeafa2f0bd32521",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "test <alon@caliber-ai.dev>"
+    }
+  }
+}
