@@ -1,0 +1,30 @@
+src/commands/recommend.ts
+  s_cced9b43e99a99::t_cdb23be292e4cb 943-952,973-975,992-996
+  s_cced9b43e99a99::t_9fe5744d4a7549 906-909,912
+  s_cced9b43e99a99::t_b100631487c831 997
+src/commands/__tests__/skill-install.test.ts
+  s_cced9b43e99a99::t_b3bba6b09edd95 173
+  s_cced9b43e99a99::t_ff0611e3100b1e 68-78
+  s_cced9b43e99a99::t_4450aeae300673 131
+  s_cced9b43e99a99::t_f1a0945fa0dc04 154
+  s_cced9b43e99a99::t_adf08ea40fe750 124
+  s_cced9b43e99a99::t_e60cce5306095e 201
+  s_cced9b43e99a99::t_4cec477e40ad47 205-212
+  s_cced9b43e99a99::t_7a63d8c8a3c781 107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "6e39abf31ef5ec729310b0fcaf390f2596b39112",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "Alon Peslin <alonp2098@gmail.com>"
+    }
+  }
+}
