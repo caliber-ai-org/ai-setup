@@ -1,0 +1,24 @@
+src/lib/__tests__/hooks.test.ts
+  s_cced9b43e99a99::t_ef62574c941370 557,603,607,623-630,651
+  s_cced9b43e99a99::t_a0a3a5f2695b46 467,479,491,500,580,631-646
+src/lib/hooks.ts
+  s_cced9b43e99a99::t_27be1b3b355b93 141-142,145-148,151-155
+.claude/settings.json
+  s_cced9b43e99a99::t_e8be27c9e15a3e 67,79,91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "1b9fa505665297249ccd2080a9406572ab550c83",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "test <alon@caliber-ai.dev>"
+    }
+  }
+}
