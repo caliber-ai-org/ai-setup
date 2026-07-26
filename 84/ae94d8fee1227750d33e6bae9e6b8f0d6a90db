@@ -1,0 +1,25 @@
+src/llm/minimax.ts
+  s_cced9b43e99a99::t_483af27eb05bd8 5,17,53-57
+src/llm/config.ts
+  s_cced9b43e99a99::t_642d4a68f1cfa6 30
+src/llm/model-recovery.ts
+  s_cced9b43e99a99::t_2f8356cd68448a 4,29
+src/llm/__tests__/config.test.ts
+  s_cced9b43e99a99::t_a15e065e2f506c 507
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "84ae94d8fee1227750d33e6bae9e6b8f0d6a90db",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "test <test@local>"
+    }
+  }
+}
