@@ -1,0 +1,24 @@
+src/commands/learn.ts
+  s_cced9b43e99a99::t_95a32dd62b0d35 349-358
+src/learner/__tests__/writer.test.ts
+  s_cced9b43e99a99::t_95a32dd62b0d35 101-174
+src/learner/writer.ts
+  s_cced9b43e99a99::t_95a32dd62b0d35 4,25-50,70-71,80,84-85,91,110,135-136,145,157-160,168-170,172-180,183-190,218-222,230,248,261
+  s_cced9b43e99a99::t_ab84fcaa560a00 223-227,231-233,249-251,258-260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "4556ede2b3c6d1fde8e9ad58deb2e9ecd7be2544",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "Alon Peslin <alonp2098@gmail.com>"
+    }
+  }
+}
