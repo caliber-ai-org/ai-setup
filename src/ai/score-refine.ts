@@ -11,6 +11,8 @@ import {
   extractReferences,
   calculateDuplicatePercent,
   calculateDensityPoints,
+  computeGroundingCoverage,
+  isNotableGroundingFile,
   type ProjectStructure,
 } from '../scoring/utils.js';
 import {
@@ -23,7 +25,6 @@ import {
   POINTS_PROJECT_GROUNDING,
   POINTS_REFERENCE_DENSITY,
   POINTS_NO_DUPLICATES,
-  GROUNDING_THRESHOLDS,
 } from '../scoring/constants.js';
 import { llmCall } from '../llm/index.js';
 import { stripMarkdownFences } from '../llm/utils.js';
@@ -83,11 +84,18 @@ function buildGroundingFixInstruction(
   unmentionedTopDirs: string[],
   projectStructure: ProjectStructure,
 ): string {
-  const dirDescriptions = unmentionedTopDirs.slice(0, 8).map(dir => {
-    const subdirs = projectStructure.dirs.filter(d => d.startsWith(`${dir}/`) && !d.includes('/', dir.length + 1));
-    const files = projectStructure.files.filter(f => f.startsWith(`${dir}/`) && !f.includes('/', dir.length + 1));
+  const dirDescriptions = unmentionedTopDirs.slice(0, 8).map((dir) => {
+    const subdirs = projectStructure.dirs.filter(
+      (d) => d.startsWith(`${dir}/`) && !d.includes('/', dir.length + 1),
+    );
+    const files = projectStructure.files.filter(
+      (f) =>
+        f.startsWith(`${dir}/`) &&
+        !f.includes('/', dir.length + 1) &&
+        isNotableGroundingFile(f),
+    );
     const children = [...subdirs.slice(0, 4), ...files.slice(0, 2)];
-    const childList = children.map(c => c.split('/').pop()).join(', ');
+    const childList = children.map((c) => c.split('/').pop()).join(', ');
     return childList
       ? `- \`${dir}/\` (contains: ${childList})`
       : `- \`${dir}/\``;
@@ -201,25 +209,35 @@ export function validateSetup(
 
   // 7. Project grounding
   const structure = projectStructure ?? collectProjectStructure(dir);
-  const allEntries = [...structure.dirs, ...structure.files].filter(e => e.length > 2);
+  const contentLower = primaryContent.toLowerCase();
+  const {
+    entries,
+    mentioned: mentionedEntries,
+    notMentioned,
+    ratio: groundingRatio,
+    points: groundingPoints,
+  } = computeGroundingCoverage(contentLower, structure);
 
-  if (allEntries.length > 0) {
-    const contentLower = primaryContent.toLowerCase();
-    const mentionedEntries = allEntries.filter(e => isEntryMentioned(e, contentLower));
-    const groundingRatio = mentionedEntries.length / allEntries.length;
-    const groundingThreshold = GROUNDING_THRESHOLDS.find(t => groundingRatio >= t.minRatio);
-    const groundingPoints = groundingThreshold?.points ?? 0;
+  if (entries.length > 0) {
     const groundingLost = POINTS_PROJECT_GROUNDING - groundingPoints;
 
     if (groundingLost > 0) {
-      const topDirs = structure.dirs.filter(d => !d.includes('/') && d.length > 2);
-      const unmentionedTopDirs = topDirs.filter(d => !isEntryMentioned(d, contentLower));
+      const topDirs = structure.dirs.filter((d) => !d.includes('/') && d.length > 2);
+      const unmentionedTopDirs = topDirs.filter((d) => !isEntryMentioned(d, contentLower));
+      const missingHints =
+        unmentionedTopDirs.length > 0 ? unmentionedTopDirs : notMentioned;
 
-      if (unmentionedTopDirs.length > 0) {
+      if (missingHints.length > 0) {
         issues.push({
           check: 'Project grounding',
-          detail: `${mentionedEntries.length}/${allEntries.length} project entries referenced (${Math.round(groundingRatio * 100)}%)`,
-          fixInstruction: buildGroundingFixInstruction(unmentionedTopDirs, structure),
+          detail: `${mentionedEntries.length}/${entries.length} notable project entries referenced (${Math.round(groundingRatio * 100)}%)`,
+          fixInstruction:
+            unmentionedTopDirs.length > 0
+              ? buildGroundingFixInstruction(unmentionedTopDirs, structure)
+              : `Reference these notable project paths: ${missingHints
+                  .slice(0, 8)
+                  .map((p) => `\`${p}\``)
+                  .join(', ')}. Mention them naturally using dense inline references.`,
           pointsLost: groundingLost,
         });
       }

@@ -41,7 +41,7 @@ export const POINTS_NO_DUPLICATES = 2;
 export const POINTS_HAS_STRUCTURE = 2;
 
 // ── Grounding checks (20 pts) ────────────────────────────────────────
-/** Does the config reference the project's actual directories and files? */
+/** Does the config reference the project's directories and notable files? */
 export const POINTS_PROJECT_GROUNDING = 12;
 /** How many specific references (backticks, paths) does the config have? */
 export const POINTS_REFERENCE_DENSITY = 8;

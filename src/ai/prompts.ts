@@ -85,7 +85,7 @@ Quality (25 pts):
 - Structured with headings (2 pts) — use at least 3 ## sections and bullet lists
 
 Grounding (20 pts) — CRITICAL:
-- Project grounding (12 pts) — reference the project's actual directories and files by name. The scoring checks which project dirs/files from the file tree appear in your config. Mention key directories and files. (50%+ coverage = full points, 35% = 9pts, 20% = 6pts, 10% = 3pts)
+- Project grounding (12 pts) — reference key project directories and notable files (entry points, manifests, config files) by name. Scoring covers dirs + notable files only — not every leaf file. Do NOT add directory tree listings. (50%+ coverage = full points, 35% = 9pts, 20% = 6pts, 10% = 3pts)
 - Reference density (8 pts) — use backticks and inline code extensively. Every file path, command, or identifier should be in backticks. Higher density of backtick references per line = higher score. (40%+ = full, 25% = 6pts, 15% = 4pts)
 
 Accuracy (15 pts) — CRITICAL:
@@ -94,7 +94,7 @@ Accuracy (15 pts) — CRITICAL:
 
 Safety: Never include API keys, tokens, or credentials in config files.
 
-PRIORITY WHEN CONSTRAINTS CONFLICT: Grounding and reference density matter more than raw token count. A 2500-token config that references 50%+ of the project's directories scores higher than a 1500-token config that only mentions 3 paths. Pack references densely using the inline path style shown in OUTPUT SIZE CONSTRAINTS.
+PRIORITY WHEN CONSTRAINTS CONFLICT: Grounding and reference density matter more than raw token count. A 2500-token config that references 50%+ of key dirs and notable files scores higher than a 1500-token config that only mentions 3 paths. Pack references densely using the inline path style shown in OUTPUT SIZE CONSTRAINTS — never pad with directory tree listings.
 
 Note: Permissions, hooks, freshness tracking, and OpenSkills frontmatter are scored automatically by caliber — do not optimize for them.
 README.md is provided for context only — do NOT include a readmeMd field in your output.`;
