@@ -1,0 +1,30 @@
+src/lib/resolve-caliber.ts
+  s_cced9b43e99a99::t_84977adab5dd45 225-226
+  s_cced9b43e99a99::t_faeb7a3958f93f 148-151,153-154,156-158,160,162,172,174,179-180,182-224,227,233
+src/lib/hooks.ts
+  s_cced9b43e99a99::t_1a2a01b2050b91 17-20
+  s_cced9b43e99a99::t_20a19fce5582fc 435-437,440
+  s_cced9b43e99a99::t_62cc80f8b9101d 8
+src/__tests__/windows-hide-regression.test.ts
+  s_cced9b43e99a99::t_6cd43ae8c85e84 117-120
+src/lib/__tests__/resolve-caliber.test.ts
+  s_cced9b43e99a99::t_ec802c4e493875 373,377-378,384-385,391-413
+index.cjs
+  s_cced9b43e99a99::t_61ff6076bf0c7a 303-308
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "c6a230f7c5528168dfd6e878ff2a325c0008b74c",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "test <alon@caliber-ai.dev>"
+    }
+  }
+}
