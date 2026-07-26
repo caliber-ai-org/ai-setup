@@ -1,0 +1,24 @@
+src/llm/opencode.ts
+  s_cced9b43e99a99::t_5837fd83f5210c 40-57,67-71
+  s_cced9b43e99a99::t_397208dee8fdb3 33,86,94
+src/llm/__tests__/opencode.test.ts
+  s_cced9b43e99a99::t_ba6f60d0e55ab9 6
+  s_cced9b43e99a99::t_e0c79f37610332 716-734
+  s_cced9b43e99a99::t_1f48e07f705d17 675-706
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "33f5c9379e31d58bcd7a87e12eea45e100d0fcf4",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "test <alon@caliber-ai.dev>"
+    }
+  }
+}
