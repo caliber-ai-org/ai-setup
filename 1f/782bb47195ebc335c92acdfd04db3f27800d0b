@@ -1,0 +1,19 @@
+src/lib/__tests__/hooks-autostage.test.ts
+  s_cced9b43e99a99::t_2c004f1b177791 1-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.15",
+  "base_commit_sha": "1f782bb47195ebc335c92acdfd04db3f27800d0b",
+  "prompts": {},
+  "sessions": {
+    "s_cced9b43e99a99": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "9f22f0af-5c1c-4a91-a0c2-3b23bfcc2c8b",
+        "model": "default"
+      },
+      "human_author": "Alon Peslin <alonp2098@gmail.com>"
+    }
+  }
+}
