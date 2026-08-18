@@ -4,6 +4,7 @@ export type ProviderType =
   | 'openai'
   | 'minimax'
   | 'atlascloud'
+  | 'orcarouter'
   | 'cursor'
   | 'claude-cli'
   | 'opencode';

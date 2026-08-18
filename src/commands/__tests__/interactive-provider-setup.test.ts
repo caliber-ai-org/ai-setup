@@ -25,6 +25,7 @@ vi.mock('../../llm/config.js', () => ({
     openai: 'gpt-5.4-mini',
     minimax: 'MiniMax-M3',
     atlascloud: 'deepseek-ai/deepseek-v4-pro',
+    orcarouter: 'openai/gpt-4o',
     cursor: 'default',
     'claude-cli': 'default',
     opencode: 'default',
@@ -133,6 +134,18 @@ describe('runInteractiveProviderSetup', () => {
     expect(config.apiKey).toBe('atlas-key');
     expect(config.baseUrl).toBe('https://api.atlascloud.ai/v1');
     expect(config.model).toBe('deepseek-ai/deepseek-v4-pro');
+  });
+
+  it('configures orcarouter provider with API key, base URL, and default model', async () => {
+    mockSelect.mockResolvedValue('orcarouter');
+    mockInput.mockResolvedValueOnce('orca-key').mockResolvedValueOnce('').mockResolvedValueOnce('');
+
+    const config = await runInteractiveProviderSetup();
+
+    expect(config.provider).toBe('orcarouter');
+    expect(config.apiKey).toBe('orca-key');
+    expect(config.baseUrl).toBe('https://api.orcarouter.ai/v1');
+    expect(config.model).toBe('openai/gpt-4o');
   });
 
   it('throws __exit__ when openai API key is empty', async () => {

@@ -28,6 +28,7 @@ const KNOWN_MODELS: Record<ProviderType, string[]> = {
   openai: ['gpt-5.4-mini', 'gpt-4o', 'gpt-4o-mini', 'o3-mini'],
   minimax: [...MINIMAX_MODELS],
   atlascloud: ['deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-flash', 'qwen/qwen3.5-27b'],
+  orcarouter: ['openai/gpt-4o', 'openai/gpt-4o-mini', 'deepseek/deepseek-v4-flash'],
   cursor: ['auto', 'composer-2', 'composer-2-fast', 'claude-4.6-sonnet-medium'],
   'claude-cli': [],
   opencode: [],

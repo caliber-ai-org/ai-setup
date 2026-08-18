@@ -41,6 +41,10 @@ describe('config', () => {
     delete process.env.ATLAS_CLOUD_MODEL;
     delete process.env.ATLASCLOUD_FAST_MODEL;
     delete process.env.ATLAS_CLOUD_FAST_MODEL;
+    delete process.env.ORCAROUTER_API_KEY;
+    delete process.env.ORCAROUTER_BASE_URL;
+    delete process.env.ORCAROUTER_MODEL;
+    delete process.env.ORCAROUTER_FAST_MODEL;
     delete process.env.VERTEX_REGION;
     delete process.env.GCP_REGION;
     delete process.env.VERTEX_SA_CREDENTIALS;
@@ -126,6 +130,33 @@ describe('config', () => {
         model: DEFAULT_MODELS.atlascloud,
         fastModel: undefined,
         baseUrl: 'https://api.atlascloud.ai/v1',
+      });
+    });
+
+    it('returns orcarouter config when ORCAROUTER_API_KEY is set', () => {
+      process.env.ORCAROUTER_API_KEY = 'orca-key';
+      const config = resolveFromEnv();
+      expect(config).toEqual({
+        provider: 'orcarouter',
+        apiKey: 'orca-key',
+        model: DEFAULT_MODELS.orcarouter,
+        fastModel: undefined,
+        baseUrl: 'https://api.orcarouter.ai/v1',
+      });
+    });
+
+    it('supports ORCAROUTER_MODEL, ORCAROUTER_FAST_MODEL, and ORCAROUTER_BASE_URL env vars', () => {
+      process.env.ORCAROUTER_API_KEY = 'orca-key';
+      process.env.ORCAROUTER_MODEL = 'deepseek/deepseek-v4-flash';
+      process.env.ORCAROUTER_FAST_MODEL = 'openai/gpt-4o-mini';
+      process.env.ORCAROUTER_BASE_URL = 'https://gateway.example.com/v1';
+      const config = resolveFromEnv();
+      expect(config).toEqual({
+        provider: 'orcarouter',
+        apiKey: 'orca-key',
+        model: 'deepseek/deepseek-v4-flash',
+        fastModel: 'openai/gpt-4o-mini',
+        baseUrl: 'https://gateway.example.com/v1',
       });
     });
 

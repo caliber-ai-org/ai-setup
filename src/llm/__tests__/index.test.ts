@@ -13,6 +13,7 @@ const {
   MockVertexProvider,
   MockOpenAIProvider,
   MockAtlasCloudProvider,
+  MockOrcaRouterProvider,
   MockCursorAcpProvider,
   MockClaudeCliProvider,
 } = vi.hoisted(() => {
@@ -48,6 +49,14 @@ const {
       this.config = c;
     }
   }
+  class MockOrcaRouterProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
   class MockCursorAcpProvider {
     config: unknown;
     call = vi.fn();
@@ -75,6 +84,7 @@ const {
     MockVertexProvider,
     MockOpenAIProvider,
     MockAtlasCloudProvider,
+    MockOrcaRouterProvider,
     MockCursorAcpProvider,
     MockClaudeCliProvider,
   };
@@ -100,6 +110,10 @@ vi.mock('../openai-compat.js', () => ({
 
 vi.mock('../atlascloud.js', () => ({
   AtlasCloudProvider: MockAtlasCloudProvider,
+}));
+
+vi.mock('../orcarouter.js', () => ({
+  OrcaRouterProvider: MockOrcaRouterProvider,
 }));
 
 vi.mock('../cursor-acp.js', () => ({
@@ -165,6 +179,25 @@ describe('getProvider', () => {
       model: 'deepseek-ai/deepseek-v4-pro',
       apiKey: 'atlas-key',
       baseUrl: 'https://api.atlascloud.ai/v1',
+    });
+  });
+
+  it('creates OrcaRouterProvider for orcarouter config', () => {
+    mockLoadConfig.mockReturnValue({
+      provider: 'orcarouter',
+      model: 'openai/gpt-4o',
+      apiKey: 'orca-key',
+      baseUrl: 'https://api.orcarouter.ai/v1',
+    });
+
+    const provider = getProvider();
+
+    expect(provider).toBeInstanceOf(MockOrcaRouterProvider);
+    expect((provider as InstanceType<typeof MockOrcaRouterProvider>).config).toEqual({
+      provider: 'orcarouter',
+      model: 'openai/gpt-4o',
+      apiKey: 'orca-key',
+      baseUrl: 'https://api.orcarouter.ai/v1',
     });
   });
 
