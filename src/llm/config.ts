@@ -12,6 +12,7 @@ export const DEFAULT_MODELS: Record<ProviderType, string> = {
   openai: 'gpt-5.4-mini',
   minimax: 'MiniMax-M3',
   atlascloud: 'deepseek-ai/deepseek-v4-pro',
+  orcarouter: 'openai/gpt-4o',
   cursor: 'auto',
   'claude-cli': 'default',
   opencode: 'default',
@@ -32,6 +33,9 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'deepseek-ai/deepseek-v4-pro': 1_048_000,
   'deepseek-ai/deepseek-v4-flash': 1_048_000,
   'qwen/qwen3.5-27b': 262_000,
+  'openai/gpt-4o': 128_000,
+  'openai/gpt-4o-mini': 128_000,
+  'deepseek/deepseek-v4-flash': 1_048_000,
 };
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
@@ -55,6 +59,7 @@ export const DEFAULT_FAST_MODELS: Partial<Record<ProviderType, string>> = {
   openai: 'gpt-5.4-mini',
   minimax: 'MiniMax-M2.7-highspeed',
   atlascloud: 'deepseek-ai/deepseek-v4-flash',
+  orcarouter: 'openai/gpt-4o-mini',
   cursor: 'gpt-5.3-codex-fast',
 };
 
@@ -123,6 +128,16 @@ export function resolveFromEnv(): LLMConfig | null {
     };
   }
 
+  if (process.env.ORCAROUTER_API_KEY) {
+    return {
+      provider: 'orcarouter',
+      apiKey: process.env.ORCAROUTER_API_KEY,
+      model: process.env.ORCAROUTER_MODEL || process.env.CALIBER_MODEL || DEFAULT_MODELS.orcarouter,
+      fastModel: process.env.ORCAROUTER_FAST_MODEL,
+      baseUrl: process.env.ORCAROUTER_BASE_URL || 'https://api.orcarouter.ai/v1',
+    };
+  }
+
   // Prefer Cursor seat when explicitly requested (no API key; uses agent acp + agent login)
   if (
     process.env.CALIBER_USE_CURSOR_SEAT === '1' ||
@@ -166,6 +181,7 @@ export function readConfigFile(): LLMConfig | null {
         'openai',
         'minimax',
         'atlascloud',
+        'orcarouter',
         'cursor',
         'claude-cli',
         'opencode',

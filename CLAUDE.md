@@ -2,7 +2,7 @@
 
 ## What Is This
 
-`@rely-ai/caliber` — CLI that keeps AI agent configs in sync with your codebase. Generates and refreshes `CLAUDE.md`, `.cursor/rules/`, `AGENTS.md`, `.github/copilot-instructions.md`, and skills across Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot. Supports Anthropic, OpenAI, Google Vertex AI, OpenAI-compatible endpoints, Claude Code CLI, and Cursor ACP.
+`@rely-ai/caliber` — CLI that keeps AI agent configs in sync with your codebase. Generates and refreshes `CLAUDE.md`, `.cursor/rules/`, `AGENTS.md`, `.github/copilot-instructions.md`, and skills across Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot. Supports Anthropic, OpenAI, Google Vertex AI, OpenAI-compatible endpoints, OrcaRouter, Claude Code CLI, and Cursor ACP.
 
 ## Commands
 

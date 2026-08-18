@@ -330,6 +330,7 @@ No API key? No problem. Caliber works with your existing AI tool subscription:
 | **Anthropic** | `export ANTHROPIC_API_KEY=sk-ant-...` | `claude-sonnet-4-6` |
 | **OpenAI** | `export OPENAI_API_KEY=sk-...` | `gpt-5.4-mini` |
 | **MiniMax** | `export MINIMAX_API_KEY=...` | `MiniMax-M3` |
+| **OrcaRouter** | `export ORCAROUTER_API_KEY=sk-orca-...` | `openai/gpt-4o` |
 | **Vertex AI** | `export VERTEX_PROJECT_ID=my-project` | `claude-sonnet-4-6` |
 | **Custom endpoint** | `OPENAI_API_KEY` + `OPENAI_BASE_URL` | `gpt-5.4-mini` |
 
@@ -345,6 +346,8 @@ MiniMax supports OpenAI-compatible and Anthropic-compatible requests in both ser
 |---|---|---|---|
 | Global | `https://api.minimax.io/v1` | `https://api.minimax.io/anthropic` | [MiniMax platform docs](https://platform.minimax.io/docs) |
 | China | `https://api.minimaxi.com/v1` | `https://api.minimaxi.com/anthropic` | [MiniMax platform docs](https://platform.minimaxi.com/docs) |
+
+OrcaRouter ([https://www.orcarouter.ai](https://www.orcarouter.ai)) is an OpenAI-compatible router exposing 200+ models (OpenAI, Anthropic, Google, DeepSeek, ...) behind a single API key. Model ids use the router's own `provider/model` format (e.g. `openai/gpt-4o`, `deepseek/deepseek-v4-flash`). Set `ORCAROUTER_MODEL` or pick a model with `caliber config`.
 
 <details>
 <summary>Vertex AI advanced setup</summary>
@@ -375,6 +378,9 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 | `OPENAI_BASE_URL` | Custom OpenAI-compatible endpoint |
 | `MINIMAX_API_KEY` | MiniMax API key |
 | `MINIMAX_BASE_URL` | MiniMax OpenAI-compatible or Anthropic-compatible base URL |
+| `ORCAROUTER_API_KEY` | OrcaRouter API key (`sk-orca-...`) |
+| `ORCAROUTER_BASE_URL` | OrcaRouter base URL (default: `https://api.orcarouter.ai/v1`) |
+| `ORCAROUTER_MODEL` | OrcaRouter model id in `provider/model` format (default: `openai/gpt-4o`) |
 | `VERTEX_PROJECT_ID` | GCP project ID for Vertex AI |
 | `VERTEX_REGION` | Vertex AI region (default: `us-east5`) |
 | `VERTEX_SA_CREDENTIALS` | Service account JSON (inline) |

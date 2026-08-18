@@ -34,7 +34,7 @@ export async function configCommand() {
       console.log(`  Vertex Region:  ${chalk.dim(existing.vertexRegion || 'us-east5')}`);
     }
     console.log(
-      `  Source:   ${chalk.dim(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.MINIMAX_API_KEY || process.env.ATLASCLOUD_API_KEY || process.env.ATLAS_CLOUD_API_KEY || process.env.VERTEX_PROJECT_ID || process.env.CALIBER_USE_CURSOR_SEAT || process.env.CALIBER_USE_CLAUDE_CLI || process.env.CALIBER_USE_OPENCODE ? 'environment variables' : getConfigFilePath())}`,
+      `  Source:   ${chalk.dim(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.MINIMAX_API_KEY || process.env.ATLASCLOUD_API_KEY || process.env.ATLAS_CLOUD_API_KEY || process.env.ORCAROUTER_API_KEY || process.env.VERTEX_PROJECT_ID || process.env.CALIBER_USE_CURSOR_SEAT || process.env.CALIBER_USE_CLAUDE_CLI || process.env.CALIBER_USE_OPENCODE ? 'environment variables' : getConfigFilePath())}`,
     );
     console.log('');
   }
@@ -49,7 +49,7 @@ export async function configCommand() {
   console.log(chalk.dim('  You can also set environment variables instead:'));
   console.log(
     chalk.dim(
-      '  ANTHROPIC_API_KEY, OPENAI_API_KEY, MINIMAX_API_KEY, ATLASCLOUD_API_KEY, VERTEX_PROJECT_ID, CALIBER_USE_CURSOR_SEAT=1, CALIBER_USE_CLAUDE_CLI=1, or CALIBER_USE_OPENCODE=1\n',
+      '  ANTHROPIC_API_KEY, OPENAI_API_KEY, MINIMAX_API_KEY, ATLASCLOUD_API_KEY, ORCAROUTER_API_KEY, VERTEX_PROJECT_ID, CALIBER_USE_CURSOR_SEAT=1, CALIBER_USE_CLAUDE_CLI=1, or CALIBER_USE_OPENCODE=1\n',
     ),
   );
 }
