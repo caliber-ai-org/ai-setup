@@ -7,7 +7,7 @@
 **Hand-written `CLAUDE.md` files go stale the moment you refactor — Caliber keeps every agent's context accurate as the code changes.**
 
 <p align="center">
-  <img src="assets/what-you-get.svg" alt="What you get: fresh agent context files, sync across Claude Cursor Codex OpenCode and Copilot, and optional Jev compaction without summarizing" width="900">
+  <img src="assets/what-you-get.png" alt="What you get with Caliber: fresh agent context, sync a skill once across Claude Code Cursor Codex and Copilot, compact without summarizing" width="900">
 </p>
 
 <p align="center">
@@ -131,10 +131,10 @@ The on-edit hook is path-filtered to provider skill/rule directories, so ordinar
 ## Compact without summarizing
 
 <p align="center">
-  <img src="assets/compaction-compare.svg" alt="Left: a lossy built-in summary drops paths and errors. Right: Jev drops stale tool calls and results; user and assistant text stay verbatim" width="900">
+  <img src="assets/compact-compare.png" alt="Summarize vs Jev compact: left loses paths and errors, right drops stale tool calls and keeps wording verbatim" width="900">
 </p>
 
-[TypeSafe's](https://typesafe.ai) Jev scores each tool call and result. Stale ones drop. Everything kept stays byte-for-byte verbatim.
+[TypeSafe's](https://typesafe.ai) Jev. Stale tool calls drop. Kept text stays verbatim.
 
 > **BYOK:** `AI_GATEWAY_API_KEY` is a Vercel AI Gateway key. `TYPESAFE_API_KEY` is a TypeSafe key. They authenticate different hosts and are not interchangeable. Caliber does not ship, share, or proxy either.
 
