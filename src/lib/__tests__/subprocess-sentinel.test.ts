@@ -2,7 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   CALIBER_SUBPROCESS_ENV,
   CALIBER_SUBPROCESS_LEGACY_ENV,
+  GIT_HOOK_ENV,
   isCaliberSubprocess,
+  isGitHookInvocation,
   isHookCascadeFromUserClaudeSession,
   withCaliberSubprocessEnv,
 } from '../subprocess-sentinel.js';
@@ -102,6 +104,8 @@ describe('subprocess-sentinel', () => {
       delete process.env.CLAUDECODE;
       delete process.env[CALIBER_SUBPROCESS_ENV];
       delete process.env[CALIBER_SUBPROCESS_LEGACY_ENV];
+      // A real git hook exports this; a test run must not inherit it.
+      delete process.env[GIT_HOOK_ENV];
       // Default to non-TTY (the hook-runner case). Tests that need to assert
       // the TTY override flip it explicitly.
       originalIsTTY = process.stdin.isTTY;
@@ -141,6 +145,55 @@ describe('subprocess-sentinel', () => {
       process.env.CLAUDECODE = '1';
       Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true });
       expect(isHookCascadeFromUserClaudeSession()).toBe(false);
+    });
+
+    // ── git hooks are not Claude Code hooks ────────────────────────────
+    //
+    // `git commit` run from inside a Claude Code session hits all three
+    // cascade signals, so the pre-commit hook's `refresh --quiet` was
+    // skipped on every agent-driven commit — silently, because the skip
+    // returns 0 and prints nothing.
+
+    it('returns false inside a git hook even though every cascade signal holds', () => {
+      process.env.CLAUDECODE = '1';
+      process.env[GIT_HOOK_ENV] = '.git/index';
+      // Same state as the cascade case above, which returns true.
+      expect(isHookCascadeFromUserClaudeSession()).toBe(false);
+    });
+
+    it('still reports the cascade once the git hook env is gone', () => {
+      process.env.CLAUDECODE = '1';
+      process.env[GIT_HOOK_ENV] = '.git/index';
+      expect(isHookCascadeFromUserClaudeSession()).toBe(false);
+      delete process.env[GIT_HOOK_ENV];
+      expect(isHookCascadeFromUserClaudeSession()).toBe(true);
+    });
+
+    it('does not exempt on an empty GIT_INDEX_FILE', () => {
+      // Exported-but-empty is not a git hook; do not widen the hole.
+      process.env.CLAUDECODE = '1';
+      process.env[GIT_HOOK_ENV] = '';
+      expect(isHookCascadeFromUserClaudeSession()).toBe(true);
+    });
+  });
+
+  describe('isGitHookInvocation()', () => {
+    beforeEach(() => {
+      delete process.env[GIT_HOOK_ENV];
+    });
+
+    it('is false in an ordinary process', () => {
+      expect(isGitHookInvocation()).toBe(false);
+    });
+
+    it('is true when git exports GIT_INDEX_FILE', () => {
+      process.env[GIT_HOOK_ENV] = '.git/index';
+      expect(isGitHookInvocation()).toBe(true);
+    });
+
+    it('is false when the var is exported empty', () => {
+      process.env[GIT_HOOK_ENV] = '';
+      expect(isGitHookInvocation()).toBe(false);
     });
   });
 });
