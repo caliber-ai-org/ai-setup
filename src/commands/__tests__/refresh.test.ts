@@ -101,6 +101,7 @@ describe('refreshCommand hook-cascade short-circuit (F-P0-9)', () => {
     delete process.env.CLAUDECODE;
     delete process.env.CALIBER_SUBPROCESS;
     delete process.env.CALIBER_SPAWNED;
+    delete process.env.GIT_INDEX_FILE;
   });
 
   afterEach(() => {
@@ -122,11 +123,25 @@ describe('refreshCommand hook-cascade short-circuit (F-P0-9)', () => {
     await expect(refreshCommand({ quiet: true })).resolves.toBeUndefined();
   });
 
-  it('does NOT short-circuit when --quiet but no CLAUDECODE (e.g. pre-commit hook)', async () => {
+  it('does NOT short-circuit when --quiet but no CLAUDECODE', async () => {
     delete process.env.CLAUDECODE;
     delete process.env.CALIBER_SUBPROCESS;
     // Refresh proceeds past the short-circuit. Will return undefined eventually
     // because the test env has no real config / no real repo. Asserts no throw.
+    //
+    // NB this is NOT the pre-commit-hook case, as this test used to claim. A
+    // `git commit` run from inside a Claude Code session DOES carry
+    // CLAUDECODE=1 into the hook, which is why the hook's refresh was being
+    // skipped; see the GIT_INDEX_FILE case below.
+    await expect(refreshCommand({ quiet: true })).resolves.toBeUndefined();
+  });
+
+  it('does NOT short-circuit in a git hook fired from a Claude Code session', async () => {
+    // The real pre-commit case: git exports GIT_INDEX_FILE, and the session
+    // the commit was typed in exports CLAUDECODE=1.
+    process.env.CLAUDECODE = '1';
+    process.env.GIT_INDEX_FILE = '.git/index';
+    delete process.env.CALIBER_SUBPROCESS;
     await expect(refreshCommand({ quiet: true })).resolves.toBeUndefined();
   });
 });
