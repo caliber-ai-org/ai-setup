@@ -53,6 +53,28 @@ export function withCaliberSubprocessEnv<T extends NodeJS.ProcessEnv>(env: T): T
 }
 
 /**
+ * Env var git exports for the commit-path hooks. Git sets it so the hook
+ * operates on the commit's index rather than the repo's; nothing else in a
+ * normal shell sets it, and any process the hook spawns — including a
+ * backgrounded subshell — inherits it.
+ */
+export const GIT_HOOK_ENV = 'GIT_INDEX_FILE';
+
+/**
+ * True when this invocation is running inside a git hook.
+ *
+ * Verified on git 2.39 (`pre-commit`): the hook environment contains
+ * `GIT_INDEX_FILE`, `GIT_AUTHOR_*`, `GIT_EXEC_PATH`, `GIT_PREFIX` and
+ * `GIT_EDITOR`, and all of them survive into a `( ... ) &` subshell.
+ * `GIT_INDEX_FILE` is the narrowest of those — `GIT_EXEC_PATH` and `GIT_DIR`
+ * are sometimes exported by hand in a user's shell, which would make this
+ * over-fire.
+ */
+export function isGitHookInvocation(): boolean {
+  return !!process.env[GIT_HOOK_ENV];
+}
+
+/**
  * True when this caliber invocation is firing as a SessionEnd / hook
  * cascade from inside an unrelated (user-initiated) Claude Code session.
  *
@@ -80,6 +102,22 @@ export function withCaliberSubprocessEnv<T extends NodeJS.ProcessEnv>(env: T): T
  * docs/superpowers/specs/2026-04-29-caliber-install-audit-findings.md
  */
 export function isHookCascadeFromUserClaudeSession(): boolean {
+  // A git hook is not a Claude Code hook. `git commit` run from inside a
+  // Claude Code session satisfies all three signals below — CLAUDECODE=1,
+  // no CALIBER_SUBPROCESS, and stdin redirected away from the terminal —
+  // so the pre-commit hook's `refresh --quiet` was skipped silently on
+  // every agent-driven commit. Nothing surfaces it: the skip returns 0 and
+  // prints nothing, which is indistinguishable from "no docs needed
+  // updating". Observed on a repo whose lastRefreshSha sat 73 commits
+  // behind HEAD while the hook announced a refresh on each commit.
+  //
+  // The cascade this function guards against is Claude Code's OWN hook
+  // runner re-entering caliber; a git hook fires once per commit and
+  // cannot recurse. Caliber's own nested spawns are still caught by the
+  // separate CALIBER_SUBPROCESS check above, including a `claude -p` that
+  // caliber itself starts from inside a git hook.
+  if (isGitHookInvocation()) return false;
+
   const inClaudeSession = process.env.CLAUDECODE === '1';
   const isCaliberSpawned = process.env[CALIBER_SUBPROCESS_ENV] === '1';
   const isInteractiveTty = process.stdin.isTTY === true;
