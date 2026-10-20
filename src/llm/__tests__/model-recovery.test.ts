@@ -155,6 +155,23 @@ describe('handleModelNotAvailable', () => {
     expect(choices.find((c: { value: string }) => c.value === 'claude-sonnet-4-6')).toBeUndefined();
   });
 
+  it('offers only current MiniMax models when listing fails without changing a cancelled saved choice', async () => {
+    const config = makeConfig({ provider: 'minimax', model: 'MiniMax-M2.7' });
+    const provider = makeProvider(vi.fn().mockRejectedValue(new Error('Unavailable')));
+    mockSelect.mockRejectedValueOnce(new Error('Cancelled'));
+
+    expect(await handleModelNotAvailable(config.model, provider, config)).toBeNull();
+    expect(mockSelect).toHaveBeenCalledWith({
+      message: 'Pick an available model',
+      choices: [
+        { name: 'MiniMax-M3.1-Flash', value: 'MiniMax-M3.1-Flash' },
+        { name: 'MiniMax-M3', value: 'MiniMax-M3' },
+      ],
+    });
+    expect(config.model).toBe('MiniMax-M2.7');
+    expect(mockWriteConfigFile).not.toHaveBeenCalled();
+  });
+
   it('falls back to known models when listModels is not available', async () => {
     const provider = makeProvider(); // no listModels
     const config = makeConfig({ provider: 'vertex' });

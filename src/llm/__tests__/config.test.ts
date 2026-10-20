@@ -112,7 +112,7 @@ describe('config', () => {
       expect(config).toEqual({
         provider: 'minimax',
         apiKey: 'minimax-test-key',
-        model: 'MiniMax-M3',
+        model: 'MiniMax-M3.1-Flash',
         baseUrl: 'https://api.minimaxi.com/anthropic',
       });
     });
@@ -399,7 +399,7 @@ describe('config', () => {
       expect(DEFAULT_MODELS.anthropic).toBeDefined();
       expect(DEFAULT_MODELS.vertex).toBeDefined();
       expect(DEFAULT_MODELS.openai).toBeDefined();
-      expect(DEFAULT_MODELS.minimax).toBe('MiniMax-M3');
+      expect(DEFAULT_MODELS.minimax).toBe('MiniMax-M3.1-Flash');
     });
   });
 
@@ -502,7 +502,7 @@ describe('config', () => {
       expect(DEFAULT_FAST_MODELS.anthropic).toBe('claude-haiku-4-5-20251001');
       expect(DEFAULT_FAST_MODELS.vertex).toBe('claude-haiku-4-5-20251001');
       expect(DEFAULT_FAST_MODELS.openai).toBe('gpt-5.4-mini');
-      expect(DEFAULT_FAST_MODELS.minimax).toBe('MiniMax-M2.7-highspeed');
+      expect(DEFAULT_FAST_MODELS.minimax).toBe('MiniMax-M3.1-Flash');
       expect(DEFAULT_FAST_MODELS.cursor).toBe('gpt-5.3-codex-fast');
       expect(DEFAULT_FAST_MODELS['claude-cli']).toBeUndefined();
     });
@@ -557,7 +557,8 @@ describe('config', () => {
       }
     });
 
-    it('uses the current MiniMax model context windows', () => {
+    it('uses the current MiniMax model context windows and preserves legacy budgets', () => {
+      expect(MODEL_CONTEXT_WINDOWS['MiniMax-M3.1-Flash']).toBe(1_000_000);
       expect(MODEL_CONTEXT_WINDOWS['MiniMax-M3']).toBe(1_000_000);
       expect(MODEL_CONTEXT_WINDOWS['MiniMax-M2.7']).toBe(204_800);
       expect(MODEL_CONTEXT_WINDOWS['MiniMax-M2.7-highspeed']).toBe(204_800);

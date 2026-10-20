@@ -14,7 +14,7 @@ export const MINIMAX_ENDPOINTS = {
   },
 } as const;
 
-export const MINIMAX_MODELS = ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.7-highspeed'] as const;
+export const MINIMAX_MODELS = ['MiniMax-M3.1-Flash', 'MiniMax-M3'] as const;
 
 function resolveMiniMaxConfig(config: LLMConfig): LLMConfig {
   return {
