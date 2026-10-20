@@ -23,7 +23,7 @@ vi.mock('../../llm/config.js', () => ({
     anthropic: 'claude-sonnet-4-6',
     vertex: 'claude-sonnet-4-6',
     openai: 'gpt-5.4-mini',
-    minimax: 'MiniMax-M3',
+    minimax: 'MiniMax-M3.1-Flash',
     atlascloud: 'deepseek-ai/deepseek-v4-pro',
     cursor: 'default',
     'claude-cli': 'default',
@@ -155,7 +155,7 @@ describe('runInteractiveProviderSetup', () => {
       provider: 'minimax',
       apiKey: 'minimax-test-key',
       baseUrl: 'https://api.minimax.io/v1',
-      model: 'MiniMax-M3',
+      model: 'MiniMax-M3.1-Flash',
     });
   });
 
