@@ -62,8 +62,16 @@ export function isModelNotAvailableError(error: Error): boolean {
 /**
  * Filter a raw model list down to models that caliber can meaningfully use.
  */
-function filterRelevantModels(models: string[], provider: ProviderType): string[] {
-  switch (provider) {
+function isCustomOpenAIEndpoint(config: LLMConfig): boolean {
+  return (
+    config.provider === 'openai' && !!config.baseUrl && !config.baseUrl.includes('api.openai.com')
+  );
+}
+
+function filterRelevantModels(models: string[], config: LLMConfig): string[] {
+  // OpenAI-compatible endpoints (Ollama, vLLM, ...) serve non-OpenAI model ids
+  if (isCustomOpenAIEndpoint(config)) return models;
+  switch (config.provider) {
     case 'anthropic':
     case 'vertex':
       return models.filter((m) => m.startsWith('claude-'));
@@ -116,14 +124,14 @@ export async function handleModelNotAvailable(
   if (provider.listModels) {
     try {
       const allModels = await provider.listModels();
-      models = filterRelevantModels(allModels, config.provider);
+      models = filterRelevantModels(allModels, config);
     } catch {
       // Provider listing failed — fall through to known models
     }
   }
 
   // Fall back to curated known models
-  if (models.length === 0) {
+  if (models.length === 0 && !isCustomOpenAIEndpoint(config)) {
     models = KNOWN_MODELS[config.provider] ?? [];
   }
 
