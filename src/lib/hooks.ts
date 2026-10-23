@@ -6,6 +6,7 @@ import {
   isCaliberCommand,
   isNpxResolution,
   resolveWindowsNodeBinInvocation,
+  toHookPath,
 } from './resolve-caliber.js';
 import { bashPath } from '../utils/windows.js';
 
@@ -17,7 +18,7 @@ function getHookCommand(): string {
   // Use node-direct on Windows (no VBS — SessionEnd may need stdout).
   const cmd = resolveCaliber();
   const direct = resolveWindowsNodeBinInvocation(cmd);
-  return `${direct ?? cmd} ${REFRESH_TAIL}`;
+  return `${direct ?? toHookPath(cmd)} ${REFRESH_TAIL}`;
 }
 
 interface HookEntry {
@@ -334,7 +335,7 @@ export const migrateStopHook = stopHook.migrate;
 // ── Freshness check script ───────────────────────────────────────────
 
 export function getFreshnessScript(): string {
-  const bin = resolveCaliber();
+  const bin = bashPath(resolveCaliber());
   return `#!/bin/sh
 # Don't run inside a caliber-spawned headless session — the systemMessage would
 # pollute the spawned agent's output and serves no purpose there.
@@ -392,7 +393,7 @@ const SYNC_PATH_PATTERN =
   '(\\.claude/(skills|rules)|\\.cursor/(skills|rules)|\\.agents/skills|\\.opencode/skills|\\.github/instructions)/';
 
 function getSessionStartSyncScript(): string {
-  const bin = resolveCaliber();
+  const bin = bashPath(resolveCaliber());
   return `#!/bin/sh
 # Mirror skills, rules and plugins across every configured agent at session
 # start, so the session begins with each provider holding the same set.
@@ -410,7 +411,7 @@ printf '{"systemMessage":"%s"}' "$ESCAPED"
 }
 
 function getPostToolUseSyncScript(): string {
-  const bin = resolveCaliber();
+  const bin = bashPath(resolveCaliber());
   return `#!/bin/sh
 # After the agent edits a skill or rule in ONE provider, mirror it into the
 # others so the change is live for every agent within the same session.

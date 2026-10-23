@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
+import { bashPath } from '../utils/windows.js';
 
 let _resolved: string | null = null;
 
@@ -179,6 +180,22 @@ export function resolveWindowsNodeBinInvocation(cmd: string): string | null {
   return `"${fwdNode}" "${fwdBin}"`;
 }
 
+/**
+ * Make a resolved caliber invocation safe to embed in a hook command string.
+ *
+ * Claude Code and Cursor run hook commands through bash on Windows, which eats
+ * the backslashes of `C:\Users\x\caliber.exe` (bun/pnpm/scoop installs).
+ * Convert to forward slashes and quote when the path contains whitespace.
+ * POSIX is returned unchanged.
+ */
+export function toHookPath(bin: string): string {
+  if (process.platform !== 'win32') return bin;
+  const npx = bin.match(/^(.*?)( --yes @rely-ai\/caliber)$/);
+  const exe = bashPath(npx ? npx[1] : bin);
+  const quoted = /\s/.test(exe) ? `"${exe}"` : exe;
+  return npx ? quoted + npx[2] : quoted;
+}
+
 function isWscriptAvailable(): boolean {
   try {
     const out = execSync('where wscript', {
@@ -211,7 +228,7 @@ export function resolveCaliberHookInvoker(): string {
   const base = resolveCaliber();
   const nodeDirect = resolveWindowsNodeBinInvocation(base);
   if (!nodeDirect) {
-    _resolvedHookInvoker = base;
+    _resolvedHookInvoker = toHookPath(base);
     return _resolvedHookInvoker;
   }
 
@@ -246,9 +263,9 @@ export function isCaliberCommand(command: string, subcommandTail: string): boole
   if (command === `caliber ${subcommandTail}`) return true;
   // Absolute-path match: ends with /caliber <tail>
   if (command.endsWith(`/caliber ${subcommandTail}`)) return true;
-  // Absolute-path match for Windows ``.cmd`` shim: ends with
-  // /caliber.cmd <tail> (case-insensitive .cmd suffix)
-  if (/[\\/]caliber\.cmd"? /i.test(command) && command.endsWith(` ${subcommandTail}`)) {
+  // Absolute-path match for Windows ``.cmd`` shim or ``.exe`` (bun): ends with
+  // /caliber.cmd|.exe <tail> (case-insensitive suffix)
+  if (/[\\/]caliber\.(cmd|exe)"? /i.test(command) && command.endsWith(` ${subcommandTail}`)) {
     return true;
   }
   // Bare npx match

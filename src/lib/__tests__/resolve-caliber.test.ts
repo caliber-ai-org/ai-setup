@@ -7,6 +7,7 @@ import {
   pickExecutable,
   displayCaliberName,
   resolveCaliberHookInvoker,
+  toHookPath,
 } from '../resolve-caliber.js';
 import { execSync } from 'child_process';
 import fs from 'fs';
@@ -340,12 +341,12 @@ describe('resolveCaliberHookInvoker (Windows cmd-shim bypass)', () => {
     });
   });
 
-  it('on Windows returns the .cmd path unchanged when bin.js is missing', () => {
+  it('on Windows returns the .cmd path with forward slashes when bin.js is missing', () => {
     withPlatform('win32', () => {
       // No bin.js sibling (existsSync mock returns false by default).
       mockedExecSync.mockReturnValue('C:\\Users\\u\\AppData\\Roaming\\npm\\caliber.cmd\n');
       const got = resolveCaliberHookInvoker();
-      expect(got).toBe('C:\\Users\\u\\AppData\\Roaming\\npm\\caliber.cmd');
+      expect(got).toBe('C:/Users/u/AppData/Roaming/npm/caliber.cmd');
     });
   });
 
@@ -426,7 +427,7 @@ describe('resolveCaliberHookInvoker (Windows cmd-shim bypass)', () => {
       vi.spyOn(fs, 'existsSync').mockReturnValue(true);
 
       const got = resolveCaliberHookInvoker();
-      expect(got).toBe('C:\\Users\\u\\AppData\\Roaming\\npm\\caliber.cmd');
+      expect(got).toBe('C:/Users/u/AppData/Roaming/npm/caliber.cmd');
     });
   });
 
@@ -462,5 +463,76 @@ describe('isCaliberCommand — node-direct + .cmd shim variants', () => {
       '"C:/some/other/package/dist/bin.js" ' +
       'learn observe';
     expect(isCaliberCommand(cmd, 'learn observe')).toBe(false);
+  });
+});
+
+describe('toHookPath', () => {
+  it('is a no-op on POSIX', () => {
+    withPlatform('linux', () => {
+      expect(toHookPath('/usr/local/bin/caliber')).toBe('/usr/local/bin/caliber');
+    });
+  });
+
+  it('converts a Windows .exe path to forward slashes', () => {
+    withPlatform('win32', () => {
+      expect(toHookPath('C:\\Users\\dev\\.bun\\bin\\caliber.exe')).toBe(
+        'C:/Users/dev/.bun/bin/caliber.exe',
+      );
+    });
+  });
+
+  it('quotes a Windows path containing spaces', () => {
+    withPlatform('win32', () => {
+      expect(toHookPath('C:\\Users\\Jane Doe\\.bun\\bin\\caliber.exe')).toBe(
+        '"C:/Users/Jane Doe/.bun/bin/caliber.exe"',
+      );
+    });
+  });
+
+  it('keeps the npx suffix outside the quotes', () => {
+    withPlatform('win32', () => {
+      expect(toHookPath('C:\\Program Files\\nodejs\\npx.cmd --yes @rely-ai/caliber')).toBe(
+        '"C:/Program Files/nodejs/npx.cmd" --yes @rely-ai/caliber',
+      );
+    });
+  });
+
+  it('leaves bare names untouched', () => {
+    withPlatform('win32', () => {
+      expect(toHookPath('caliber')).toBe('caliber');
+      expect(toHookPath('npx --yes @rely-ai/caliber')).toBe('npx --yes @rely-ai/caliber');
+    });
+  });
+});
+
+describe('resolveCaliberHookInvoker with a bun .exe on Windows', () => {
+  beforeEach(() => {
+    resetResolvedCaliber();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('emits forward slashes so Git Bash does not strip backslashes', () => {
+    withPlatform('win32', () => {
+      process.argv[1] = 'C:/work/script.js';
+      delete process.env.npm_execpath;
+      mockedExecSync.mockReturnValue(
+        'C:\\Users\\dev\\.bun\\bin\\caliber.exe' + String.fromCharCode(10),
+      );
+      expect(resolveCaliberHookInvoker()).toBe('C:/Users/dev/.bun/bin/caliber.exe');
+    });
+  });
+});
+
+describe('isCaliberCommand with a caliber.exe path', () => {
+  it('matches unquoted and quoted forward-slash .exe commands', () => {
+    expect(
+      isCaliberCommand('C:/Users/dev/.bun/bin/caliber.exe learn observe', 'learn observe'),
+    ).toBe(true);
+    expect(
+      isCaliberCommand('"C:/Users/dev/.bun/bin/caliber.exe" learn observe', 'learn observe'),
+    ).toBe(true);
   });
 });
