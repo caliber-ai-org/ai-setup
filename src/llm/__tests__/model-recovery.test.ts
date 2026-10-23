@@ -165,6 +165,36 @@ describe('handleModelNotAvailable', () => {
     expect(result).toBe('claude-sonnet-4-6@20250514');
   });
 
+  it('keeps non-OpenAI model ids for an OpenAI-compatible custom baseUrl', async () => {
+    const listModels = vi.fn().mockResolvedValue(['glm-5.1', 'qwen3-coder', 'gpt-oss:120b']);
+    const provider = makeProvider(listModels);
+    const config = makeConfig({
+      provider: 'openai',
+      model: 'glm-5.3-flash',
+      baseUrl: 'https://ollama.com/v1',
+    });
+    mockSelect.mockResolvedValue('glm-5.1');
+
+    await handleModelNotAvailable('glm-5.3-flash', provider, config);
+
+    const values = mockSelect.mock.calls[0][0].choices.map((c: { value: string }) => c.value);
+    expect(values).toEqual(['glm-5.1', 'qwen3-coder', 'gpt-oss:120b']);
+  });
+
+  it('never offers OpenAI models for a custom baseUrl when listing is empty', async () => {
+    const provider = makeProvider(vi.fn().mockRejectedValue(new Error('no /models')));
+    const config = makeConfig({
+      provider: 'openai',
+      model: 'glm-5.3-flash',
+      baseUrl: 'https://ollama.com/v1',
+    });
+
+    const result = await handleModelNotAvailable('glm-5.3-flash', provider, config);
+
+    expect(result).toBeNull();
+    expect(mockSelect).not.toHaveBeenCalled();
+  });
+
   it('falls back to known models when listModels throws', async () => {
     const listModels = vi.fn().mockRejectedValue(new Error('API error'));
     const provider = makeProvider(listModels);
