@@ -13,6 +13,7 @@ const {
   MockVertexProvider,
   MockOpenAIProvider,
   MockAtlasCloudProvider,
+  MockCheaperInferenceProvider,
   MockCursorAcpProvider,
   MockClaudeCliProvider,
 } = vi.hoisted(() => {
@@ -48,6 +49,14 @@ const {
       this.config = c;
     }
   }
+  class MockCheaperInferenceProvider {
+    config: unknown;
+    call = vi.fn();
+    stream = vi.fn();
+    constructor(c: unknown) {
+      this.config = c;
+    }
+  }
   class MockCursorAcpProvider {
     config: unknown;
     call = vi.fn();
@@ -75,6 +84,7 @@ const {
     MockVertexProvider,
     MockOpenAIProvider,
     MockAtlasCloudProvider,
+    MockCheaperInferenceProvider,
     MockCursorAcpProvider,
     MockClaudeCliProvider,
   };
@@ -100,6 +110,10 @@ vi.mock('../openai-compat.js', () => ({
 
 vi.mock('../atlascloud.js', () => ({
   AtlasCloudProvider: MockAtlasCloudProvider,
+}));
+
+vi.mock('../cheaperinference.js', () => ({
+  CheaperInferenceProvider: MockCheaperInferenceProvider,
 }));
 
 vi.mock('../cursor-acp.js', () => ({
@@ -165,6 +179,25 @@ describe('getProvider', () => {
       model: 'deepseek-ai/deepseek-v4-pro',
       apiKey: 'atlas-key',
       baseUrl: 'https://api.atlascloud.ai/v1',
+    });
+  });
+
+  it('creates CheaperInferenceProvider for cheaperinference config', () => {
+    mockLoadConfig.mockReturnValue({
+      provider: 'cheaperinference',
+      model: 'gpt-5.4-mini',
+      apiKey: 'ci-key',
+      baseUrl: 'https://api.cheaperinference.com/v1',
+    });
+
+    const provider = getProvider();
+
+    expect(provider).toBeInstanceOf(MockCheaperInferenceProvider);
+    expect((provider as InstanceType<typeof MockCheaperInferenceProvider>).config).toEqual({
+      provider: 'cheaperinference',
+      model: 'gpt-5.4-mini',
+      apiKey: 'ci-key',
+      baseUrl: 'https://api.cheaperinference.com/v1',
     });
   });
 

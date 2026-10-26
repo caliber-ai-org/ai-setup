@@ -30,6 +30,8 @@ describe('config', () => {
     delete process.env.MINIMAX_API_KEY;
     delete process.env.ATLASCLOUD_API_KEY;
     delete process.env.ATLAS_CLOUD_API_KEY;
+    delete process.env.CHEAPERINFERENCE_API_KEY;
+    delete process.env.CHEAPER_INFERENCE_API_KEY;
     delete process.env.VERTEX_PROJECT_ID;
     delete process.env.GCP_PROJECT_ID;
     delete process.env.CALIBER_MODEL;
@@ -41,6 +43,12 @@ describe('config', () => {
     delete process.env.ATLAS_CLOUD_MODEL;
     delete process.env.ATLASCLOUD_FAST_MODEL;
     delete process.env.ATLAS_CLOUD_FAST_MODEL;
+    delete process.env.CHEAPERINFERENCE_BASE_URL;
+    delete process.env.CHEAPER_INFERENCE_BASE_URL;
+    delete process.env.CHEAPERINFERENCE_MODEL;
+    delete process.env.CHEAPER_INFERENCE_MODEL;
+    delete process.env.CHEAPERINFERENCE_FAST_MODEL;
+    delete process.env.CHEAPER_INFERENCE_FAST_MODEL;
     delete process.env.VERTEX_REGION;
     delete process.env.GCP_REGION;
     delete process.env.VERTEX_SA_CREDENTIALS;
@@ -140,6 +148,33 @@ describe('config', () => {
         apiKey: 'atlas-alias-key',
         model: 'qwen/qwen3.5-27b',
         fastModel: 'deepseek-ai/deepseek-v4-flash',
+        baseUrl: 'https://gateway.example.com/v1',
+      });
+    });
+
+    it('returns cheaperinference config when CHEAPERINFERENCE_API_KEY is set', () => {
+      process.env.CHEAPERINFERENCE_API_KEY = 'ci-key';
+      const config = resolveFromEnv();
+      expect(config).toEqual({
+        provider: 'cheaperinference',
+        apiKey: 'ci-key',
+        model: DEFAULT_MODELS.cheaperinference,
+        fastModel: undefined,
+        baseUrl: 'https://api.cheaperinference.com/v1',
+      });
+    });
+
+    it('supports CHEAPER_INFERENCE aliases for Cheaper Inference env vars', () => {
+      process.env.CHEAPER_INFERENCE_API_KEY = 'ci-alias-key';
+      process.env.CHEAPER_INFERENCE_BASE_URL = 'https://gateway.example.com/v1';
+      process.env.CHEAPER_INFERENCE_MODEL = 'claude-sonnet-5';
+      process.env.CHEAPER_INFERENCE_FAST_MODEL = 'deepseek-v4-flash';
+      const config = resolveFromEnv();
+      expect(config).toEqual({
+        provider: 'cheaperinference',
+        apiKey: 'ci-alias-key',
+        model: 'claude-sonnet-5',
+        fastModel: 'deepseek-v4-flash',
         baseUrl: 'https://gateway.example.com/v1',
       });
     });
@@ -312,6 +347,22 @@ describe('config', () => {
       expect(config?.provider).toBe('atlascloud');
       expect(config?.model).toBe('deepseek-ai/deepseek-v4-pro');
     });
+
+    it('parses config file with cheaperinference provider', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+
+      vi.mocked(fs.readFileSync).mockReturnValue(
+        JSON.stringify({
+          provider: 'cheaperinference',
+          model: 'gpt-5.4-mini',
+          apiKey: 'ci-key',
+          baseUrl: 'https://api.cheaperinference.com/v1',
+        }) as any,
+      );
+      const config = readConfigFile();
+      expect(config?.provider).toBe('cheaperinference');
+      expect(config?.model).toBe('gpt-5.4-mini');
+    });
   });
 
   describe('loadConfig', () => {
@@ -442,6 +493,11 @@ describe('config', () => {
     it('returns provider default for atlascloud', () => {
       process.env.ATLASCLOUD_API_KEY = 'atlas-key';
       expect(getFastModel()).toBe('deepseek-ai/deepseek-v4-flash');
+    });
+
+    it('returns provider default for cheaperinference', () => {
+      process.env.CHEAPERINFERENCE_API_KEY = 'ci-key';
+      expect(getFastModel()).toBe('gpt-5.4-nano');
     });
 
     it('returns cursor fast model default', () => {

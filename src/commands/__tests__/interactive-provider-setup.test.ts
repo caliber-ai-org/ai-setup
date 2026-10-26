@@ -25,6 +25,7 @@ vi.mock('../../llm/config.js', () => ({
     openai: 'gpt-5.4-mini',
     minimax: 'MiniMax-M3',
     atlascloud: 'deepseek-ai/deepseek-v4-pro',
+    cheaperinference: 'gpt-5.4-mini',
     cursor: 'default',
     'claude-cli': 'default',
     opencode: 'default',
@@ -133,6 +134,18 @@ describe('runInteractiveProviderSetup', () => {
     expect(config.apiKey).toBe('atlas-key');
     expect(config.baseUrl).toBe('https://api.atlascloud.ai/v1');
     expect(config.model).toBe('deepseek-ai/deepseek-v4-pro');
+  });
+
+  it('configures cheaperinference provider with API key, base URL, and default model', async () => {
+    mockSelect.mockResolvedValue('cheaperinference');
+    mockInput.mockResolvedValueOnce('ci-key').mockResolvedValueOnce('').mockResolvedValueOnce('');
+
+    const config = await runInteractiveProviderSetup();
+
+    expect(config.provider).toBe('cheaperinference');
+    expect(config.apiKey).toBe('ci-key');
+    expect(config.baseUrl).toBe('https://api.cheaperinference.com/v1');
+    expect(config.model).toBe('gpt-5.4-mini');
   });
 
   it('throws __exit__ when openai API key is empty', async () => {

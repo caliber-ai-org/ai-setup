@@ -12,6 +12,7 @@ export const DEFAULT_MODELS: Record<ProviderType, string> = {
   openai: 'gpt-5.4-mini',
   minimax: 'MiniMax-M3',
   atlascloud: 'deepseek-ai/deepseek-v4-pro',
+  cheaperinference: 'gpt-5.4-mini',
   cursor: 'auto',
   'claude-cli': 'default',
   opencode: 'default',
@@ -32,6 +33,10 @@ export const MODEL_CONTEXT_WINDOWS: Record<string, number> = {
   'deepseek-ai/deepseek-v4-pro': 1_048_000,
   'deepseek-ai/deepseek-v4-flash': 1_048_000,
   'qwen/qwen3.5-27b': 262_000,
+  'gpt-5.4-nano': 400_000,
+  'gpt-5.4': 1_000_000,
+  'claude-sonnet-5': 1_000_000,
+  'deepseek-v4-flash': 1_000_000,
 };
 
 const DEFAULT_CONTEXT_WINDOW = 200_000;
@@ -55,6 +60,7 @@ export const DEFAULT_FAST_MODELS: Partial<Record<ProviderType, string>> = {
   openai: 'gpt-5.4-mini',
   minimax: 'MiniMax-M2.7-highspeed',
   atlascloud: 'deepseek-ai/deepseek-v4-flash',
+  cheaperinference: 'gpt-5.4-nano',
   cursor: 'gpt-5.3-codex-fast',
 };
 
@@ -123,6 +129,26 @@ export function resolveFromEnv(): LLMConfig | null {
     };
   }
 
+  const cheaperInferenceApiKey =
+    process.env.CHEAPERINFERENCE_API_KEY || process.env.CHEAPER_INFERENCE_API_KEY;
+  if (cheaperInferenceApiKey) {
+    return {
+      provider: 'cheaperinference',
+      apiKey: cheaperInferenceApiKey,
+      model:
+        process.env.CHEAPERINFERENCE_MODEL ||
+        process.env.CHEAPER_INFERENCE_MODEL ||
+        process.env.CALIBER_MODEL ||
+        DEFAULT_MODELS.cheaperinference,
+      fastModel:
+        process.env.CHEAPERINFERENCE_FAST_MODEL || process.env.CHEAPER_INFERENCE_FAST_MODEL,
+      baseUrl:
+        process.env.CHEAPERINFERENCE_BASE_URL ||
+        process.env.CHEAPER_INFERENCE_BASE_URL ||
+        'https://api.cheaperinference.com/v1',
+    };
+  }
+
   // Prefer Cursor seat when explicitly requested (no API key; uses agent acp + agent login)
   if (
     process.env.CALIBER_USE_CURSOR_SEAT === '1' ||
@@ -166,6 +192,7 @@ export function readConfigFile(): LLMConfig | null {
         'openai',
         'minimax',
         'atlascloud',
+        'cheaperinference',
         'cursor',
         'claude-cli',
         'opencode',
