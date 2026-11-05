@@ -2,11 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import {
-  resolveCaliber,
   isCaliberCommand,
   isNpxResolution,
   resolveWindowsNodeBinInvocation,
 } from './resolve-caliber.js';
+import {
+  HOOK_LAUNCHER_SHELL_PATH,
+  hasStaleCaliberPath,
+  resolveHookBinary,
+  resolveHookCommand,
+} from './hook-launcher.js';
 import { bashPath } from '../utils/windows.js';
 
 const SETTINGS_PATH = path.join('.claude', 'settings.json');
@@ -15,7 +20,7 @@ const HOOK_DESCRIPTION = 'Caliber: auto-refreshing docs based on code changes';
 
 function getHookCommand(): string {
   // Use node-direct on Windows (no VBS — SessionEnd may need stdout).
-  const cmd = resolveCaliber();
+  const cmd = resolveHookCommand();
   const direct = resolveWindowsNodeBinInvocation(cmd);
   return `${direct ?? cmd} ${REFRESH_TAIL}`;
 }
@@ -73,8 +78,15 @@ export function installHook(): { installed: boolean; alreadyInstalled: boolean }
   if (!settings.hooks) settings.hooks = {};
   if (!Array.isArray(settings.hooks.SessionEnd)) settings.hooks.SessionEnd = [];
 
-  if (findHookIndex(settings.hooks.SessionEnd) !== -1) {
-    return { installed: false, alreadyInstalled: true };
+  const existingIndex = findHookIndex(settings.hooks.SessionEnd);
+  if (existingIndex !== -1) {
+    const staleHooks = settings.hooks.SessionEnd[existingIndex].hooks.filter(
+      (hook) => isCaliberCommand(hook.command, REFRESH_TAIL) && hasStaleCaliberPath(hook.command),
+    );
+    if (staleHooks.length === 0) return { installed: false, alreadyInstalled: true };
+    for (const hook of staleHooks) hook.command = getHookCommand();
+    writeSettings(settings);
+    return { installed: true, alreadyInstalled: false };
   }
 
   settings.hooks.SessionEnd.push({
@@ -331,10 +343,25 @@ export const installStopHook = stopHook.install;
 export const removeStopHook = stopHook.remove;
 export const migrateStopHook = stopHook.migrate;
 
+function createBinaryScriptHook(config: ScriptHookConfig & { scriptContent: () => string }) {
+  const hook = createScriptHook(config);
+
+  function install(): { installed: boolean; alreadyInstalled: boolean; upgraded?: boolean } {
+    const result = hook.install();
+    if (!result.alreadyInstalled || !fs.existsSync(config.scriptPath)) return result;
+    if (!hasStaleCaliberPath(fs.readFileSync(config.scriptPath, 'utf-8'))) return result;
+    fs.writeFileSync(config.scriptPath, config.scriptContent());
+    fs.chmodSync(config.scriptPath, 0o755);
+    return { installed: false, alreadyInstalled: false, upgraded: true };
+  }
+
+  return { ...hook, install };
+}
+
 // ── Freshness check script ───────────────────────────────────────────
 
 export function getFreshnessScript(): string {
-  const bin = resolveCaliber();
+  const bin = resolveHookBinary();
   return `#!/bin/sh
 # Don't run inside a caliber-spawned headless session — the systemMessage would
 # pollute the spawned agent's output and serves no purpose there.
@@ -356,7 +383,7 @@ fi
 
 // ── SessionStart hook (freshness check on session start) ────────────
 
-const sessionStartHook = createScriptHook({
+const sessionStartHook = createBinaryScriptHook({
   eventName: 'SessionStart',
   scriptPath: path.posix.join('.claude', 'hooks', 'caliber-session-freshness.sh'),
   scriptContent: getFreshnessScript,
@@ -392,7 +419,7 @@ const SYNC_PATH_PATTERN =
   '(\\.claude/(skills|rules)|\\.cursor/(skills|rules)|\\.agents/skills|\\.opencode/skills|\\.github/instructions)/';
 
 function getSessionStartSyncScript(): string {
-  const bin = resolveCaliber();
+  const bin = resolveHookCommand();
   return `#!/bin/sh
 # Mirror skills, rules and plugins across every configured agent at session
 # start, so the session begins with each provider holding the same set.
@@ -410,7 +437,7 @@ printf '{"systemMessage":"%s"}' "$ESCAPED"
 }
 
 function getPostToolUseSyncScript(): string {
-  const bin = resolveCaliber();
+  const bin = resolveHookCommand();
   return `#!/bin/sh
 # After the agent edits a skill or rule in ONE provider, mirror it into the
 # others so the change is live for every agent within the same session.
@@ -427,7 +454,7 @@ exit 0
 `;
 }
 
-const sessionStartSyncHook = createScriptHook({
+const sessionStartSyncHook = createBinaryScriptHook({
   eventName: 'SessionStart',
   scriptPath: path.posix.join('.claude', 'hooks', 'caliber-sync-agents.sh'),
   scriptContent: getSessionStartSyncScript,
@@ -439,7 +466,7 @@ export const installSessionStartSyncHook = sessionStartSyncHook.install;
 export const removeSessionStartSyncHook = sessionStartSyncHook.remove;
 export const migrateSessionStartSyncHook = sessionStartSyncHook.migrate;
 
-const postToolUseSyncHook = createScriptHook({
+const postToolUseSyncHook = createBinaryScriptHook({
   eventName: 'PostToolUse',
   matcher: 'Write|Edit',
   scriptPath: path.posix.join('.claude', 'hooks', 'caliber-sync-on-edit.sh'),
@@ -454,7 +481,7 @@ export const migratePostToolUseSyncHook = postToolUseSyncHook.migrate;
 
 // ── Notification hook (kept for backwards compat, not auto-installed) ─
 
-const notificationHook = createScriptHook({
+const notificationHook = createBinaryScriptHook({
   eventName: 'Notification',
   scriptPath: path.posix.join('.claude', 'hooks', 'caliber-freshness-notify.sh'),
   scriptContent: getFreshnessScript,
@@ -527,7 +554,7 @@ function tryWindowsDirectNodeInvocation(cmd: string): string | null {
 }
 
 function getPrecommitBlock(): string {
-  const cmd = resolveCaliber();
+  const cmd = resolveHookBinary();
   const npx = isNpxResolution();
 
   let guard: string;
@@ -568,7 +595,7 @@ function getPrecommitBlock(): string {
       // 'caliber' as last resort. bashPath() converts \\ → / so bash
       // quote-removal doesn't eat the backslashes on Windows.
       const cmdBash = bashPath(cmd);
-      if (path.isAbsolute(cmd)) {
+      if (path.isAbsolute(cmd) || cmd === HOOK_LAUNCHER_SHELL_PATH) {
         guard = `[ -x "${cmdBash}" ]`;
       } else {
         guard = `[ -x "${cmdBash}" ] || command -v "${cmdBash}" >/dev/null 2>&1`;
@@ -621,12 +648,17 @@ export function isPreCommitHookInstalled(): boolean {
   return PRECOMMIT_ANY_VERSION_START_RE.test(content);
 }
 
-/** True only when the installed block matches the current HOOK_BLOCK_VERSION. */
+function isPrecommitBlockCurrent(content: string): boolean {
+  if (!content.includes(PRECOMMIT_START)) return false;
+  const installedBlocks = content.match(PRECOMMIT_ANY_VERSION_BLOCK_RE) ?? [];
+  return !hasStaleCaliberPath(installedBlocks.join('\n'));
+}
+
 export function isPreCommitHookCurrent(): boolean {
   const hookPath = getPreCommitPath();
   if (!hookPath || !fs.existsSync(hookPath)) return false;
   const content = fs.readFileSync(hookPath, 'utf-8');
-  return content.includes(PRECOMMIT_START);
+  return isPrecommitBlockCurrent(content);
 }
 
 export function installPreCommitHook(): {
@@ -646,10 +678,10 @@ export function installPreCommitHook(): {
   let content = exists ? fs.readFileSync(hookPath, 'utf-8') : '';
 
   if (PRECOMMIT_ANY_VERSION_START_RE.test(content)) {
-    if (content.includes(PRECOMMIT_START)) {
+    if (isPrecommitBlockCurrent(content)) {
       return { installed: false, alreadyInstalled: true, upgraded: false };
     }
-    // Stale version (legacy unversioned or older vN) — strip and re-install at current version.
+    // Because old blocks and dead binary paths never self-heal, replace the block.
     content = content.replace(PRECOMMIT_ANY_VERSION_BLOCK_RE, '\n').replace(/\n{3,}/g, '\n\n');
     if (!content.endsWith('\n')) content += '\n';
     content += '\n' + getPrecommitBlock() + '\n';
