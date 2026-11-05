@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { resolveCaliber, resolveCaliberHookInvoker } from './resolve-caliber.js';
+import { isNpxResolution, resolveCaliber, resolveCaliberHookInvoker } from './resolve-caliber.js';
 
 export const HOOK_LAUNCHER_SHELL_PATH = '$HOME/.caliber/bin/caliber';
 // Only $HOME is quoted so that isCaliberCommand still matches the /caliber suffix.
@@ -13,6 +13,9 @@ const VERSION_MANAGED_PATH =
 // Because $HOME/x and @rely-ai/caliber are not baked paths, lookbehind skips them.
 const BAKED_CALIBER_PATH = /(?<![\w$}@.-]|\$HOME")\/[^\s"'`$():]+\/caliber(?=[\s"'`)]|$)/gm;
 const QUOTED_DIR_CALIBER_PATH = /"(\/[^"]+)"\/caliber/g;
+const QUOTED_CALIBER_PATH = /"(\/[^"]*\/caliber)"/g;
+// Because a word after a space cannot start with /, - or @, wrappers and npx never match.
+const UNQUOTED_COMMAND_PATH = /^(\/(?:[^\s/]+(?: [^\s/@-][^\s/]*)*\/)+caliber)(?=\s|$)/gm;
 
 // Relative PATH entries are skipped so that a repo cannot pick the binary.
 // npx is absent so that hooks never run unpinned registry code.
@@ -25,18 +28,22 @@ is_generated_launcher() {
   [ "$second_line" = ": ${GENERATED_MARKER}" ]
 }
 caliber_bin=""
+absolute_path=""
 set -f
 old_ifs=$IFS
 IFS=:
 for dir in $PATH; do
   [ "\${dir#/}" = "$dir" ] && continue
+  absolute_path="$absolute_path$dir:"
+  [ -n "$caliber_bin" ] && continue
   [ -f "$dir/caliber" ] && [ -x "$dir/caliber" ] || continue
   is_generated_launcher "$dir/caliber" && continue
   caliber_bin="$dir/caliber"
-  break
 done
 IFS=$old_ifs
 set +f
+PATH="\${absolute_path}/usr/bin:/bin"
+export PATH
 if [ -z "$caliber_bin" ]; then
   caliber_bin=$(
     for candidate in "$HOME"/.nvm/versions/node/v*/bin/caliber \\
@@ -59,7 +66,6 @@ if [ -z "$caliber_bin" ]; then
   exit 0
 fi
 PATH="\${caliber_bin%/*}:$PATH"
-export PATH
 exec "$caliber_bin" "$@"
 `;
 
@@ -68,7 +74,7 @@ function launcherAbsolutePath(): string {
 }
 
 function usesHookLauncher(resolved: string): boolean {
-  if (process.platform === 'win32') return false;
+  if (process.platform === 'win32' || isNpxResolution()) return false;
   return VERSION_MANAGED_PATH.test(resolved) || resolved === launcherAbsolutePath();
 }
 
@@ -124,24 +130,36 @@ export function resolveCursorHookInvoker(): string {
     : resolveCaliberHookInvoker();
 }
 
+function isLauncherUnusable(): boolean {
+  if (!fs.existsSync(launcherAbsolutePath())) return true;
+  // A bare name means which failed, so that it says nothing about the install.
+  const resolved = resolveCaliber();
+  return resolved !== 'caliber' && !usesHookLauncher(resolved);
+}
+
 function isStaleCaliberPath(candidate: string): boolean {
+  if (candidate === launcherAbsolutePath()) return isLauncherUnusable();
   // Because no better binary exists, the path install would write again is not stale.
   if (candidate === resolveCaliber() && resolveHookBinary() === candidate) return false;
   return VERSION_MANAGED_PATH.test(candidate) || !fs.existsSync(candidate);
 }
 
-function referencesMissingLauncher(text: string): boolean {
+function referencesUnusableLauncher(text: string): boolean {
   const referencesLauncher =
     text.includes(HOOK_LAUNCHER_SHELL_PATH) || text.includes(HOOK_LAUNCHER_COMMAND);
-  return referencesLauncher && !fs.existsSync(launcherAbsolutePath());
+  return referencesLauncher && isLauncherUnusable();
 }
 
 export function hasStaleCaliberPath(text: string): boolean {
   if (process.platform === 'win32') return false;
-  if (referencesMissingLauncher(text)) return true;
+  if (referencesUnusableLauncher(text)) return true;
   const bakedPaths = [...text.matchAll(BAKED_CALIBER_PATH)].map(([candidate]) => candidate);
   const quotedDirPaths = [...text.matchAll(QUOTED_DIR_CALIBER_PATH)].map(
     ([, directory]) => `${directory}/caliber`,
   );
-  return [...bakedPaths, ...quotedDirPaths].some(isStaleCaliberPath);
+  const quotedPaths = [...text.matchAll(QUOTED_CALIBER_PATH)].map(([, candidate]) => candidate);
+  const commandPaths = [...text.matchAll(UNQUOTED_COMMAND_PATH)].map(([, candidate]) => candidate);
+  return [...bakedPaths, ...quotedDirPaths, ...quotedPaths, ...commandPaths].some(
+    isStaleCaliberPath,
+  );
 }

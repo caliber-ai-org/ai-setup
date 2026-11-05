@@ -16,12 +16,25 @@ import {
 } from '../hooks.js';
 import { installCursorLearningHooks, installLearningHooks } from '../learning-hooks.js';
 import {
+  CURSOR_FILE,
   NVM_CALIBER,
+  PRE_COMMIT_FILE,
+  SETTINGS_FILE,
+  STABLE_CALIBER,
   SYSTEM_PATH,
+  claudeLearning,
   createLauncherSandbox,
   createSandbox,
+  cursorLearning,
+  dequoted,
+  freshnessScript,
+  installedScript,
+  onEditScript,
+  preCommit,
   read,
   runSh,
+  sessionEnd,
+  syncScript,
   writeExecutable,
   writeSentinelBinary,
   type Sandbox,
@@ -35,23 +48,8 @@ vi.mock('child_process', async (importActual) => ({
 const posixDescribe = describe.skipIf(process.platform === 'win32');
 
 const DEAD_CALIBER = '/Users/other-dev/.nvm/versions/node/v24.20.0/bin/caliber';
-const STABLE_CALIBER = '/opt/homebrew/bin/caliber';
 const USER_COMMAND = 'user-tool run';
 const HOME_NAMES = ['home', 'my home'];
-
-const SETTINGS_FILE = path.join('.claude', 'settings.json');
-const CURSOR_FILE = path.join('.cursor', 'hooks.json');
-const PRE_COMMIT_FILE = path.join('.git', 'hooks', 'pre-commit');
-
-function installedScript(): string {
-  const dir = path.join('.claude', 'hooks');
-  return path.join(dir, fs.readdirSync(dir)[0]);
-}
-
-// Because quoting varies per surface, real sh runs pin it, not text checks.
-function dequoted(text: string): string {
-  return text.replace(/\\?"/g, '');
-}
 
 function claudeCommands(): string[] {
   const { hooks } = JSON.parse(read(SETTINGS_FILE)) as {
@@ -93,48 +91,6 @@ function surroundPreCommitWithUserLines(): void {
   const block = read(PRE_COMMIT_FILE).replace('#!/bin/sh\n', '');
   fs.writeFileSync(PRE_COMMIT_FILE, `#!/bin/sh\necho user-before\n${block}\necho user-after\n`);
 }
-
-interface Surface {
-  name: string;
-  install: () => { alreadyInstalled: boolean };
-  artifact: () => string;
-}
-
-const preCommit: Surface = {
-  name: 'pre-commit block',
-  install: installPreCommitHook,
-  artifact: () => PRE_COMMIT_FILE,
-};
-const claudeLearning: Surface = {
-  name: 'Claude learning hooks',
-  install: installLearningHooks,
-  artifact: () => SETTINGS_FILE,
-};
-const sessionEnd: Surface = {
-  name: 'Claude SessionEnd hook',
-  install: installHook,
-  artifact: () => SETTINGS_FILE,
-};
-const cursorLearning: Surface = {
-  name: 'Cursor learning hooks',
-  install: installCursorLearningHooks,
-  artifact: () => CURSOR_FILE,
-};
-const freshnessScript: Surface = {
-  name: 'freshness script',
-  install: installSessionStartHook,
-  artifact: installedScript,
-};
-const syncScript: Surface = {
-  name: 'session-start sync script',
-  install: installSessionStartSyncHook,
-  artifact: installedScript,
-};
-const onEditScript: Surface = {
-  name: 'on-edit sync script',
-  install: installPostToolUseSyncHook,
-  artifact: installedScript,
-};
 
 const SHELL_FORM_SURFACES = [
   preCommit,
@@ -464,16 +420,16 @@ posixDescribe('a which result under the macOS fnm directory', () => {
   });
 });
 
+const FOREIGN_LAUNCHER_DIR = '/Users/other-dev/.caliber/bin';
+
+function plantForeignCursorHooks(sandbox: Sandbox): void {
+  installCursorLearningHooks();
+  const launcherDir = path.dirname(sandbox.launcherFile);
+  fs.writeFileSync(CURSOR_FILE, read(CURSOR_FILE).replaceAll(launcherDir, FOREIGN_LAUNCHER_DIR));
+  addCursorUserHook();
+}
+
 posixDescribe('Cursor hooks holding a launcher path from elsewhere', () => {
-  const FOREIGN_LAUNCHER_DIR = '/Users/other-dev/.caliber/bin';
-
-  function plantForeignCursorHooks(sandbox: Sandbox): void {
-    installCursorLearningHooks();
-    const launcherDir = path.dirname(sandbox.launcherFile);
-    fs.writeFileSync(CURSOR_FILE, read(CURSOR_FILE).replaceAll(launcherDir, FOREIGN_LAUNCHER_DIR));
-    addCursorUserHook();
-  }
-
   it('repairs another machine launcher path to this home', () => {
     const sandbox = createSandbox(NVM_CALIBER);
     plantForeignCursorHooks(sandbox);
@@ -614,7 +570,9 @@ posixDescribe('hasStaleCaliberPath', () => {
 
     expect(hasStaleCaliberPath(`${live} refresh`)).toBe(true);
   });
+});
 
+posixDescribe('hasStaleCaliberPath on live and launcher paths', () => {
   it.each([
     ['the current stable path', `${STABLE_CALIBER} refresh --quiet`],
     ['the braced launcher form', `${HOOK_LAUNCHER_SHELL_PATH.replace('$HOME', '${HOME}')} x`],
@@ -639,7 +597,9 @@ posixDescribe('hasStaleCaliberPath', () => {
 
     expect(hasStaleCaliberPath(`${form} refresh`)).toBe(true);
   });
+});
 
+posixDescribe('hasStaleCaliberPath on the Cursor launcher form', () => {
   it('accepts the Cursor launcher form when the launcher exists in this home', () => {
     const sandbox = createLauncherSandbox();
     const launcherDir = path.dirname(sandbox.launcherFile);
