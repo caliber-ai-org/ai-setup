@@ -1,6 +1,11 @@
 import fs from 'fs';
 import path from 'path';
-import { resolveCaliberHookInvoker, isCaliberCommand } from './resolve-caliber.js';
+import { isCaliberCommand } from './resolve-caliber.js';
+import {
+  hasStaleCaliberPath,
+  resolveCursorHookInvoker,
+  resolveHookInvoker,
+} from './hook-launcher.js';
 
 // ── Claude Code hooks ────────────────────────────────────────────────
 
@@ -36,7 +41,7 @@ function getHookConfigs() {
   // Claude Code would otherwise see on every hook fire. POSIX and
   // non-shim Windows installs fall through to the plain
   // ``resolveCaliber()`` path unchanged.
-  const bin = resolveCaliberHookInvoker();
+  const bin = resolveHookInvoker();
   return HOOK_TAILS.map(({ event, tail, description }) => ({
     event,
     command: `${bin} ${tail}`,
@@ -90,9 +95,28 @@ export function areLearningHooksInstalled(): boolean {
   });
 }
 
+function repairStaleLearningHooks(): boolean {
+  const settings = readSettings();
+  const staleHooks = HOOK_TAILS.flatMap(({ event, tail }) => {
+    const matchers = settings.hooks?.[event];
+    if (!Array.isArray(matchers)) return [];
+    return matchers
+      .flatMap((entry) => entry.hooks ?? [])
+      .filter((hook) => isCaliberCommand(hook.command, tail) && hasStaleCaliberPath(hook.command))
+      .map((hook) => ({ hook, tail }));
+  });
+  if (staleHooks.length === 0) return false;
+
+  const bin = resolveHookInvoker();
+  for (const { hook, tail } of staleHooks) hook.command = `${bin} ${tail}`;
+  writeSettings(settings);
+  return true;
+}
+
 export function installLearningHooks(): { installed: boolean; alreadyInstalled: boolean } {
+  const repaired = repairStaleLearningHooks();
   if (areLearningHooksInstalled()) {
-    return { installed: false, alreadyInstalled: true };
+    return { installed: repaired, alreadyInstalled: !repaired };
   }
 
   const settings = readSettings();
@@ -160,15 +184,35 @@ export function areCursorLearningHooksInstalled(): boolean {
   });
 }
 
+function repairStaleCursorHooks(): boolean {
+  const config = readCursorHooks();
+  const staleEntries = CURSOR_HOOK_EVENTS.flatMap(({ event, tail }) => {
+    const entries = config.hooks[event];
+    if (!Array.isArray(entries)) return [];
+    return entries
+      .filter(
+        (entry) => isCaliberCommand(entry.command, tail) && hasStaleCaliberPath(entry.command),
+      )
+      .map((entry) => ({ entry, tail }));
+  });
+  if (staleEntries.length === 0) return false;
+
+  const bin = resolveCursorHookInvoker();
+  for (const { entry, tail } of staleEntries) entry.command = `${bin} ${tail}`;
+  writeCursorHooks(config);
+  return true;
+}
+
 export function installCursorLearningHooks(): { installed: boolean; alreadyInstalled: boolean } {
+  const repaired = repairStaleCursorHooks();
   if (areCursorLearningHooksInstalled()) {
-    return { installed: false, alreadyInstalled: true };
+    return { installed: repaired, alreadyInstalled: !repaired };
   }
 
   const config = readCursorHooks();
   // Same Windows cmd-shim bypass as the Claude Code installer — see
   // ``resolveCaliberHookInvoker`` for the rationale.
-  const bin = resolveCaliberHookInvoker();
+  const bin = resolveCursorHookInvoker();
 
   for (const cfg of CURSOR_HOOK_EVENTS) {
     if (!Array.isArray(config.hooks[cfg.event])) {
