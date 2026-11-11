@@ -69,12 +69,12 @@ describe('OpenCode JSON responses', () => {
   it('rejects a model error event after partial text', async () => {
     completeWith([
       '{"type":"text","part":{"text":"Partial output"}}\n',
-      '{"type":"error","error":{"name":"APIError","data":{"message":"Free limit reached"}}}\n',
+      '{"type":"error","error":{"name":"APIError","data":{"message":"Model request rejected"}}}\n',
     ]);
     const provider = new OpenCodeProvider({ provider: 'opencode', model: 'default' });
 
     await expect(provider.call({ system: '', prompt: 'Update' })).rejects.toThrow(
-      'Free limit reached',
+      'Model request rejected',
     );
   });
 
